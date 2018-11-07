@@ -102,3 +102,5 @@ venv.bak/
 
 # mypy
 .mypy_cache/
+methQC/EPIC_polymorphic_crossRxtve_probes.csv
+methQC/450k_polymorphic_crossRxtve_probes.csv
