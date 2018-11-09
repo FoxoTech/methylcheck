@@ -6,6 +6,15 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 
 
+def _importCoefHannum():
+    """Imports Hannum Coefficients into dataframe"""
+    basepath = os.path.dirname(__file__)
+    filepath = os.path.abspath(os.path.join(
+        basepath, "..", "background_data", "datCoefHannum.csv"))
+    datCoefHannum = pd.read_csv(filepath)
+    return datCoefHannum
+
+
 def meanBetaPlot(df):
     data = df.copy(deep=True)
     data['mean'] = data.mean(numeric_only=True, axis=1)
@@ -29,15 +38,6 @@ def betaDensityPlot(df):
     plt.xlabel('Beta')
     plt.ylabel('Count')
     plt.show()
-
-
-def _importCoefHannum():
-    """Imports Hannum Coefficients into dataframe"""
-    basepath = os.path.dirname(__file__)
-    filepath = os.path.abspath(os.path.join(
-        basepath, "..", "background_data", "datCoefHannum.csv"))
-    datCoefHannum = pd.read_csv(filepath)
-    return datCoefHannum
 
 
 def DNAmAgeHannumFunction(dat0):
