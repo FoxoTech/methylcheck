@@ -22,11 +22,59 @@ def _import_probe_filter_list(array):
     return filter_options
 
 
-def createProbeExclusionList(array, Polymorphism=True, CrossHybridization=True,
-                             BaseColorChange=True, RepeatSequenceElements=True,
-                             Chen2013=True, Price2013=True, Zhou2016=True,
-                             Naeem2014=True, DacaRoszak2015=True,
-                             McCartney2016=True, custom_list=None):
+def createProbeExclusionList(array, pubs=None, criteria=None, custom_list=None):
+    """Function to create list of probes to exclude from downstream processes.
+    By default, all probes that have been noted in the literature to have
+    polymorphisms, cross-hybridization, repeat sequence elements and base color
+    changes are included in the exclusion list. Setting any of the args for these
+    reasons or publications (described below) to False will result in these probes
+    NOT being included in the final exclusion list.to User also has ability to
+    add custom list of probes to include in final returned list.
+
+    Parameters
+    ----------
+    array: dataframe
+        Dataframe containing beta values
+
+    pubs: list
+        List of the publications to use when excluding probes.
+        If the array is 450K the publications may include:
+            'Chen2013'
+            'Price2013'
+            'Zhou2016'
+            'Naeem2014'
+            'DacaRoszak2015'
+        If the array is EPIC the publications may include:
+            'Zhou2016'
+            'McCarthey2016'
+        If no publication list is specified, probes from 
+        all publications will be added to the exclusion list.
+        If more than one publication is specified, all probes
+        from all publications in the list will be added to the
+        exclusion list.
+
+    criteria: list
+        List of the criteria to use when excluding probes.
+        List may contain the following exculsion criteria:
+            'Polymorphism'
+            'CrossHybridizing'
+            'BaseColorChange'
+            'RepeatSequenceElements'
+        If no criteria list is specified, all critera will be
+        excluded. If more than one criteria is specified,
+        all probes meeting any of the listed criteria will be 
+        added to the exclusion list.
+
+    custom_list: list, default None
+        User provided list of probes to add to probe
+        exclusion list
+
+    Returns
+    -------
+    probe_exclusion_list: list
+        List containing probe identifiers to be excluded
+
+    """
     probe_dataframe = _import_probe_filter_list(array)
     args = [Polymorphism, CrossHybridization,
             BaseColorChange, RepeatSequenceElements,
