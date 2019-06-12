@@ -16,6 +16,19 @@ setup(
         'seaborn',
         'matplotlib'
     ],
+    extras_require={
+        'dev': [
+            'pytest',
+            'pytest-pep8',
+            'pytest-cov',
+            'flake8',
+            'pytest',
+            'coverage',
+            'coveralls-python',
+            'sphinxcontrib-apidoc',
+            'm2r'
+        ]
+    }
     setup_requires=['pytest-runner'],
     tests_require=['pytest']
 )
