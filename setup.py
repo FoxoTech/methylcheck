@@ -28,7 +28,7 @@ setup(
             'sphinxcontrib-apidoc',
             'm2r'
         ]
-    }
+    },
     setup_requires=['pytest-runner'],
     tests_require=['pytest']
 )
