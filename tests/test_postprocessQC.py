@@ -3,11 +3,9 @@
 import unittest
 import pandas as pd
 import sys
-sys.path.append("/Users/nrigby/GitHub/methQC/methQC")
 from methQC import postprocessQC as postQC
 
-data = pd.read_csv('test_data.csv')
-
+data = pd.read_csv('tests/test_data.csv') # pytest runs tests as if it is in the package root folder
 
 class TestPostProcessQC(unittest.TestCase):
 
