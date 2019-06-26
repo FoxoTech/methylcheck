@@ -10,7 +10,7 @@ def _importCoefHannum():
     """Imports Hannum Coefficients into dataframe"""
     basepath = os.path.dirname(__file__)
     filepath = os.path.abspath(os.path.join(
-        basepath, "..", "background_data", "datCoefHannum.csv"))
+        basepath, "methQC", "data_files", "datCoefHannum.csv"))
     datCoefHannum = pd.read_csv(filepath)
     return datCoefHannum
 
