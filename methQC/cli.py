@@ -6,8 +6,8 @@ import sys
 import numpy as np
 import pandas as pd
 # App
-from filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
-from postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, DNA_mAge_Hannum, beta_mds_plot
+from .filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
+from .postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, DNA_mAge_Hannum, beta_mds_plot
 
 class DefaultParser(argparse.ArgumentParser):
     def error(self, message):
@@ -97,9 +97,9 @@ Also see methQC.list_problem_probes for more details.',
         '-p', '--plot',
         nargs='*', # -p type1 type2 ... zero or more plots.
         choices=['mean_beta_plot', 'beta_density_plot',
-            'cumulative_sum_beta_distribution', 'DNA_mAge_Hannum', 'beta_mds_plot','all'],
-        help='Select which plots to generate. Note that you can run all plots at once with just `-p all`',
-        default='beta_mds_plot',
+            'cumulative_sum_beta_distribution', 'DNA_mAge_Hannum', 'beta_mds_plot', 'all'],
+        help='Select which plots to generate. Note that you omit this, the default setting will run all plots at once. `-p all`',
+        default='all',
     )
 
     # pipeline_run is here...

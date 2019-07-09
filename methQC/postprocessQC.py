@@ -46,7 +46,8 @@ def beta_density_plot(df):
             sns.distplot(
                 df[col], hist=False, rug=False,
                 label=col, ax=ax, axlabel='beta')
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    if len(df.columns) <= 30:
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     plt.title('Beta Density Plot')
     plt.grid()
     plt.xlabel('Beta values')
@@ -75,10 +76,12 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True):
         cumulative_sum = np.cumsum(hist_vals)
         if cumulative_sum[5] < cutoff:
             good_samples.append(subject_num)
-            sb.distplot(row, hist=False, norm_hist=False)
+            ax = sb.distplot(row, hist=False, norm_hist=False)
         else:
             outliers.append(subject_id) # drop uses ids, not numbers.
     if plot == True:
+        if len(df.index) <= 30:
+            ax.legend_.remove()
         plt.figure(figsize=(12, 9))
         plt.title('Beta Distributions (filtered by {0})'.format(cutoff))
         plt.xlabel('Beta values')
