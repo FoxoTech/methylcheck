@@ -104,3 +104,6 @@ venv.bak/
 .mypy_cache/
 methQC/EPIC_polymorphic_crossRxtve_probes.csv
 methQC/450k_polymorphic_crossRxtve_probes.csv
+
+.DS_Store
+docs/.DS_Store
