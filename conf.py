@@ -111,7 +111,7 @@ html_static_path = ['_sphinx_static']
 # -- Options for HTMLHelp output ---------------------------------------------
 
 # Output file base name for HTML help builder.
-htmlhelp_basename = 'methpypedoc'
+htmlhelp_basename = 'methQCdoc'
 
 
 # -- Options for LaTeX output ------------------------------------------------
@@ -138,7 +138,7 @@ latex_elements = {
 # (source start file, target name, title,
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, 'methpype.tex', 'methpype Documentation',
+    (master_doc, 'methQC.tex', 'methQC Documentation',
      'Life Epigenetics', 'manual'),
 ]
 
@@ -148,7 +148,7 @@ latex_documents = [
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
 man_pages = [
-    (master_doc, 'methpype', 'methpype Documentation',
+    (master_doc, 'methQC', 'methQC Documentation',
      [author], 1)
 ]
 
@@ -159,8 +159,8 @@ man_pages = [
 # (source start file, target name, title, author,
 #  dir menu entry, description, category)
 texinfo_documents = [
-    (master_doc, 'methpype', 'methpype Documentation',
-     author, 'methpype', 'One line description of project.',
+    (master_doc, 'methQC', 'methQC Documentation',
+     author, 'methQC', 'One line description of project.',
      'Miscellaneous'),
 ]
 
