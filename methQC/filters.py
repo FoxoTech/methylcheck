@@ -110,7 +110,10 @@ from {2} samples. {3} probes remaining.""".format(
                 len(df) - len(filtered),
                 discrepancy
             ))
-            print("This happens when probes are present multiple times in array, or the manifest doesn't match the array.")
+        if len(exclude_control) == discrepancy:
+            print("It appears that your sample had no control probes, or that the control probe names didn't match the manifest ({0}).".format(array))
+        else:
+            print("This happens when probes are present multiple times in array, or the manifest doesn't match the array ({0}).".format(array))
     return filtered
 
 def exclude_probes(array, probe_list):
@@ -215,6 +218,15 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         '450k': 'IlluminaHumanMethylation450k',
         '27k': 'IlluminaHumanMethylation27k',
          }
+
+    probe_pubs_translate = {
+        'Price2013': 'Price_etal_2013',
+        'Chen2013': 'Chen_etal_2013',
+        'Naeem2014': 'Naeem_etal_2014',
+        'DacaRoszak2015': 'Daca-Roszak_etal_2015',
+        'McCartney2016': 'McCartney_etal_2016',
+        'Zhou2016': 'Zhou_etal_2016',
+        }
     if array in translate:
         array = translate[array]
     probe_dataframe = _import_probe_filter_list(array)
@@ -234,6 +246,9 @@ def list_problem_probes(array, criteria=None, custom_list=None):
     else:
         probe_exclusion_list = []
 
+        # rename criteria to match probe_dataframe names, or pass through.
+        criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
+
         reasons = ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']
         for reason in criteria:
             if reason not in reasons:
@@ -242,15 +257,20 @@ def list_problem_probes(array, criteria=None, custom_list=None):
             probe_exclusion_list = list(
                 set(df['Probe'].values)) + probe_exclusion_list
 
-        epic_pubs = ['Zhou2016', 'McCartney2016']
-        fourfifty_pubs = ['Chen2013', 'Price2013', 'Naeem2014', 'DacaRoszak2015']
+        epic_pubs = ['Zhou_etal_2016', 'McCartney_etal_2016']
+        fourfifty_pubs = ['Chen_etal_2013', 'Price_etal_2013', 'Naeem_etal_2014', 'Daca-Roszak_etal_2015']
         for pub in criteria:
+            if pub not in (epic_pubs + fourfifty_pubs):
+                continue
+
             if pub in fourfifty_pubs and array == 'IlluminaHumanMethylationEPIC':
                 raise ValueError(
                     "Citation {0} does not exist for '{1}'.".format(pub, array))
+
             if pub in epic_pubs and array == 'IlluminaHumanMethylation450k':
                 raise ValueError(
                     "Citation {0} does not exist for '{1}'.".format(pub, array))
+
             df = probe_dataframe[probe_dataframe['ShortCitation'] == pub]
             probe_exclusion_list = list(
                 set(df['Probe'].values)) + probe_exclusion_list

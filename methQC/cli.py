@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 # App
 from .filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
-from .postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, DNA_mAge_Hannum, beta_mds_plot
+from .postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, beta_mds_plot
 
 class DefaultParser(argparse.ArgumentParser):
     def error(self, message):
@@ -15,6 +15,26 @@ class DefaultParser(argparse.ArgumentParser):
         self._print_message(f'{message}\n\n')
         self.print_help()
         self.exit(status=2)
+
+
+def detect_array(df):
+    """Determines array type using number of probes columns in df. Returns array string."""
+    # shape: should be wide, with more columns than rows. The larger dimension is the probe count.
+    if df.shape[0] > df.shape[1]:
+        # WARNING: this will need to be transposed later.
+        col_count = (df.shape[0]) #does the index count in shape? assuming it doesn't.
+    else:
+        col_count = (df.shape[1])
+    if 26000 <= col_count <= 28000:
+        return '27k'
+    if 440000 <= col_count <= 490000: #485512
+        return '450k'
+    if 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
+        return 'EPIC+'
+    if 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
+        return 'EPIC'
+    else:
+        raise ValueError('Unsupported Illumina array type. Your data file contains {0} rows for probes.'.format(col_count))
 
 
 def cli_parser():
@@ -59,8 +79,8 @@ You can create this output from `methpype` using the --betas flag.""",
     parser.add_argument(
         '-a', '--array_type',
         choices=['27k','450k','EPIC','EPIC+'],
-        required=True,
-        help='Type of array being processed.',
+        required=False,
+        help='Type of array being processed. If omitted, methQC will autodetect based on shape of data.',
     )
 
     parser.add_argument(
@@ -97,12 +117,19 @@ Also see methQC.list_problem_probes for more details.',
         '-p', '--plot',
         nargs='*', # -p type1 type2 ... zero or more plots.
         choices=['mean_beta_plot', 'beta_density_plot',
-            'cumulative_sum_beta_distribution', 'DNA_mAge_Hannum', 'beta_mds_plot', 'all'],
+            'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all'],
         help='Select which plots to generate. Note that you omit this, the default setting will run all plots at once. `-p all`',
         default='all',
     )
 
-    # pipeline_run is here...
+    parser.add_argument(
+        '-s', '--save',
+        help='By default, each plot will only appear on screen, but you can save them as png files with this option.',
+        action='store_true',
+        default=False,
+    )
+
+    #### run_pipeline happens here ###
     #set logging/verbose
     args = parser.parse_args(sys.argv[1:])
     #-- when this has subparsers, use -- args = parser.parse_known_args(sys.argv[1:])
@@ -114,15 +141,24 @@ Also see methQC.list_problem_probes for more details.',
     # load the data file
     if not Path(args.data_file).is_file():
         raise ValueError("Could not find your data_file.")
-    npy = np.load(Path(args.data_file))
-    df = pd.DataFrame(npy)
+    if args.data_file.suffix == '.npy':
+        npy = np.load(Path(args.data_file))
+        df = pd.DataFrame(npy)
+    elif args.data_file.suffix == '.pkl':
+        df = pd.read_pickle(args.data_file)
+    else:
+        raise FileNotFoundError("Could not find/read your data file.")
+    # methpype data will be long format, with samples in columns and probes in rows. MDS transposes this.'
+
+    # determine array type
+    if args.array_type is None:
+        args.array_type = detect_array(df)
 
     # apply some filters
-
     if args.exclude_all:
         df = exclude_sex_control_probes(df, args.array_type, verbose=args.verbose)
         sketchy_probe_list = list_problem_probes(args.array_type)
-        print(type(sketchy_probe_list),len(sketchy_probe_list))
+        #print(len(sketchy_probe_list),'sketchy probes',sketchy_probe_list[:10])
         df = exclude_probes(df, sketchy_probe_list)
 
     elif args.exclude_sex and args.exclude_control:
@@ -134,33 +170,30 @@ Also see methQC.list_problem_probes for more details.',
 
     if args.exclude_probes and not args.exclude_all:
         sketchy_probe_list = list_problem_probes(args.array_type)
-        print(type(sketchy_probe_list),len(sketchy_probe_list))
+        #print(type(sketchy_probe_list),len(sketchy_probe_list))
+        #print(df.shape, list(df.index)[:20])
         df = exclude_probes(df, sketchy_probe_list)
 
+    # run calculations and plots
     if 'all' in args.plot:
-        mean_beta_plot(df)
-        beta_density_plot(df)
-        test_df = df.copy().transpose()
-        cumulative_sum_beta_distribution(test_df)
-        test, excl = beta_mds_plot(df, verbose=args.verbose)
-        transformed = DNA_mAge_Hannum(df)
-        return parser
-
-    if 'beta_mds_plot' in args.plot:
-        test, excl = beta_mds_plot(df, verbose=args.verbose)
-        # also has silent and filter_stdev params to pass in.
-
-    if 'mean_beta_plot' in args.plot:
-        mean_beta_plot(df)
-
-    if 'beta_density_plot' in args.plot:
-        beta_density_plot(df)
-
-    if 'cumulative_sum_beta_distribution' in args.plot:
-        test_df = df.copy().transpose()
-        cumulative_sum_beta_distribution(test_df)
-
-    if 'DNA_mAge_Hannum' in args.plot:
-        transformed = DNA_mAge_Hannum(df)
+        mean_beta_plot(df, save=args.save)
+        beta_density_plot(df, save=args.save)
+        wide_df = df.copy().transpose()
+        cumulative_sum_beta_distribution(wide_df, save=args.save)
+        transformed = DNA_mAge_Hannum(df, verbose=args.verbose, save=args.save)
+        test, excl = beta_mds_plot(wide_df, verbose=args.verbose, save=args.save)
+    else:
+        if 'mean_beta_plot' in args.plot:
+            mean_beta_plot(df, save=args.save)
+        if 'beta_density_plot' in args.plot:
+            beta_density_plot(df, save=args.save)
+        if 'cumulative_sum_beta_distribution' in args.plot:
+            wide_df = df.copy().transpose()
+            cumulative_sum_beta_distribution(wide_df, save=args.save)
+        if 'beta_mds_plot' in args.plot:
+            test, excl = beta_mds_plot(df, verbose=args.verbose, save=args.save)
+            # also has silent and filter_stdev params to pass in.
+        if 'DNA_mAge_Hannum' in args.plot:
+            transformed = DNA_mAge_Hannum(df, verbose=args.verbose, save=args.save)
 
     return parser

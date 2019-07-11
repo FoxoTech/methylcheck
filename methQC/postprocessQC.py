@@ -3,32 +3,42 @@ import logging
 import os
 import pandas as pd
 import numpy as np
-import seaborn as sb
 import seaborn as sns
 import matplotlib.pyplot as plt
 from sklearn.manifold import MDS
 from tqdm import tqdm
+import datetime
 
 LOGGER = logging.getLogger(__name__)
 
-def mean_beta_plot(df):
+def mean_beta_plot(df, verbose=False, save=False):
     """Returns a plot of the average beta values for all probes in a batch of samples.
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
         - to get this formatted import, use `methpype.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default)."""
+    if df.shape[0] < df.shape[1]:
+        ## ensure probes in rows and samples in cols
+        if verbose:
+            print("Your data needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+        df = df.copy().transpose() # don't overwrite the original
+
     data = df.copy(deep=True)
     data['mean'] = data.mean(numeric_only=True, axis=1)
     fig, ax = plt.subplots(figsize=(12, 9))
     sns.distplot(data['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
     plt.title('Mean Beta Plot')
+    plt.grid()
     plt.xlabel('Mean Beta')
     plt.ylabel('Count')
+    if save:
+        plt.savefig('mean_beta.png')
     plt.show()
 
 
-def beta_density_plot(df):
+def beta_density_plot(df, verbose=False, save=False):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -40,35 +50,55 @@ def beta_density_plot(df):
 
     Returns:
         None"""
+    if df.shape[0] < df.shape[1]:
+        ## ensure probes in rows and samples in cols
+        if verbose:
+            print("Your data needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+        df = df.copy().transpose() # don't overwrite the original
+
     fig, ax = plt.subplots(figsize=(12, 9))
     for col in df.columns:
         if col != 'Name':
             sns.distplot(
                 df[col], hist=False, rug=False,
                 label=col, ax=ax, axlabel='beta')
+    print(len(df.columns))
     if len(df.columns) <= 30:
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    else:
+        ax.get_legend().set_visible(False)
     plt.title('Beta Density Plot')
     plt.grid()
     plt.xlabel('Beta values')
     plt.ylabel('Count')
+    if save:
+        plt.savefig('beta.png')
     plt.show()
 
 
-def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True):
+def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True, verbose=False, save=False):
     """ attempts to filter outlier samples based on the cumulative area under the curve
     exceeding a reasonable value (cutoff).
 
     Inputs:
-        DataFrame
+        DataFrame -- wide format (probes in columns, samples in rows)
         cutoff (default 0.7)
         plot (default True) -- show plot, or just return transformed data if False.
 
     Returns:
         dataframe with subjects removed that exceed cutoff value."""
+    # ensure probes in colums, samples in rows
+    if df.shape[1] < df.shape[0]:
+        df = df.copy().transpose() # don't overwrite the original
+        if verbose:
+            print("Your data needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+
     good_samples = []
     outliers = []
     print("Calculating area under curve for each sample.")
+    fig, ax = plt.subplots(figsize=(12, 9))
     for subject_num, (row, subject_id) in tqdm(enumerate(zip(df.values,
                                                              df.index))):
         hist_vals = np.histogram(row, bins=10)[0]
@@ -76,66 +106,23 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True):
         cumulative_sum = np.cumsum(hist_vals)
         if cumulative_sum[5] < cutoff:
             good_samples.append(subject_num)
-            ax = sb.distplot(row, hist=False, norm_hist=False)
+            sns.distplot(row, hist=False, norm_hist=False)
         else:
             outliers.append(subject_id) # drop uses ids, not numbers.
     if plot == True:
-        if len(df.index) <= 30:
-            ax.legend_.remove()
-        plt.figure(figsize=(12, 9))
-        plt.title('Beta Distributions (filtered by {0})'.format(cutoff))
-        plt.xlabel('Beta values')
-        plt.ylabel('Count')
+        plt.title('Cumulative Sum Beta Distribution (filtered at {0})'.format(cutoff))
         plt.grid()
+        if len(df.columns) <= 30:
+            plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        else:
+            ax.legend_ = None
+        if save:
+            plt.savefig('cum_beta.png')
         plt.show()
     return df.drop(outliers, axis=0)
 
 
-def _importCoefHannum():
-    """Imports Hannum Coefficients into dataframe"""
-    basepath = os.path.dirname(__file__)
-    filepath = os.path.abspath(os.path.join(
-        basepath, "data_files", "datCoefHannum.csv"))
-    datCoefHannum = pd.read_csv(filepath)
-    return datCoefHannum
-
-
-def DNA_mAge_Hannum(dat0):
-    """Calculates DNAmAge for each sample
-
-    Parameters
-    ----------
-    dat0: dataframe
-        Dataframe containing beta values
-
-    Returns
-    -------
-    dat2: dataframe
-        Dataframe containing calculated values for
-        each sample
-
-    sample data (dat0) has probes in columns, and samples in rows.
-    https://stackoverflow.com/questions/39827897/get-dataframe-columns-from-a-list-using-isin
-    """
-    datCoefHannum = _importCoefHannum()
-    dat1 = dat0[dat0.columns.difference(  # was: dat0['CGidentifier'].isin(...)
-        datCoefHannum.Marker.values)].copy(deep=True)
-    dat1.sort_values(by='CGidentifier', inplace=True)
-    datCoefHannum.sort_values(by='Marker', inplace=True)
-    dat2 = pd.DataFrame(
-        index=[s for s in dat1.columns if s != 'CGidentifier'], columns=['DNAmAgeHannum'])
-    for sample in dat2.index:
-        values = np.multiply(dat1[sample], datCoefHannum['Coefficient'])
-        num_missing = values.isna().sum()
-        if num_missing > 30:
-            dat2.loc[sample, 'DNAmAgeHannum'] = np.nan
-        else:
-            dat2.loc[sample, 'DNAmAgeHannum'] = np.nansum(values)
-    return dat2
-
-
-
-def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False, save=False):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -165,24 +152,19 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False):
     requires
     --------
         pandas, numpy, pyplot, sklearn.manifold.MDS"""
-    import datetime
-    #the test notebook begins by importing npy and building the dataframe
-    #data = np.load('working_data/stp-blood-betavals.npy')
-    #probes = np.load('working_data/stp-blood-betavals-probe-names.npy')
-    #samples = np.load('working_data/stp-blood-betavals-subject-ids.npy')
-    # methQC needs probes in rows and samples in cols. This is how methpype returns data.
-    #otherwise --> data = data.transpose()
+    # ensure "long format": probes in rows and samples in cols. This is how methpype returns data.
+    if df.shape[1] < df.shape[0]:
+        ## methQC needs probes in rows and samples in cols. but MDS needs a wide matrix.
+        df = df.copy().transpose() # don't overwrite the original
+        if verbose:
+            print("Your data needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
     if verbose == True:
         print(df.shape)
         df.head()
         LOGGER.info('DataFrame has shape: {0}'.format(df.shape))
         print("Making sure that probes are in columns (the second number should be larger than the first).")
         LOGGER.info("Making sure that probes are in columns (the second number should be larger than the first).")
-        if df.shape[1] < df.shape[0]:
-            ## methQC needs probes in rows and samples in cols. but MDS needs a wide matrix.
-            print("Your data needed to be transposed (df = df.transpose()) before you run this.")
-            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
-            df = df.copy().transpose() # don't overwrite the original
         # before running this, you'd typically exclude probes.
         print("Starting MDS fit_transform. this may take a while.")
         LOGGER.info("Starting MDS fit_transform. this may take a while.")
@@ -222,6 +204,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False):
         md2 = np.array(md2)
         plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
+        plt.grid()
         plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=5)
         plt.scatter(md2[:, 0], md2[:, 1], s=5, c='red')
         plt.xlim(old_X_range)
@@ -232,7 +215,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False):
         if silent == True:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
-            image_name = df.index.name or 'meth_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
+            image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
             outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
             plt.savefig(outfile)
             LOGGER.info("Saved {0}".format(outfile))
@@ -272,16 +255,46 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False):
     # print(pre_df_excl, unique_df_excl)
 
     prev_df = len(df)
-    image_name = df.index.name or 'meth_n={0}_p={1}'.format(len(df_out.index), len(df_out.columns)) # np.size(df,0), np.size(md2,1)
-    outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
-    plt.savefig(outfile)
+    if save:
+        image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
+        outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
+        plt.savefig(outfile)
+        if verbose:
+            print("Saved {0}".format(outfile))
+            LOGGER.info("Saved {0}".format(outfile))
     plt.close(fig) # avoids displaying plot again in jupyter.
-    print('DEBUG {0} {1} = {2} | pre {3} | post {4}'.format(len(md2), len(df_indexes_to_exclude), len(md2) + len(df_indexes_to_exclude),
-        prev_df,
-        len(df_out)
-     ))
-    if verbose == True:
-        print("Saved {0}".format(outfile))
-        LOGGER.info("Saved {0}".format(outfile))
     # returning DataFrame in original structure: rows are probes; cols are samples.
     return df_out, df_indexes_to_exclude  # may need to transpose this first.
+
+
+def mean_beta_compare(df1, df2, save=False, verbose=False):
+    """Use this function to compare two dataframes, pre-vs-post filtering and removal of outliers."""
+    if df1.shape[0] < df1.shape[1]:
+        ## ensure probes in rows and samples in cols
+        if verbose:
+            print("Your first data set needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+        df1 = df1.copy().transpose() # don't overwrite the original
+    if df2.shape[0] < df2.shape[1]:
+        ## ensure probes in rows and samples in cols
+        if verbose:
+            print("Your second data set needed to be transposed (df = df.transpose()).")
+            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+        df2 = df2.copy().transpose() # don't overwrite the original
+
+    data1 = df1.copy(deep=True)
+    data1['mean'] = data1.mean(numeric_only=True, axis=1)
+    data2 = df2.copy(deep=True)
+    data2['mean'] = data2.mean(numeric_only=True, axis=1)
+
+    fig, ax = plt.subplots(figsize=(12, 9))
+    line1 = sns.distplot(data1['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
+    line2 = sns.distplot(data2['mean'], hist=False, rug=False)
+    plt.title('Mean Beta Plot (Compare pre vs post filtering)')
+    plt.grid()
+    plt.xlabel('Mean Beta')
+    plt.ylabel('Count')
+    #plt.legend([line1, line2], ['pre','post'], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    if save:
+        plt.savefig('mean_beta_compare.png')
+    plt.show()
