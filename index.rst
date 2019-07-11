@@ -15,10 +15,7 @@ Getting Started
    docs/demo-methpype-to-methQC-example.ipynb
    docs/filtering_probes.ipynb
    docs/methpype_methQC_example.ipynb
-   docs/source/methQC.cli
-   docs/source/methQC.filters
-   docs/source/methQC.postprocessQC
-
+   docs/source/methQC.rst
 
 Indices and tables
 ==================
