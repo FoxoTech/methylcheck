@@ -8,3 +8,6 @@ coveralls-python
 sphinxcontrib-apidoc
 m2r
 tqdm
+sphinx>=1.4
+ipykernel
+nbsphinx
