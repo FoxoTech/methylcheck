@@ -149,6 +149,10 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False, save=False):
         In this case, whatever `filter_stdev` you assign is the final value, and a file will be processed with that param.
         Silent also suppresses plots (images) from being generated. only files are returned.
 
+    returns
+    -------
+        returns a filtered dataframe.
+
     requires
     --------
         pandas, numpy, pyplot, sklearn.manifold.MDS"""
@@ -264,7 +268,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False, save=False):
             LOGGER.info("Saved {0}".format(outfile))
     plt.close(fig) # avoids displaying plot again in jupyter.
     # returning DataFrame in original structure: rows are probes; cols are samples.
-    return df_out, df_indexes_to_exclude  # may need to transpose this first.
+    return df_out #, df_indexes_to_exclude  # may need to transpose this first.
 
 
 def mean_beta_compare(df1, df2, save=False, verbose=False):

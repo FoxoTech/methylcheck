@@ -9,10 +9,13 @@ getLogger(__name__).addHandler(NullHandler())
 
 
 __all__ = [
-    'mean_beta_plot',
     'beta_density_plot',
     'beta_mds_plot',
-    'list_problem_probes',
+    'cumulative_sum_beta_distribution',
+    'detect_array',
     'exclude_probes',
     'exclude_sex_control_probes',
+    'list_problem_probes',
+    'mean_beta_plot',
+    'mean_beta_compare',
 ]
