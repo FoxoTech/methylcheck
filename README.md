@@ -1,11 +1,7 @@
 # methQC
 methQC is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
-[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methqc/badge/?version=latest)](https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/)
-[![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv)
-Linux/OSX [![CircleCI](https://circleci.com/gh/LifeEGX/methQC.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methQC)
-Windows [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methqc)
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/02598852d7d34e8284e928ea6c221f1a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methQC&amp;utm_campaign=Badge_Grade)
+[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methqc/badge/?version=latest)](https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/) [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv) Linux/OSX [![CircleCI](https://circleci.com/gh/LifeEGX/methQC.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methQC) Windows [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methqc) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/02598852d7d34e8284e928ea6c221f1a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methQC&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methQC/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methQC)
 
 # MethQC Package
