@@ -1,13 +1,14 @@
 numpy
 pandas
 scipy
-statsmodels
+matplotlib
+seaborn
 pytest
 coverage
 coveralls-python
+sphinx>=1.4
 sphinxcontrib-apidoc
 m2r
 tqdm
-sphinx>=1.4
 ipykernel
 nbsphinx
