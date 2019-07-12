@@ -37,10 +37,10 @@ setup(
         ]
     },
     setup_requires=['pytest-runner'],
-    tests_require=['pytest']
+    tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'methQC-cli = methQC.cli:cli_parser'
-            ]
+            'methQC-cli = methQC.cli:cli_parser',
+            ],
     }
 )
