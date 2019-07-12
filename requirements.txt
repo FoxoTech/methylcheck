@@ -1,4 +1,14 @@
 numpy
 pandas
+scipy
 matplotlib
 seaborn
+pytest
+coverage
+coveralls-python
+sphinx>=1.4
+sphinxcontrib-apidoc
+m2r
+tqdm
+ipykernel
+nbsphinx
