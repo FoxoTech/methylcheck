@@ -3,7 +3,11 @@ import unittest
 import pandas as pd
 import sys
 #patching
-from unittest.mock import patch
+try:
+    # python 3.4+ should use builtin unittest.mock not mock package
+    from unittest.mock import patch
+except ImportError:
+    from mock import patch
 #app
 import methQC
 
@@ -31,10 +35,10 @@ class TestPostProcessQC(unittest.TestCase):
         methQC.postprocessQC.mean_beta_compare(self.df, self.df, verbose=False, save=False)
 
     def test_cumulative_sum_beta_distribution(self):
-        df2 = methQC.postprocessQC.cumulative_sum_beta_distribution(self.df, cutoff=0.7, plot=False, verbose=False, save=False)
+        df2 = methQC.postprocessQC.cumulative_sum_beta_distribution(self.df, cutoff=0.7, verbose=False, save=False, silent=True)
 
     def test_beta_mds_plot(self):
-        df2 = methQC.postprocessQC.beta_mds_plot(self.df, filter_stdev=2, verbose=False, silent=True, save=False)
+        df2 = methQC.postprocessQC.beta_mds_plot(self.df, filter_stdev=2, verbose=False, save=False, silent=True)
 
     def test_detect_array(self):
         ARRAY = methQC.cli.detect_array(self.df)
@@ -65,3 +69,8 @@ class TestPostProcessQC(unittest.TestCase):
         df2 = methQC.filters.exclude_sex_control_probes(self.df, 'EPIC', no_sex=True, no_control=True, verbose=False)
         if len(df2) != 474929:
             raise AssertionError()
+
+    def test_cli_all_plots_silent(self):
+        testargs = ["__program__", '-d', 'docs/test_betas.pkl', '--exclude_all', '--silent', '--verbose']
+        with patch.object(sys, 'argv', testargs):
+            results = methQC.cli.cli_parser()

@@ -11,7 +11,7 @@ import datetime
 
 LOGGER = logging.getLogger(__name__)
 
-def mean_beta_plot(df, verbose=False, save=False):
+def mean_beta_plot(df, verbose=False, save=False, silent=False):
     """Returns a plot of the average beta values for all probes in a batch of samples.
 
     Input (df):
@@ -35,10 +35,11 @@ def mean_beta_plot(df, verbose=False, save=False):
     plt.ylabel('Count')
     if save:
         plt.savefig('mean_beta.png')
-    plt.show()
+    if not silent:
+        plt.show()
 
 
-def beta_density_plot(df, verbose=False, save=False):
+def beta_density_plot(df, verbose=False, save=False, silent=False):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -74,17 +75,19 @@ def beta_density_plot(df, verbose=False, save=False):
     plt.ylabel('Count')
     if save:
         plt.savefig('beta.png')
-    plt.show()
+    if not silent:
+        plt.show()
 
 
-def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True, verbose=False, save=False):
+def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
     """ attempts to filter outlier samples based on the cumulative area under the curve
     exceeding a reasonable value (cutoff).
 
     Inputs:
         DataFrame -- wide format (probes in columns, samples in rows)
         cutoff (default 0.7)
-        plot (default True) -- show plot, or just return transformed data if False.
+        silent -- suppresses figure, so justs returns transformed data if False.
+        if save==True: saves figure to disk.
 
     Returns:
         dataframe with subjects removed that exceed cutoff value."""
@@ -97,10 +100,12 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True, verbose=False, s
 
     good_samples = []
     outliers = []
-    print("Calculating area under curve for each sample.")
+    if not silent:
+        print("Calculating area under curve for each sample.")
     fig, ax = plt.subplots(figsize=(12, 9))
+    # if silent is True, tqdm will not show process bar.
     for subject_num, (row, subject_id) in tqdm(enumerate(zip(df.values,
-                                                             df.index))):
+                                                             df.index)), disable=silent):
         hist_vals = np.histogram(row, bins=10)[0]
         hist_vals = hist_vals / np.sum(hist_vals)
         cumulative_sum = np.cumsum(hist_vals)
@@ -109,20 +114,21 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, plot=True, verbose=False, s
             sns.distplot(row, hist=False, norm_hist=False)
         else:
             outliers.append(subject_id) # drop uses ids, not numbers.
-    if plot == True:
-        plt.title('Cumulative Sum Beta Distribution (filtered at {0})'.format(cutoff))
-        plt.grid()
-        if len(df.columns) <= 30:
-            plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-        else:
-            ax.legend_ = None
-        if save:
-            plt.savefig('cum_beta.png')
+
+    plt.title('Cumulative Sum Beta Distribution (filtered at {0})'.format(cutoff))
+    plt.grid()
+    if len(df.columns) <= 30:
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    else:
+        ax.legend_ = None
+    if save:
+        plt.savefig('cum_beta.png')
+    if not silent:
         plt.show()
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False, save=False):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -271,8 +277,10 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, silent=False, save=False):
     return df_out #, df_indexes_to_exclude  # may need to transpose this first.
 
 
-def mean_beta_compare(df1, df2, save=False, verbose=False):
-    """Use this function to compare two dataframes, pre-vs-post filtering and removal of outliers."""
+def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
+    """Use this function to compare two dataframes, pre-vs-post filtering and removal of outliers.
+
+    silent: suppresses figure, so no output unless save==True too."""
     if df1.shape[0] < df1.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
@@ -301,4 +309,5 @@ def mean_beta_compare(df1, df2, save=False, verbose=False):
     #plt.legend([line1, line2], ['pre','post'], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     if save:
         plt.savefig('mean_beta_compare.png')
-    plt.show()
+    if not silent:
+        plt.show()
