@@ -118,13 +118,20 @@ Also see methQC.list_problem_probes for more details.',
         nargs='*', # -p type1 type2 ... zero or more plots.
         choices=['mean_beta_plot', 'beta_density_plot',
             'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all'],
-        help='Select which plots to generate. Note that you omit this, the default setting will run all plots at once. `-p all`',
+        help='Select which plots to generate. Note that if you omit this, the default setting will run all plots at once. `-p all`',
         default='all',
     )
 
     parser.add_argument(
         '-s', '--save',
         help='By default, each plot will only appear on screen, but you can save them as png files with this option.',
+        action='store_true',
+        default=False,
+    )
+
+    parser.add_argument(
+        '--silent',
+        help='Suppress plots and requestss user inputs; for unit testing or automated pipelines.',
         action='store_true',
         default=False,
     )
@@ -176,24 +183,20 @@ Also see methQC.list_problem_probes for more details.',
 
     # run calculations and plots
     if 'all' in args.plot:
-        mean_beta_plot(df, save=args.save)
-        beta_density_plot(df, save=args.save)
+        mean_beta_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
+        beta_density_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
         wide_df = df.copy().transpose()
-        cumulative_sum_beta_distribution(wide_df, save=args.save)
-        transformed = DNA_mAge_Hannum(df, verbose=args.verbose, save=args.save)
-        test, excl = beta_mds_plot(wide_df, verbose=args.verbose, save=args.save)
+        cumulative_sum_beta_distribution(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
+        df_filtered = beta_mds_plot(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
     else:
         if 'mean_beta_plot' in args.plot:
-            mean_beta_plot(df, save=args.save)
+            mean_beta_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
         if 'beta_density_plot' in args.plot:
-            beta_density_plot(df, save=args.save)
+            beta_density_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
         if 'cumulative_sum_beta_distribution' in args.plot:
             wide_df = df.copy().transpose()
-            cumulative_sum_beta_distribution(wide_df, save=args.save)
+            cumulative_sum_beta_distribution(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
         if 'beta_mds_plot' in args.plot:
-            test, excl = beta_mds_plot(df, verbose=args.verbose, save=args.save)
+            df_filtered = beta_mds_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
             # also has silent and filter_stdev params to pass in.
-        if 'DNA_mAge_Hannum' in args.plot:
-            transformed = DNA_mAge_Hannum(df, verbose=args.verbose, save=args.save)
-
     return parser
