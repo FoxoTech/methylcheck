@@ -218,7 +218,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
         plt.grid()
-        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=6)
+        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=7)
         plt.scatter(md2[:, 0], md2[:, 1], s=5, c='red')
         plt.xlim(old_X_range)
         plt.ylim(old_Y_range)
