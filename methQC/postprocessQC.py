@@ -183,8 +183,11 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
     #n_jobs=-1 means "use all processors"
     mds_transformed = mds.fit_transform(df.values)
     # pass in df.values (a np.array) instead of a dataframe, as it processes much faster.
+    # old range is used for plotting, with some margin on outside for chart readability
     old_X_range = [min(mds_transformed[:, 0]), max(mds_transformed[:, 0])]
     old_Y_range = [min(mds_transformed[:, 1]), max(mds_transformed[:, 1])]
+    old_X_range = [old_X_range[0] - 0.5*old_X_range[0], old_X_range[1] + 0.5*old_X_range[1]]
+    old_Y_range = [old_Y_range[0] - 0.5*old_Y_range[0], old_Y_range[1] + 0.5*old_Y_range[1]]
     x_std, y_std = np.std(mds_transformed,axis=0)
     x_avg, y_avg = np.mean(mds_transformed,axis=0)
 
@@ -215,7 +218,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
         plt.grid()
-        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=5)
+        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=6)
         plt.scatter(md2[:, 0], md2[:, 1], s=5, c='red')
         plt.xlim(old_X_range)
         plt.ylim(old_Y_range)
