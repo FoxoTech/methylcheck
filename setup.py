@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='methQC',
-    version='0.2.2',
+    version='0.2.3',
     description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
 See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
