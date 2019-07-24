@@ -3,10 +3,11 @@ from setuptools import setup, find_packages
 
 setup(
     name='methQC',
-    version='0.2.1',
-    description='Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data. See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.',
+    version='0.2.2',
+    description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
+See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
-    long_description_content_type='text/markdown',        
+    long_description_content_type='text/markdown',
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
@@ -34,7 +35,7 @@ setup(
         'seaborn',
         'matplotlib',
         'tqdm',
-        'scikit-learn',      
+        'scikit-learn',
     ],
     extras_require={
         'dev': [

@@ -91,8 +91,16 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
     exclude_sex = _import_probe_exclusion_list(array, 'sex') if no_sex == True else []
     exclude_control = _import_probe_exclusion_list(array, 'control') if no_control == True else []
     exclude = list(exclude_sex)+list(exclude_control)
+
+    # first check shape of df; probes are in the longer axis.
+    FLIPPED = False
+    if len(df.columns) > len(df.index):
+        df = df.transpose()
+        FLIPPED = True # use this to reverse at end, so returned in original orientation.
+
     # next, actually remove probes from all samples matching these lists.
     filtered = df.drop(exclude, errors='ignore')
+
     # errors = ignore: if a probe is missing from df, or present multiple times, drop what you can.
     if verbose == True:
         print("""Array {4}: Removed {0} sex linked probes and {1} internal control probes \
@@ -114,6 +122,9 @@ from {2} samples. {3} probes remaining.""".format(
             print("It appears that your sample had no control probes, or that the control probe names didn't match the manifest ({0}).".format(array))
         else:
             print("This happens when probes are present multiple times in array, or the manifest doesn't match the array ({0}).".format(array))
+    # reverse the FLIP
+    if FLIPPED:
+        filtered = filtered.transpose()
     return filtered
 
 def exclude_probes(array, probe_list):
@@ -132,10 +143,16 @@ def exclude_probes(array, probe_list):
     It then drops probes from array that match probe_list, at least partially.
 
     ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index."""
-    pre_overlap = len(set(array.index) & set(probe_list))
+
+    # 1 - check shape of array, to ensure probes are the index/values
+    ARRAY = array.index
+    if len(array.index) < len(array.columns):
+        ARRAY = array.columns
+
+    pre_overlap = len(set(ARRAY) & set(probe_list))
 
     # probe_list is always a list of strings. COERCING to strings here for matching.
-    array_probes = [str(probe).split('_')[0] for probe in list(array.index)]
+    array_probes = [str(probe).split('_')[0] for probe in list(ARRAY)]
     post_overlap = len(set(array_probes) & set(probe_list))
 
     if pre_overlap != post_overlap:
@@ -144,7 +161,7 @@ def exclude_probes(array, probe_list):
         print("Of {0} probes, {1} matched, yielding {2} probes after filtering.".format(len(array), post_overlap, len(array)-post_overlap))
     if post_overlap >= pre_overlap:
         # match which probes to drop from array.
-        array_probes_lookup = {str(probe).split('_')[0]: probe for probe in list(array.index)}
+        array_probes_lookup = {str(probe).split('_')[0]: probe for probe in list(ARRAY)}
         # get a list of unmodified array_probe_names to drop, based on matching the overlapping list with the modified probe names.
         exclude = [array_probes_lookup[probe] for probe in (set(array_probes) & set(probe_list))]
         return array.drop(exclude, errors='ignore')
