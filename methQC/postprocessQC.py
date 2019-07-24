@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from sklearn.manifold import MDS
 from tqdm import tqdm
 import datetime
@@ -32,7 +33,6 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
     plt.title('Mean Beta Plot')
     plt.grid()
     plt.xlabel('Mean Beta')
-    plt.ylabel('Count')
     if save:
         plt.savefig('mean_beta.png')
     if not silent:
@@ -59,20 +59,27 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
         df = df.copy().transpose() # don't overwrite the original
 
     fig, ax = plt.subplots(figsize=(12, 9))
-    for col in df.columns:
-        if col != 'Name':
-            sns.distplot(
-                df[col], hist=False, rug=False,
-                label=col, ax=ax, axlabel='beta')
     print(len(df.columns))
+
+    for col in df.columns:
+        if col != 'Name': # probe name
+            if len(df.columns) <= 30:
+                sns.distplot(
+                    df[col], hist=False, rug=False,
+                    label=col, ax=ax, axlabel='beta')
+            else:
+                sns.distplot(
+                    df[col], hist=False, rug=False, axlabel='beta')
+
     if len(df.columns) <= 30:
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    else:
-        ax.get_legend().set_visible(False)
+    #else:
+    #    ax.get_legend().set_visible(False)
+    #    print('suppressing legend')
+
     plt.title('Beta Density Plot')
     plt.grid()
     plt.xlabel('Beta values')
-    plt.ylabel('Count')
     if save:
         plt.savefig('beta.png')
     if not silent:
@@ -179,15 +186,40 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         print("Starting MDS fit_transform. this may take a while.")
         LOGGER.info("Starting MDS fit_transform. this may take a while.")
 
+    # CHECK for missing probe values NaN
+    missing_probe_counts = df.isna().sum()
+    total_missing_probes = sum([i for i in missing_probe_counts])/len(df) # sum / columns
+    if sum([i for i in missing_probe_counts]) > 0:
+        df = df.dropna()
+        if verbose == True:
+            print("We found {0} probe(s) were missing values and removed them from MDS calculations.".format(total_missing_probes))
+        if silent == False:
+            LOGGER.info("{0} probe(s) were missing values removed from MDS calculations.".format(total_missing_probes))
+
     mds = MDS(n_jobs=-1, random_state=1, verbose=1)
     #n_jobs=-1 means "use all processors"
     mds_transformed = mds.fit_transform(df.values)
     # pass in df.values (a np.array) instead of a dataframe, as it processes much faster.
     # old range is used for plotting, with some margin on outside for chart readability
+    PSF = 2 # plot_scale_fator -- an empirical number to stretch the plot out and show clusters more easily.
+    if df.shape[0] < 40:
+        DOTSIZE = 16
+    elif 40 < df.shape[0] < 60:
+        DOTSIZE = 14
+    elif 40 < df.shape[0] < 60:
+        DOTSIZE = 12
+    elif 60 < df.shape[0] < 80:
+        DOTSIZE = 10
+    elif 80 < df.shape[0] < 100:
+        DOTSIZE = 8
+    elif 100 < df.shape[0] < 300:
+        DOTSIZE = 7
+    else:
+        DOTSIZE = 5
     old_X_range = [min(mds_transformed[:, 0]), max(mds_transformed[:, 0])]
     old_Y_range = [min(mds_transformed[:, 1]), max(mds_transformed[:, 1])]
-    old_X_range = [old_X_range[0] - 0.5*old_X_range[0], old_X_range[1] + 0.5*old_X_range[1]]
-    old_Y_range = [old_Y_range[0] - 0.5*old_Y_range[0], old_Y_range[1] + 0.5*old_Y_range[1]]
+    #old_X_range = [old_X_range[0] - PSF*old_X_range[0], old_X_range[1] + PSF*old_X_range[1]]
+    #old_Y_range = [old_Y_range[0] - PSF*old_Y_range[0], old_Y_range[1] + PSF*old_Y_range[1]]
     x_std, y_std = np.std(mds_transformed,axis=0)
     x_avg, y_avg = np.mean(mds_transformed,axis=0)
 
@@ -215,15 +247,25 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
                 df_indexes_to_exclude.append(idx)
             #pandas style: mds2 = mds_transformed[mds_transformed[:, 0] == class_number[:, :2]
         md2 = np.array(md2)
-        plt.figure(figsize=(12, 9))
+        fig = plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
         plt.grid()
-        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=7)
+        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE)
         plt.scatter(md2[:, 0], md2[:, 1], s=5, c='red')
-        plt.xlim(old_X_range)
-        plt.ylim(old_Y_range)
+
+        x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
+        x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX
+        y_range_min = PSF*old_Y_range[0] if PSF*old_Y_range[0] < minY else PSF*minY
+        y_range_max = PSF*old_Y_range[1] if PSF*old_Y_range[1] > maxY else PSF*maxY
+        plt.xlim([x_range_min, x_range_max])
+        plt.ylim([y_range_min, y_range_max])
         plt.xlabel('X')
         plt.ylabel('Y')
+        plt.vlines([minX, maxX], minY, maxY, color='red', linestyle=':')
+        plt.hlines([minY, maxY], minX, maxX, color='red', linestyle=':')
+        #line = mlines.Line2D([minX, minX], [minY, minY], color='red', linestyle='--')
+        #ax = fig.add_subplot(111)
+        #ax.add_line(line)
 
         if silent == True:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
@@ -308,7 +350,6 @@ def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
     plt.title('Mean Beta Plot (Compare pre vs post filtering)')
     plt.grid()
     plt.xlabel('Mean Beta')
-    plt.ylabel('Count')
     #plt.legend([line1, line2], ['pre','post'], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     if save:
         plt.savefig('mean_beta_compare.png')
