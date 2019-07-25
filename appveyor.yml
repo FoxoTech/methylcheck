@@ -29,7 +29,7 @@ install:
   # the parent CMD process).
   - "SET PATH=%PYTHON%;%PYTHON%\\Scripts;%PATH%"
   - "%PYTHON%\\python.exe -m pip install pipenv"
-  - "pipenv install --dev --skip-lock"
+  - "pipenv install -r requirements.txt --skip-lock" # --dev --skip-lock"
   - "pipenv install -e . --skip-lock"
   # pipenv will use requirements.txt
 
