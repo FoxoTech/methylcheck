@@ -8,6 +8,11 @@ setup(
 See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
+    project_urls = {
+        "Documentation": "https://life-epigenetics-methpype.readthedocs-hosted.com/en/latest/",
+        "Source": "https://github.com/lifeEGX/methpype/",
+        "Funding": "https://lifeegx.com/"
+    },    
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
