@@ -259,8 +259,6 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         y_range_max = PSF*old_Y_range[1] if PSF*old_Y_range[1] > maxY else PSF*maxY
         plt.xlim([x_range_min, x_range_max])
         plt.ylim([y_range_min, y_range_max])
-        plt.xlabel('X')
-        plt.ylabel('Y')
         plt.vlines([minX, maxX], minY, maxY, color='red', linestyle=':')
         plt.hlines([minY, maxY], minX, maxX, color='red', linestyle=':')
         #line = mlines.Line2D([minX, minX], [minY, minY], color='red', linestyle='--')
