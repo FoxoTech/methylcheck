@@ -15,7 +15,7 @@ jobs:
           command: |
             pip install pipenv
             pipenv install --dev --skip-lock
-            pip install -e . --skip-lock
+            pipenv install -e . --skip-lock
             # This ^^^ installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
             # pytest recommends this: install your package in "editable" mode by running this from the same directory.
       - save_cache:
