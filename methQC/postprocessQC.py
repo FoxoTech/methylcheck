@@ -37,6 +37,8 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         plt.savefig('mean_beta.png')
     if not silent:
         plt.show()
+    else:
+        plt.close(fig)
 
 
 def beta_density_plot(df, verbose=False, save=False, silent=False):
@@ -84,6 +86,10 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
         plt.savefig('beta.png')
     if not silent:
         plt.show()
+    else:
+        plt.clf()
+        plt.cla()
+        plt.close()
 
 
 def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
@@ -110,6 +116,9 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     if not silent:
         print("Calculating area under curve for each sample.")
     fig, ax = plt.subplots(figsize=(12, 9))
+    # first, check if probes aren't consistent, to avoid a crash here
+    df = drop_nan_probes(df, silent=silent, verbose=verbose)
+
     # if silent is True, tqdm will not show process bar.
     for subject_num, (row, subject_id) in tqdm(enumerate(zip(df.values,
                                                              df.index)), disable=silent):
@@ -132,10 +141,13 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
         plt.savefig('cum_beta.png')
     if not silent:
         plt.show()
+    plt.clf()
+    plt.cla()
+    plt.close()
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, return_plot_obj=False):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -165,6 +177,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
     returns
     -------
         returns a filtered dataframe.
+        if `return_plot_obj` is True, it returns the plot, for making overlays in methylize.
 
     requires
     --------
@@ -186,6 +199,8 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         print("Starting MDS fit_transform. this may take a while.")
         LOGGER.info("Starting MDS fit_transform. this may take a while.")
 
+    #df = drop_nan_probes(df, silent=silent, verbose=verbose)
+
     # CHECK for missing probe values NaN
     missing_probe_counts = df.isna().sum()
     total_missing_probes = sum([i for i in missing_probe_counts])/len(df) # sum / columns
@@ -195,6 +210,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
             print("We found {0} probe(s) were missing values and removed them from MDS calculations.".format(total_missing_probes))
         if silent == False:
             LOGGER.info("{0} probe(s) were missing values removed from MDS calculations.".format(total_missing_probes))
+
 
     mds = MDS(n_jobs=-1, random_state=1, verbose=1)
     #n_jobs=-1 means "use all processors"
@@ -229,6 +245,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         print("""You can now remove outliers based on their transformed beta values
  falling outside a range, defined by the sample standard deviation.""")
     while True:
+        df_indexes_to_retain = []
         df_indexes_to_exclude = []
         minX = round(x_avg - adj*x_std)
         maxX = round(x_avg + adj*x_std)
@@ -239,19 +256,24 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
                 minX, maxX,
                 minY, maxY
             ))
-        md2 = []
+        md2 = [] # samples that fit within the cutoff box.
         for idx,row in enumerate(mds_transformed):
             if minX <= row[0] <= maxX and minY <= row[1] <= maxY:
                 md2.append(row)
+                df_indexes_to_retain.append(idx)
             else:
                 df_indexes_to_exclude.append(idx)
             #pandas style: mds2 = mds_transformed[mds_transformed[:, 0] == class_number[:, :2]
+        # this is a np array, not a df. Removing all dots that are retained from the "exluded" data set (mds_transformed)
+        mds_transformed = np.delete(mds_transformed, [df_indexes_to_retain], axis=0)
         md2 = np.array(md2)
         fig = plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
         plt.grid()
-        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE)
-        plt.scatter(md2[:, 0], md2[:, 1], s=5, c='red')
+
+        plt.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c='blue')
+        plt.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=5, c='red')
+        # note/bug: the red dots are merely being overwritten by blue dots
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
         x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX
@@ -265,13 +287,16 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False):
         #ax = fig.add_subplot(111)
         #ax.add_line(line)
 
-        if silent == True:
+        if return_plot_obj == True:
+            return plt
+        elif silent == True:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
             image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
             outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
             plt.savefig(outfile)
             LOGGER.info("Saved {0}".format(outfile))
+            plt.close(fig)
             # returning DataFrame in original structure: rows are probes; cols are samples.
             return df  # may need to transpose this first.
         else:
@@ -353,3 +378,33 @@ def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
         plt.savefig('mean_beta_compare.png')
     if not silent:
         plt.show()
+    else:
+        plt.close(fig)
+
+def drop_nan_probes(df, silent=False, verbose=False):
+    """ accounts for df shape (probes in rows or cols) so dropna() will work.
+
+    the method used inside MDS may be faster, but doesn't tell you which probes were dropped."""
+    ### histogram can't have NAN values -- so need to exclude before running, or warn user.
+    # from https://dzone.com/articles/pandas-find-rows-where-columnfield-is-null -- returns a slimmer df of col/rows with NAN.
+    dfnan = df[df.isnull().any(axis=1)][df.columns[df.isnull().any()]]
+    if len(dfnan) > 0 and df.shape[0] > df.shape[1]: # a list of probe names that contain nan.
+        #probes in rows
+        pre_shape = df.shape
+        df = df.dropna()
+        note = "(probes,samples)"
+        if not silent:
+            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan}")
+            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
+        if verbose:
+            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan)))
+    elif len(dfnan.columns) > 0 and df.shape[1] > df.shape[0]:
+        pre_shape = df.shape
+        df = df.dropna(axis='columns')
+        note = "(samples,probes)"
+        if not silent:
+            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan.columns}")
+            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
+        if verbose:
+            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan.columns)))
+    return df
