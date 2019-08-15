@@ -65,7 +65,6 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
         df = df.copy().transpose() # don't overwrite the original
 
     fig, ax = plt.subplots(figsize=(12, 9))
-    print(len(df.columns))
 
     for col in df.columns:
         if col != 'Name': # probe name
@@ -151,7 +150,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, multi_params={'draw_box'=True}):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, multi_params={'draw_box':True}):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -178,7 +177,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
         draw_box=False,
         xy_lim=None,
         color_num=0,
-        PSF=1.2}
+        PSF=1.2 -- plot scale factor (margin beyond points to display)}
 
     Options
     --------
@@ -231,10 +230,12 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     mds_transformed = mds.fit_transform(df.values)
     # pass in df.values (a np.array) instead of a dataframe, as it processes much faster.
     # old range is used for plotting, with some margin on outside for chart readability
-    if 'PSF' not in multi_params:
-        PSF = 2 # plot_scale_fator -- an empirical number to stretch the plot out and show clusters more easily.
-    else:
+
+    # plot_scale_fator -- an empirical number to stretch the plot out and show clusters more easily.
+    if 'PSF' in multi_params:
         PSF = multi_params.get('PSF')
+    else:
+        PSF = 2
 
     if df.shape[0] < 40:
         DOTSIZE = 16
@@ -319,14 +320,18 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
             fig = plt.figure(figsize=(12, 9))
             plt.title('MDS Plot of betas from methylation data')
             plt.grid() # adds fig.axes implied
+        else:
+            fig = multi_params.get('fig')
 
-        if not multi_params.get('ax') != None and fig.axes != []:
+        if multi_params.get('ax') == None and fig.axes != []:
             if verbose:
-                print('axes', multi_params.get('ax'), fig.axes)
+                print('axes', multi_params.get('ax'), fig.axes, 'assigned to ax.')
             ax = fig.axes[0] # appears to get implicitly created when plot.grid() runs
-        elif not multi_params.get('ax'):
+        elif multi_params.get('ax') == None:
             # passing the 'ax' (fig.axes[0]) object back in will avoid the plotlib warning.
             ax = fig.add_subplot(1,1,1)
+        else:
+            ax = multi_params.get('ax')
 
         ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black')) # RETAINED
         ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth='0.2',) # EXCLUDED
@@ -472,6 +477,11 @@ def combine_mds(*args, **kwargs):
     - verbose: (default False)
         if True, prints extra debug information to screen or logger.
 
+    analysis parameters
+    -------------------
+    - filter_stdev (how broadly should you retain samples? units are standard deviations, defaulting to 1.5 STDEV.)
+    if you increase this number, fewer outlier samples will be removed.
+
     returns
     ------
         nothing returned (currently)
@@ -492,6 +502,7 @@ def combine_mds(*args, **kwargs):
     save = kwargs.get('save', False)
     silent = kwargs.get('silent', False)
     verbose = kwargs.get('verbose', True)
+    filter_stdev = kwargs.get('filter_stdev', 1.5)
     PRINT = print if verbose else _noprint
 
 
@@ -519,12 +530,14 @@ def combine_mds(*args, **kwargs):
         #-- only draw last iteration: draw_box = True if idx == len(list_of_dfs)-1 else False
         #-- draw after complete, using dimensions provided
         try:
-            fig,ax = beta_mds_plot(df, save=save, verbose=verbose, silent=silent,
+            fig,ax = beta_mds_plot(df, filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
                               multi_params={'return_plot_obj':True,
                                             'fig':fig,
                                             'ax':ax,
                                             'color_num':idx,
-                                            'draw_box':True})
+                                            'draw_box':True,
+                                            'PSF':1.2,
+                                            })
             subplots.append(fig)
             xy_lims.append( (fig.axes[0].get_xlim(), fig.axes[0].get_ylim()) ) # (x_range, y_range)
         except Exception as e:
@@ -540,7 +553,7 @@ def combine_mds(*args, **kwargs):
     #PRINT('full chart range', int(x_range_min), int(x_range_max), int(y_range_min), int(y_range_max))
     if not silent:
         plt.show()
-    plt.close(fig)
+    plt.close('all')
 
     # PART 2 - calculate the average MDS QC score
     #1 run the loop. calc avg MDS boundary box for group.
@@ -558,15 +571,15 @@ def combine_mds(*args, **kwargs):
     for idx, df in enumerate(list_of_dfs):
         if df.shape[1] > df.shape[0]: # put probes in rows
             df = df.transpose()
-        # PRINT(idx, fig, ax)
-        fig,ax = beta_mds_plot(df, save=save, verbose=verbose, silent=silent,
+        fig,ax = beta_mds_plot(df, filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
                           multi_params={
                               'return_plot_obj':True,
                               'fig':fig,
                               'ax':ax,
                               'color_num':idx,
                               'draw_box':True,
-                              'xy_lim':xy_lim
+                              'xy_lim':xy_lim,
+                              'PSF':1.2,
                           })
     fig.axes[0].set_xlim([x_range_min, x_range_max])
     fig.axes[0].set_ylim([y_range_min, y_range_max])
