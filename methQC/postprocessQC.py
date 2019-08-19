@@ -349,7 +349,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
             ax.hlines([minY, maxY], minX, maxX, color=COLORSET.get(color_num,'red'), linestyle=':')
 
         if multi_params.get('return_plot_obj') == True:
-            return fig, ax
+            return fig, ax, df_indexes_to_retain
 
         if silent == True:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
@@ -431,9 +431,9 @@ def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
     data2['mean'] = data2.mean(numeric_only=True, axis=1)
 
     fig, ax = plt.subplots(figsize=(12, 9))
-    line1 = sns.distplot(data1['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
-    line2 = sns.distplot(data2['mean'], hist=False, rug=False)
-    plt.title('Mean Beta Plot (Compare pre vs post filtering)')
+    line1 = sns.distplot(data1['mean'], hist=False, rug=False, ax=ax, axlabel='beta', color='xkcd:blue')
+    line2 = sns.distplot(data2['mean'], hist=False, rug=False, color='xkcd:green')
+    plt.title('Mean Beta Plot (Compare pre (blue) vs post (green) filtering)')
     plt.grid()
     plt.xlabel('Mean Beta')
     #plt.legend([line1, line2], ['pre','post'], bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -484,10 +484,11 @@ def combine_mds(*args, **kwargs):
 
     returns
     ------
-        nothing returned (currently)
+        - TODO: one dataframe of the retained samples, cutoff box is avg of datasets
+        ~~nothing returned (currently)~~
+        - TODO: each dataset's results as a transformed file
         - default: list of samples retained or excluded
         - option: a list of pyplot subplot objects
-        - TODO: one dataframe of the retained samples.
     """
 
     # check if already dataframes, or are they strings?
@@ -503,14 +504,16 @@ def combine_mds(*args, **kwargs):
     silent = kwargs.get('silent', False)
     verbose = kwargs.get('verbose', True)
     filter_stdev = kwargs.get('filter_stdev', 1.5)
+    output_format = kwargs.get('output')
     PRINT = print if verbose else _noprint
-
 
     # data to combine
     dfs = pd.DataFrame()
     # OPTIONAL OUTPUT: TRACK each source df's samples for plot color coding prior to merging
     # i.e. was this sample included or excluded at end?
+    # maybe use a simple class here to track the data as it is being manipulated?
     sample_source = {}
+    frame_transposed = {}
     # subplots: possibly useful - list of subplot objects within the figure, and their metadata.
     subplots = []
     # track x/y ranges to adjust plot area later
@@ -520,17 +523,19 @@ def combine_mds(*args, **kwargs):
     fig = None
     ax = None
     for idx, df in enumerate(list_of_dfs):
+        transposed = False
         if df.shape[1] > df.shape[0]: # put probes in rows
             df = df.transpose()
+            transposed = True
         for sample in df.columns:
+            if sample in sample_source:
+                print("WARNING: sample names are not unique across data sets")
             sample_source[sample] = idx
+        frame_transposed[idx] = transposed
 
-        # PLOT separate MDS
-        # PRINT(idx, fig, ax)
-        #-- only draw last iteration: draw_box = True if idx == len(list_of_dfs)-1 else False
-        #-- draw after complete, using dimensions provided
+        # first, PLOT separate MDS, each with its own box.
         try:
-            fig,ax = beta_mds_plot(df, filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
+            fig,ax,df_indexes_to_retain = beta_mds_plot(df, filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
                               multi_params={'return_plot_obj':True,
                                             'fig':fig,
                                             'ax':ax,
@@ -568,19 +573,33 @@ def combine_mds(*args, **kwargs):
     PRINT('Average MDS window coordinate range: (x: {0}, y:{1}'.format(xy_lim[0], xy_lim[1]))
     fig = None
     ax = None
+    transformed_dfs = []
     for idx, df in enumerate(list_of_dfs):
         if df.shape[1] > df.shape[0]: # put probes in rows
             df = df.transpose()
-        fig,ax = beta_mds_plot(df, filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
-                          multi_params={
-                              'return_plot_obj':True,
-                              'fig':fig,
-                              'ax':ax,
-                              'color_num':idx,
-                              'draw_box':True,
-                              'xy_lim':xy_lim,
-                              'PSF':1.2,
-                          })
+        fig,ax,df_indexes_to_retain = beta_mds_plot(df,
+            filter_stdev=filter_stdev, save=save, verbose=verbose, silent=silent,
+            multi_params={
+                'return_plot_obj':True,
+                'fig':fig,
+                'ax':ax,
+                'color_num':idx,
+                'draw_box':True,
+                'xy_lim':xy_lim,
+                'PSF':1.2,
+            })
+        try:
+            if frame_transposed[idx]:
+                # this data (df) was transposed from file-orientation, so samples are in rows now; probes in columns
+                df_transformed = df.iloc[df_indexes_to_retain, :] # samples in rows
+                print(df.shape, df_transformed.shape)
+            else:
+                # iloc: first list is row index; 2nd is column index
+                df_transformed = df.iloc[:, df_indexes_to_retain] # samples in columns
+                print(df.shape, df_transformed.shape)
+            transformed_dfs.append(df_transformed)
+        except:
+            import pdb;pdb.set_trace()
     fig.axes[0].set_xlim([x_range_min, x_range_max])
     fig.axes[0].set_ylim([y_range_min, y_range_max])
 
@@ -590,14 +609,16 @@ def combine_mds(*args, **kwargs):
     all_coords = []
     retained = []
     excluded = []
+    retained_sample_dfs = []
     for i in range(0, 4*len(list_of_dfs), 1):
         DD = fig.axes[0].collections[i]
         DD.set_offset_position('data')
         #print(DD.get_offsets())
         all_coords.extend(DD.get_offsets().tolist())
         #print(i, len(all_coords))
-        if i % 4 == 0: # 0, 4, 8 -- this is the first data set applied to plot.
+        if i % 4 == 0: # 0, 4, 8 -- this is the first data set applied to plot. (x,y plot coords)
             retained.extend( DD.get_offsets().tolist() )
+            # go from plot sample x,y to idx of samples in original dfs.
         if i % 4 == 1: # 1, 5, 9, etc -- this is the second data set applied to plot.
             excluded.extend( DD.get_offsets().tolist() )
     if verbose:
@@ -607,6 +628,9 @@ def combine_mds(*args, **kwargs):
     if not silent:
         plt.show()
     plt.close('all')
+
+    # TODO: output_format
+    return transformed_dfs
 
 
 def _load_data(filepaths):
