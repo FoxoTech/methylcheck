@@ -5,7 +5,7 @@ setup(
     name='methylcheck',
     version='0.2.4',
     description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
-See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
+See https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     project_urls = {
