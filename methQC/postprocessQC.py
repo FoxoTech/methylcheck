@@ -21,7 +21,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
-        - to get this formatted import, use `methpype.consolidate_values_for_sheet()`,
+        - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default)."""
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
@@ -52,7 +52,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
-        - to get this formatted import, use `methpype.consolidate_values_for_sheet()`,
+        - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default).
 
     Returns:
@@ -195,7 +195,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     --------
         pandas, numpy, pyplot, sklearn.manifold.MDS """
 
-    # ensure "long format": probes in rows and samples in cols. This is how methpype returns data.
+    # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
         ## methylcheck needs probes in rows and samples in cols. but MDS needs a wide matrix.
         df = df.copy().transpose() # don't overwrite the original

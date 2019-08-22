@@ -9,8 +9,8 @@ See https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/ for f
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     project_urls = {
-        "Documentation": "https://life-epigenetics-methpype.readthedocs-hosted.com/en/latest/",
-        "Source": "https://github.com/lifeEGX/methpype/",
+        "Documentation": "https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/",
+        "Source": "https://github.com/lifeEGX/methylprep/",
         "Funding": "https://lifeegx.com/"
     },    
     classifiers=[

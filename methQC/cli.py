@@ -73,7 +73,7 @@ def cli_parser():
         required=True,
         type=Path,
         help="""path to a file containing sample matrix of beta or m_values. \
-You can create this output from `methpype` using the --betas flag.""",
+You can create this output from `methylprep` using the --betas flag.""",
     )
 
     parser.add_argument(
@@ -155,7 +155,7 @@ Also see methylcheck.list_problem_probes for more details.',
         df = pd.read_pickle(args.data_file)
     else:
         raise FileNotFoundError("Could not find/read your data file.")
-    # methpype data will be long format, with samples in columns and probes in rows. MDS transposes this.'
+    # methylprep data will be long format, with samples in columns and probes in rows. MDS transposes this.'
 
     # determine array type
     if args.array_type is None:

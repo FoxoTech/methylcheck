@@ -17,7 +17,7 @@ This package is available in PyPi.
 
 # How to use it
 
-In general, the best way to import data is to use `methpype` and run `run_pipeline(data_folder, betas=True)`, collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook with methylcheck. From there, each data transformation is a single line of code using Panadas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+In general, the best way to import data is to use `methylprep` and run `run_pipeline(data_folder, betas=True)`, collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook with methylcheck. From there, each data transformation is a single line of code using Panadas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 

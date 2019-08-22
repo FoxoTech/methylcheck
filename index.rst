@@ -12,9 +12,9 @@ Getting Started
    :caption: Contents:
    :name: Help Files
 
-   docs/demo-methpype-to-methylcheck-example.ipynb
+   docs/demo-methylprep-to-methylcheck-example.ipynb
    docs/filtering_probes.ipynb
-   docs/methpype_methylcheck_example.ipynb
+   docs/methylprep_methylcheck_example.ipynb
    docs/source/methylcheck.rst
 
 Indices and tables
