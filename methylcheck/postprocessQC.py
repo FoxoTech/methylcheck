@@ -21,7 +21,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
-        - to get this formatted import, use `methpype.consolidate_values_for_sheet()`,
+        - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default)."""
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
@@ -52,7 +52,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
-        - to get this formatted import, use `methpype.consolidate_values_for_sheet()`,
+        - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default).
 
     Returns:
@@ -195,9 +195,9 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     --------
         pandas, numpy, pyplot, sklearn.manifold.MDS """
 
-    # ensure "long format": probes in rows and samples in cols. This is how methpype returns data.
+    # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
-        ## methQC needs probes in rows and samples in cols. but MDS needs a wide matrix.
+        ## methylcheck needs probes in rows and samples in cols. but MDS needs a wide matrix.
         df = df.copy().transpose() # don't overwrite the original
         if verbose:
             print("Your data needed to be transposed (df = df.transpose()).")
@@ -449,7 +449,7 @@ def combine_mds(*args, **kwargs):
     combine (or segment) datasets how it works
     ------------------------------------------
     Use this function on multiple dataframes to combine datasets, or to visualize
-    parts of the same dataset in separate colors. It is a wrapper of `methQC.beta_mds_plot()` and applies
+    parts of the same dataset in separate colors. It is a wrapper of `methylcheck.beta_mds_plot()` and applies
     multidimensional scaling to cluster similar samples based on patterns in probe values, as well as identify
     possible outlier samples (and exclude them).
 

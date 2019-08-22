@@ -1,4 +1,4 @@
 include README.rst
-include methQC/data_files/*.npy
-include methQC/data_files/*.gz
+include methylcheck/data_files/*.npy
+include methylcheck/data_files/*.gz
 include docs/*

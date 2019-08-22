@@ -1,37 +1,37 @@
-methQC package
-==============
+methylcheck package
+===================
 
 Submodules
 ----------
 
-methQC.QCreport module
+methylcheck.QCreport module
 ----------------------
 
-.. automodule:: methQC.QCreport
+.. automodule:: methylcheck.QCreport
    :members:
    :undoc-members:
    :show-inheritance:
 
-methQC.cli module
+methylcheck.cli module
 -----------------
 
-.. automodule:: methQC.cli
+.. automodule:: methylcheck.cli
    :members:
    :undoc-members:
    :show-inheritance:
 
-methQC.filters module
+methylcheck.filters module
 ---------------------
 
-.. automodule:: methQC.filters
+.. automodule:: methylcheck.filters
    :members:
    :undoc-members:
    :show-inheritance:
 
-methQC.postprocessQC module
+methylcheck.postprocessQC module
 ---------------------------
 
-.. automodule:: methQC.postprocessQC
+.. automodule:: methylcheck.postprocessQC
    :members:
    :undoc-members:
    :show-inheritance:
@@ -40,7 +40,7 @@ methQC.postprocessQC module
 Module contents
 ---------------
 
-.. automodule:: methQC
+.. automodule:: methylcheck
    :members:
    :undoc-members:
    :show-inheritance:

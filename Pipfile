@@ -26,7 +26,7 @@ numpy = "==1.16.3"
 pandas = "==0.24.2"
 statsmodels = "==0.9.0"
 scipy = "==1.2.1"
-methQC = {editable = true,extras = ["socks"],path = "."}
+methylcheck = {editable = true,extras = ["socks"],path = "."}
 
 [requires]
 python_version = "3.7"

@@ -1,18 +1,18 @@
 # Lib
 from setuptools import setup, find_packages
 
+# note: ANY param must fit on a single line or twine breaks.
 setup(
-    name='methQC',
+    name='methylcheck',
     version='0.2.4',
-    description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
-See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
+    description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data. See https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
     project_urls = {
-        "Documentation": "https://life-epigenetics-methpype.readthedocs-hosted.com/en/latest/",
-        "Source": "https://github.com/lifeEGX/methpype/",
+        "Documentation": "https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/",
+        "Source": "https://github.com/lifeEGX/methylcheck/",
         "Funding": "https://lifeegx.com/"
-    },    
+    },
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
@@ -28,8 +28,8 @@ See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full d
         'Operating System :: POSIX :: Linux',
       ],
     keywords='methylation dna data processing epigenetics illumina',
-    url='https://github.com/LifeEGX/methQC',
-    license='MIT',
+    url='https://github.com/LifeEGX/methylcheck',
+    license="MIT License",
     author='Life Epigenetics',
     author_email='info@lifeegx.com',
     packages=find_packages(),
@@ -62,7 +62,7 @@ See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full d
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'methQC-cli = methQC.cli:cli_parser',
+            'methylcheck-cli = methylcheck.cli:cli_parser',
             ],
     }
 )
