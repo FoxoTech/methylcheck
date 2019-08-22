@@ -2,7 +2,7 @@
 from setuptools import setup, find_packages
 
 setup(
-    name='methQC',
+    name='methylcheck',
     version='0.2.4',
     description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
 See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
@@ -28,7 +28,7 @@ See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full d
         'Operating System :: POSIX :: Linux',
       ],
     keywords='methylation dna data processing epigenetics illumina',
-    url='https://github.com/LifeEGX/methQC',
+    url='https://github.com/LifeEGX/methylcheck',
     license='MIT',
     author='Life Epigenetics',
     author_email='info@lifeegx.com',
@@ -62,7 +62,7 @@ See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full d
     tests_require=['pytest'],
     entry_points={
         'console_scripts': [
-            'methQC-cli = methQC.cli:cli_parser',
+            'methylcheck-cli = methylcheck.cli:cli_parser',
             ],
     }
 )

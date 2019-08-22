@@ -197,7 +197,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
 
     # ensure "long format": probes in rows and samples in cols. This is how methpype returns data.
     if df.shape[1] < df.shape[0]:
-        ## methQC needs probes in rows and samples in cols. but MDS needs a wide matrix.
+        ## methylcheck needs probes in rows and samples in cols. but MDS needs a wide matrix.
         df = df.copy().transpose() # don't overwrite the original
         if verbose:
             print("Your data needed to be transposed (df = df.transpose()).")
@@ -449,7 +449,7 @@ def combine_mds(*args, **kwargs):
     combine (or segment) datasets how it works
     ------------------------------------------
     Use this function on multiple dataframes to combine datasets, or to visualize
-    parts of the same dataset in separate colors. It is a wrapper of `methQC.beta_mds_plot()` and applies
+    parts of the same dataset in separate colors. It is a wrapper of `methylcheck.beta_mds_plot()` and applies
     multidimensional scaling to cluster similar samples based on patterns in probe values, as well as identify
     possible outlier samples (and exclude them).
 

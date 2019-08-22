@@ -1,8 +1,8 @@
-# methQC
-methQC is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
+# methylcheck
+methylcheck is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
-[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methqc/badge/?version=latest)](https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/) [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv) Linux/OSX [![CircleCI](https://circleci.com/gh/LifeEGX/methQC.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methQC) Windows [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methqc) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/02598852d7d34e8284e928ea6c221f1a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methQC&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methQC/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methQC)
+[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methqc/badge/?version=latest)](https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/) [![image](https://img.shields.io/pypi/l/pipenv.svg)](https://python.org/pypi/pipenv) Linux/OSX [![CircleCI](https://circleci.com/gh/LifeEGX/methylcheck.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methylcheck) Windows [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methqc) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/02598852d7d34e8284e928ea6c221f1a)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methylcheck&amp;utm_campaign=Badge_Grade)
+[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methylcheck)
 
 # MethQC Package
 
@@ -13,11 +13,11 @@ It contains both high-level APIs for processing data from local files and low-le
 # Installation
 
 This package is available in PyPi.
-`pip install methQC`
+`pip install methylcheck`
 
 # How to use it
 
-In general, the best way to import data is to use `methpype` and run `run_pipeline(data_folder, betas=True)`, collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook with methQC. From there, each data transformation is a single line of code using Panadas DataFrames. `methQC` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+In general, the best way to import data is to use `methpype` and run `run_pipeline(data_folder, betas=True)`, collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook with methylcheck. From there, each data transformation is a single line of code using Panadas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 

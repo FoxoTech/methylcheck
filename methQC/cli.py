@@ -39,12 +39,12 @@ def detect_array(df):
 
 def cli_parser():
     parser = DefaultParser(
-        prog='methQC',
+        prog='methylcheck',
         description="""Transformation and visualization tool for methylation data from Illumina IDAT files.
 
-        Usage: python -m methQC -d <datafile> --verbose [commands]
+        Usage: python -m methylcheck -d <datafile> --verbose [commands]
 
-        Convenience command, to run the full battery of tests: ptype methQC -d <data> -p all --exclude_all
+        Convenience command, to run the full battery of tests: ptype methylcheck -d <data> -p all --exclude_all
 
         Commands
         --------
@@ -80,7 +80,7 @@ You can create this output from `methpype` using the --betas flag.""",
         '-a', '--array_type',
         choices=['27k','450k','EPIC','EPIC+'],
         required=False,
-        help='Type of array being processed. If omitted, methQC will autodetect based on shape of data.',
+        help='Type of array being processed. If omitted, methylcheck will autodetect based on shape of data.',
     )
 
     parser.add_argument(
@@ -101,7 +101,7 @@ You can create this output from `methpype` using the --betas flag.""",
         '--exclude_probes',
         help='This will exclude all problem probes, based on several lists from academic publications. \
 If you want fine-tuning-control, use the exclude_probes() function in a jupyter notebook instead. \
-Also see methQC.list_problem_probes for more details.',
+Also see methylcheck.list_problem_probes for more details.',
         action='store_true',
         default=False,
     )

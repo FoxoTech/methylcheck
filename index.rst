@@ -1,4 +1,4 @@
-Welcome to methQC's documentation!
+Welcome to methylcheck's documentation!
 ====================================
 
 ---------------
@@ -12,10 +12,10 @@ Getting Started
    :caption: Contents:
    :name: Help Files
 
-   docs/demo-methpype-to-methQC-example.ipynb
+   docs/demo-methpype-to-methylcheck-example.ipynb
    docs/filtering_probes.ipynb
-   docs/methpype_methQC_example.ipynb
-   docs/source/methQC.rst
+   docs/methpype_methylcheck_example.ipynb
+   docs/source/methylcheck.rst
 
 Indices and tables
 ==================
