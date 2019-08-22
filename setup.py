@@ -3,10 +3,16 @@ from setuptools import setup, find_packages
 
 setup(
     name='methQC',
-    version='0.2.3',
-    description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data. See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
+    version='0.2.4',
+    description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data.
+See https://life-epigenetics-methqc.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',
+    project_urls = {
+        "Documentation": "https://life-epigenetics-methpype.readthedocs-hosted.com/en/latest/",
+        "Source": "https://github.com/lifeEGX/methpype/",
+        "Funding": "https://lifeegx.com/"
+    },    
     classifiers=[
         'Development Status :: 4 - Beta',
         'Environment :: Console',
