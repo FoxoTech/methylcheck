@@ -1,5 +1,5 @@
 Welcome to methylcheck's documentation!
-====================================
+=======================================
 
 ---------------
 Getting Started

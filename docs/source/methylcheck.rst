@@ -1,5 +1,5 @@
 methylcheck package
-==============
+===================
 
 Submodules
 ----------
