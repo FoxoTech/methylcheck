@@ -224,7 +224,6 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
         if silent == False:
             LOGGER.info("{0} probe(s) were missing values removed from MDS calculations.".format(total_missing_probes))
 
-
     mds = MDS(n_jobs=-1, random_state=1, verbose=1)
     #n_jobs=-1 means "use all processors"
     mds_transformed = mds.fit_transform(df.values)
@@ -259,7 +258,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     x_avg, y_avg = np.mean(mds_transformed,axis=0)
 
     adj = filter_stdev #(1.5)
-    ##########
+
     if verbose == True:
         print("""You can now remove outliers based on their transformed beta values
  falling outside a range, defined by the sample standard deviation.""")
