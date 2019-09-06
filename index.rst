@@ -15,10 +15,10 @@ Getting Started
    docs/demo-methylprep-to-methylcheck-example.ipynb
    docs/filtering_probes.ipynb
    docs/methylprep_methylcheck_example.ipynb
-   docs/source/modules.rst
-   docs/source/methylprep.rst
+   docs/source/modules
+   docs/source/methylprep
 
-.. automodule:: methylcheck.__main__
+.. automodule:: methylcheck
     :members:
 
 Indices and tables

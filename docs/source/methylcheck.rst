@@ -5,7 +5,7 @@ Submodules
 ----------
 
 methylcheck.QCreport module
-----------------------
+---------------------------
 
 .. automodule:: methylcheck.QCreport
    :members:
@@ -13,7 +13,7 @@ methylcheck.QCreport module
    :show-inheritance:
 
 methylcheck.cli module
------------------
+----------------------
 
 .. automodule:: methylcheck.cli
    :members:
@@ -21,7 +21,7 @@ methylcheck.cli module
    :show-inheritance:
 
 methylcheck.filters module
----------------------
+--------------------------
 
 .. automodule:: methylcheck.filters
    :members:
@@ -29,7 +29,7 @@ methylcheck.filters module
    :show-inheritance:
 
 methylcheck.postprocessQC module
----------------------------
+--------------------------------
 
 .. automodule:: methylcheck.postprocessQC
    :members:
