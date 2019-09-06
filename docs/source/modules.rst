@@ -1,4 +1,4 @@
-.. toctree::
-   :maxdepth: 4
+.. autodoc:: methylcheck
+   :members:
 
-   methylcheck
+   
