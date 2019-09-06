@@ -16,7 +16,7 @@ Getting Started
    docs/filtering_probes.ipynb
    docs/methylprep_methylcheck_example.ipynb
    docs/source/modules
-   docs/source/methylprep
+   docs/source/methylcheck
 
 .. automodule:: methylcheck
     :members:
