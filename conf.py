@@ -49,7 +49,7 @@ extensions = [
 apidoc_module_dir = '.'
 apidoc_output_dir = '_sphinx_build'
 apidoc_excluded_paths = ['tests']
-apidoc_separate_modules = False
+apidoc_separate_modules = True
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_sphinx_templates']
