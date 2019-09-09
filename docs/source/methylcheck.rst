@@ -1,17 +1,6 @@
 methylcheck package
 ===================
 
-Submodules
-----------
-
-methylcheck.QCreport module
----------------------------
-
-.. automodule:: methylcheck.QCreport
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 methylcheck.cli module
 ----------------------
 
@@ -32,15 +21,6 @@ methylcheck.postprocessQC module
 --------------------------------
 
 .. automodule:: methylcheck.postprocessQC
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
-Module contents
----------------
-
-.. automodule:: methylcheck
    :members:
    :undoc-members:
    :show-inheritance:
