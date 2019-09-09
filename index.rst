@@ -12,7 +12,6 @@ methylcheck documentation
    docs/demo-methylprep-to-methylcheck-example.ipynb
    docs/filtering_probes.ipynb
    docs/methylprep_methylcheck_example.ipynb
-   docs/source/modules
    docs/source/methylcheck
 
 
