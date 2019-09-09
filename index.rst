@@ -1,9 +1,6 @@
-Welcome to methylcheck's documentation!
-=======================================
+methylcheck documentation
+=========================
 
----------------
-Getting Started
----------------
 
 .. mdinclude:: README.md
 
@@ -18,8 +15,6 @@ Getting Started
    docs/source/modules
    docs/source/methylcheck
 
-.. automodule:: methylcheck
-    :members:
 
 Indices and tables
 ==================
