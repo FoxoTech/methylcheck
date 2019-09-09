@@ -1,7 +1,8 @@
-methylcheck package
-===================
+Modules
+-------
 
-.. autodoc:: methylcheck
+.. automodule:: methylcheck
    :members:
+   :undoc-members:
+   :show-inheritance:
 
-   
