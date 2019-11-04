@@ -403,6 +403,8 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
         if verbose:
             print("Saved {0}".format(outfile))
             LOGGER.info("Saved {0}".format(outfile))
+    else:
+        df_out = df
     # returning DataFrame in original structure: rows are probes; cols are samples.
     return df_out #, df_indexes_to_exclude  # may need to transpose this first.
 
