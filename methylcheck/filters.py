@@ -128,21 +128,25 @@ from {2} samples. {3} probes remaining.""".format(
     return filtered
 
 def exclude_probes(array, probe_list):
-    """Resolves a problem whereby probe lists have basic names, but samples have additional meta data added.
-    Example:
+    """
+How to:
+    use list_problem_probes to obtain a list of probes, then pass that in as a probe_list along with the dataframe of beta values (array)
 
-    probe list
-        ['cg24168924', 'cg15886294', 'cg05943251', 'cg05579622', 'cg01797553', 'cg14885690', 'cg12490816', 'cg02631583', 'cg17361593', 'cg15000031', 'cg21515494', 'cg17219246', 'cg10838001', 'cg13913475', 'cg00492169', 'cg20352786', 'cg05932698', 'cg06736139', 'cg08333283', 'cg10010298', 'cg25984048', 'cg27287823', 'cg19269713', 'cg12456833', 'cg26161708', 'cg04984052', 'cg00033806', 'cg23255774', 'cg10717379', 'cg00880984', 'cg01818617', 'cg18563133', 'cg15895341', 'cg08155050', 'cg06820286', 'cg04325909', 'cg15094920', 'cg08037129', 'cg11161730', 'cg06044537', 'cg11936560', 'cg12404870', 'cg12670496', 'cg01473643', 'cg08605930', 'cg16553354', 'cg22175254', 'cg22966295', 'cg07346931', 'cg06234741']
-    sample probe names
-        Index(['cg00000029_II_F_C_rep1_EPIC', 'cg00000103_II_F_C_rep1_EPIC', 'cg00000109_II_F_C_rep1_EPIC', 'cg00000155_II_F_C_rep1_EPIC',
-       'cg00000158_II_F_C_rep1_EPIC', 'cg00000165_II_R_C_rep1_EPIC', 'cg00000221_II_R_C_rep1_EPIC', 'cg00000236_II_R_C_rep1_EPIC',
-       ...
-       'ch.9.98957343R_II_R_O_rep1_EPIC', 'ch.9.98959675F_II_F_O_rep1_EPIC', 'ch.9.98989607R_II_R_O_rep1_EPIC', 'ch.9.991104F_II_F_O_rep1_EPIC']
+Resolves a problem whereby probe lists have basic names, but samples have additional meta data added.
+Example:
 
-    This chops off anything after the first underscore, and compares with probe_list to see if percent match increases.
-    It then drops probes from array that match probe_list, at least partially.
+probe list
+    ['cg24168924', 'cg15886294', 'cg05943251', 'cg05579622', 'cg01797553', 'cg14885690', 'cg12490816', 'cg02631583', 'cg17361593', 'cg15000031', 'cg21515494', 'cg17219246', 'cg10838001', 'cg13913475', 'cg00492169', 'cg20352786', 'cg05932698', 'cg06736139', 'cg08333283', 'cg10010298', 'cg25984048', 'cg27287823', 'cg19269713', 'cg12456833', 'cg26161708', 'cg04984052', 'cg00033806', 'cg23255774', 'cg10717379', 'cg00880984', 'cg01818617', 'cg18563133', 'cg15895341', 'cg08155050', 'cg06820286', 'cg04325909', 'cg15094920', 'cg08037129', 'cg11161730', 'cg06044537', 'cg11936560', 'cg12404870', 'cg12670496', 'cg01473643', 'cg08605930', 'cg16553354', 'cg22175254', 'cg22966295', 'cg07346931', 'cg06234741']
+sample probe names
+    Index(['cg00000029_II_F_C_rep1_EPIC', 'cg00000103_II_F_C_rep1_EPIC', 'cg00000109_II_F_C_rep1_EPIC', 'cg00000155_II_F_C_rep1_EPIC',
+   'cg00000158_II_F_C_rep1_EPIC', 'cg00000165_II_R_C_rep1_EPIC', 'cg00000221_II_R_C_rep1_EPIC', 'cg00000236_II_R_C_rep1_EPIC',
+   ...
+   'ch.9.98957343R_II_R_O_rep1_EPIC', 'ch.9.98959675F_II_F_O_rep1_EPIC', 'ch.9.98989607R_II_R_O_rep1_EPIC', 'ch.9.991104F_II_F_O_rep1_EPIC']
 
-    ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index."""
+This chops off anything after the first underscore, and compares with probe_list to see if percent match increases.
+It then drops probes from array that match probe_list, at least partially.
+
+ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index."""
 
     # 1 - check shape of array, to ensure probes are the index/values
     ARRAY = array.index
