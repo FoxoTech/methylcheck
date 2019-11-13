@@ -14,8 +14,8 @@ methylcheck documentation
    docs/methylprep_methylcheck_example.ipynb
    docs/another-methylcheck-qc-example.ipynb
    docs/demo_using_matched_meta_data.ipynb
-   docs/source/methylcheck
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
+   docs/source/methylcheck
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
 
 
