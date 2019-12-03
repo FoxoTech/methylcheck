@@ -4,7 +4,7 @@ from setuptools import setup, find_packages
 # note: ANY param must fit on a single line or twine breaks.
 setup(
     name='methylcheck',
-    version='0.2.5',
+    version='0.4.0',
     description="""Quality Control (QC), Visualization/plotting, and postprocessing software for Illumina methylation array data. See https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/ for full documentation and examples.""",
     long_description=open('README.md').read(),
     long_description_content_type='text/markdown',

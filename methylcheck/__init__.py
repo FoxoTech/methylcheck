@@ -6,6 +6,7 @@ from .postprocessQC import (
     mean_beta_plot, beta_density_plot, beta_mds_plot, drop_nan_probes,
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds)
 from .filters import exclude_sex_control_probes, list_problem_probes, exclude_probes
+from .hdbscan_clustering import find_clusters
 
 getLogger(__name__).addHandler(NullHandler())
 
@@ -21,5 +22,7 @@ __all__ = [
     'list_problem_probes',
     'mean_beta_plot',
     'mean_beta_compare',
-    'combine_mds'
+    'combine_mds',
+    'sample_plot',
+    'find_clusters',
 ]

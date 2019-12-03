@@ -45,7 +45,8 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         plt.close(fig)
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False):
+
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=None):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -56,27 +57,58 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
         as this will return a matrix of beta-values for a batch of samples (by default).
 
     Returns:
-        None"""
+        None
+
+    Parameters:
+        verbose:
+            display extra messages
+        save:
+            if True, saves a copy of the plot as a png file.
+        silent:
+            if True, eliminates all messages (useful for automation and scripting)
+        reduce:
+            when working with datasets and you don't need publication quality "exact" plots,
+            supply a float between 0 and 1 to sample the probe data for plotting.
+            We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
+            the distribution. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
+            Using 0.1 will speed up plotting 10-fold. """
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
             print("Your data needed to be transposed (df = df.transpose()).")
             LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
-        df = df.copy().transpose() # don't overwrite the original
+        df = df.transpose()
+
+    if reduce != None and reduce < 1.0:
+        if not isinstance(reduce, (int, float)):
+            try:
+                reduce = float(reduce)
+            except Exception as e:
+                raise ValueError(f"{reduce} must be a floating point number between 0 and 1.0")
+        # the fraction of probes in index (rows) to include in plot.
+        # speeds plotting up a TON.
+        # choice returns the positions as a list.
+        probes = np.random.choice(df.shape[0], int(reduce*df.shape[0]))
 
     fig, ax = plt.subplots(figsize=(12, 9))
 
-    for col in df.columns:
+    show_labels = True if len(df.columns) <= 30 else False
+    for col in df.columns: # samples
         if col != 'Name': # probe name
-            if len(df.columns) <= 30:
+            if reduce:
+                values = df[col].values[probes]
+            else:
+                values = df[col].values
+
+            if show_labels:
                 sns.distplot(
-                    df[col], hist=False, rug=False,
+                    values, hist=False, rug=False,
                     label=col, ax=ax, axlabel='beta')
             else:
                 sns.distplot(
-                    df[col], hist=False, rug=False, axlabel='beta')
+                    values, hist=False, rug=False, axlabel='beta')
 
-    if len(df.columns) <= 30:
+    if show_labels:
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #else:
     #    ax.get_legend().set_visible(False)
@@ -93,6 +125,17 @@ def beta_density_plot(df, verbose=False, save=False, silent=False):
         plt.clf()
         plt.cla()
         plt.close()
+
+
+def sample_plot(df, **kwargs):
+    """ more intuitive alias of beta_density_plot(), since not all values are beta distributions.
+    this changes the default to show a reduced, faster version of probe data, sampling 10% of probes present for10-fold faster processing time."""
+    if 'reduce' not in kwargs:
+        reduce = None
+    else:
+        reduce = kwargs.get('reduce',0.1) # sets default
+    kwargs['reduce'] = reduce
+    beta_density_plot(df, kwargs)
 
 
 def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
