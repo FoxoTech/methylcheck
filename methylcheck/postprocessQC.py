@@ -11,7 +11,8 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from sklearn.manifold import MDS
-from tqdm import tqdm
+#app
+from .progress_bar import * # tqdm, environment-specific import
 
 LOGGER = logging.getLogger(__name__)
 
@@ -46,7 +47,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=None):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -534,15 +535,6 @@ def combine_mds(*args, **kwargs):
         - default: list of samples retained or excluded
         - option: a list of pyplot subplot objects
     """
-
-    # check if already dataframes, or are they strings?
-    list_of_dfs = list(args)
-    if any([not isinstance(item, pd.DataFrame) for item in list_of_dfs]):
-        if set([type(item) for item in list_of_dfs]) == {str}:
-            try:
-                list_of_dfs = _load_data(list_of_dfs)
-            except Exception as e:
-                raise FileNotFoundError ("Either your files don't exist, or they are not pickled: {0}".format(e))
     # kwargs
     save = kwargs.get('save', False)
     silent = kwargs.get('silent', False)
@@ -550,6 +542,20 @@ def combine_mds(*args, **kwargs):
     filter_stdev = kwargs.get('filter_stdev', 1.5)
     output_format = kwargs.get('output')
     PRINT = print if verbose else _noprint
+
+    # check if already dataframes, or are they strings?
+    list_of_dfs = list(args)
+    if any([not isinstance(item, pd.DataFrame) for item in list_of_dfs]):
+        if set([type(item) for item in list_of_dfs]) == {str}:
+            try:
+                if silent:
+                    list_of_dfs = _load_data(list_of_dfs, progress_bar=False)
+                elif verbose:
+                    list_of_dfs = _load_data(list_of_dfs, progress_bar=True)
+                else:
+                    list_of_dfs = _load_data(list_of_dfs, progress_bar=False)
+            except Exception as e:
+                raise FileNotFoundError ("Either your files don't exist, or they are not pickled: {0}".format(e))
 
     # data to combine
     dfs = pd.DataFrame()
@@ -677,11 +683,35 @@ def combine_mds(*args, **kwargs):
     return transformed_dfs
 
 
-def _load_data(filepaths):
+def _load_data(filepaths, progress_bar=False, tidy_it=True):
+    """Loads all pickled ('.pkl') beta values dataframe files from a given folder.
+Output:
+    A list of dataframes. It does not merge or concatenate these dataframes.
+    Afterwards you can merge this this way:
+    df = pd.concat(list_of_dfs_returned, axis=1, sort=False)
+    provided you use the tidy_it=True flag in this function.
+    Make sure the shape of the resulting dataframe has the right number of rows and columns. If not, try axis=0
+Options:
+    progress_bar -- If True, shows a progress bar.
+    tidy_id -- If True, ensures that all files are oriented the same way in the list of datasets returned.
+        All dataframes will have probes in rows and samples in columns.
+    """
     dfs = []
-    for ff in filepaths:
+    if progress_bar:
+        _func = tqdm(filepaths, total=len(filepaths))
+    else:
+        _func = filepaths
+    for ff in _func:
         df = pd.read_pickle(ff)
         dfs.append(df)
+    if tidy_it == True:
+        tidy_dfs = []
+        for df in dfs:
+            if df.shape[1] > df.shape[0]: # put probes in rows
+                df = df.transpose()
+            tidy_dfs.append(df)
+        #print(f"{len(tidy_dfs)} datasets loaded.")
+        return tidy_dfs
     return dfs
 
 
