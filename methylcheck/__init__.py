@@ -6,7 +6,7 @@ from .filters import exclude_sex_control_probes, list_problem_probes, exclude_pr
 from .postprocessQC import (
     mean_beta_plot, beta_density_plot, beta_mds_plot, drop_nan_probes,
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
-    filter_beta_outliers, sample_plot,
+    sample_plot,
     )
 
 getLogger(__name__).addHandler(NullHandler())
