@@ -72,13 +72,30 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1):
             supply a float between 0 and 1 to sample the probe data for plotting.
             We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
             the distribution. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
-            Using 0.1 will speed up plotting 10-fold. """
+            Using 0.1 will speed up plotting 10-fold.
+    Note:
+        if the sample_ids in df.index are not unique, it will make them so for the purpose of plotting.
+     """
+    # ensure sample ids are unique
+    if df.shape[0] > df.shape[1]:
+        df = df.transpose()
+        # must have samples in rows/index to reindex. you can't "recolumn".
+        if list(df.index) != list(set(df.index)):
+            LOGGER.info("Your sample ids contain duplicates.")
+            # rename these for this plot only
+            df['ids'] = df.index.map(lambda x: x + '_' + str(int(1000000*np.random.rand())))
+            df = df.set_index('ids', drop=True)
+            df = df.transpose()
+
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
             print("Your data needed to be transposed (df = df.transpose()).")
             LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
         df = df.transpose()
+    # 2nd check
+    if df.shape[0] < 27000:
+        LOGGER.warning("data does not appear to be full probe data")
 
     if reduce != None and reduce < 1.0:
         if not isinstance(reduce, (int, float)):
@@ -100,14 +117,17 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1):
                 values = df[col].values[probes]
             else:
                 values = df[col].values
+            if len(values.shape) > 1:
+                raise ValueError("Your df probaby contains duplicate sample names.")
 
             if show_labels:
                 sns.distplot(
-                    values, hist=False, rug=False,
+                    values, hist=False, rug=False, kde=True,
                     label=col, ax=ax, axlabel='beta')
             else:
                 sns.distplot(
-                    values, hist=False, rug=False, axlabel='beta')
+                    values, hist=False, rug=False, kde=True,
+                    ax=ax, axlabel='beta')
 
     if show_labels:
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
@@ -579,7 +599,7 @@ def combine_mds(*args, **kwargs):
             transposed = True
         for sample in df.columns:
             if sample in sample_source:
-                print("WARNING: sample names are not unique across data sets")
+                LOGGER.warning("WARNING: sample names are not unique across data sets")
             sample_source[sample] = idx
         frame_transposed[idx] = transposed
 
