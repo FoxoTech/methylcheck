@@ -27,46 +27,46 @@ class TestPostProcessQC(unittest.TestCase):
         methylcheck.postprocessQC.mean_beta_plot(self.df, verbose=False, save=False)
     @patch("methylcheck.postprocessQC.plt.show")
     def test_mean_beta_plot_transposed(self, mock):
-        methylcheck.postprocessQC.mean_beta_plot(self.df.transposed(), verbose=False, save=False)
+        methylcheck.postprocessQC.mean_beta_plot(self.df.transpose(), verbose=False, save=False)
 
     @patch("methylcheck.postprocessQC.plt.show")
     def test_beta_density_plot(self, mock):
         methylcheck.postprocessQC.beta_density_plot(self.df, verbose=False, save=False)
     @patch("methylcheck.postprocessQC.plt.show")
     def test_beta_density_plot_transposed(self, mock):
-        methylcheck.postprocessQC.beta_density_plot(self.df.transposed(), verbose=False, save=False)
+        methylcheck.postprocessQC.beta_density_plot(self.df.transpose(), verbose=False, save=False)
 
     @patch("methylcheck.postprocessQC.plt.show")
     def test_mean_beta_compare(self, mock):
         methylcheck.postprocessQC.mean_beta_compare(self.df, self.df, verbose=False, save=False)
     @patch("methylcheck.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_1(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df.transposed(), self.df, verbose=False, save=False)
+        methylcheck.postprocessQC.mean_beta_compare(self.df.transpose(), self.df, verbose=False, save=False)
     @patch("methylcheck.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_2(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df, self.df.transposed(), verbose=False, save=False)
+        methylcheck.postprocessQC.mean_beta_compare(self.df, self.df.transpose(), verbose=False, save=False)
     @patch("methylcheck.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_both(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df.transposed(), self.df.transposed(), verbose=False, save=False)
+        methylcheck.postprocessQC.mean_beta_compare(self.df.transpose(), self.df.transpose(), verbose=False, save=False)
 
     def test_cumulative_sum_beta_distribution(self):
         df2 = methylcheck.postprocessQC.cumulative_sum_beta_distribution(self.df, cutoff=0.7, verbose=False, save=False, silent=True)
     def test_cumulative_sum_beta_distribution_transposed(self):
-        df2 = methylcheck.postprocessQC.cumulative_sum_beta_distribution(self.df.transposed(), cutoff=0.7, verbose=False, save=False, silent=True)
+        df2 = methylcheck.postprocessQC.cumulative_sum_beta_distribution(self.df.transpose(), cutoff=0.7, verbose=False, save=False, silent=True)
 
     def test_beta_mds_plot(self):
         df2 = methylcheck.postprocessQC.beta_mds_plot(self.df, filter_stdev=2, verbose=False, save=False, silent=True)
     def test_beta_mds_plot_transposed(self):
-        df2 = methylcheck.postprocessQC.beta_mds_plot(self.df.transposed(), filter_stdev=2, verbose=False, save=False, silent=True)
+        df2 = methylcheck.postprocessQC.beta_mds_plot(self.df.transpose(), filter_stdev=2, verbose=False, save=False, silent=True)
 
     def test_combine_mds(self):
-        df2 = methylcheck.postprocessQC.combine_mds([self.df, self.df],
+        df2 = methylcheck.postprocessQC.combine_mds(self.df, self.df,
             save=False, silent=True, verbose=False)
 
     def test_drop_nan_probes(self):
         df2 = methylcheck.postprocessQC.drop_nan_probes(self.df, silent=True, verbose=False)
     def test_drop_nan_probes_transposed(self):
-        df2 = methylcheck.postprocessQC.drop_nan_probes(self.df.transposed(), silent=True, verbose=False)
+        df2 = methylcheck.postprocessQC.drop_nan_probes(self.df.transpose(), silent=True, verbose=False)
 
 
     def test_detect_array(self):
@@ -107,6 +107,6 @@ class TestPostProcessQC(unittest.TestCase):
     def test_exclude_probes(self):
         probe_list = methylcheck.filters.list_problem_probes('450k', criteria=None, custom_list=None)
         df2 = methylcheck.filters.exclude_probes(self.df, probe_list)
-    def test_exclude_probes_transposed(self):
+    def test_exclude_probes_transpose(self):
         probe_list = methylcheck.filters.list_problem_probes('450k', criteria=None, custom_list=None)
-        df2 = methylcheck.filters.exclude_probes(self.df.transposed(), probe_list)        
+        df2 = methylcheck.filters.exclude_probes(self.df.transpose(), probe_list)
