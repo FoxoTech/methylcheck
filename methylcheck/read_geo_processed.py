@@ -67,7 +67,7 @@ TODO:
     multiline_header = False
     sample_pattern = re.compile(r'\w?\d+_R\d{2}C\d{2}$') # $ ensures column ends with the regex part
     sample_pattern_loose = re.compile(r'\w?\d+_R\d{2}C\d{2}.*beta', re.I)
-    probe_pattern = re.compile('(cg|rs|ch\.\d+\.|ch\.X\.|ch\.Y\.)\d+')
+    probe_pattern = re.compile(r'(cg|rs|ch\.\d+\.|ch\.X\.|ch\.Y\.)\d+')
     samples = []
     for col in test.columns:
         probes = [i for i in test[col] if type(i) == str and re.match(probe_pattern,i)] #re.match('cg\d+',i)]
