@@ -21,21 +21,21 @@ class TestReadGeo():
     ]
 
     def test_read_csv(self):
-        files = [file for file in unit_test_files if Path(file).suffix == '.csv']
+        files = [file for file in self.unit_test_files if Path(file).suffix == '.csv']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[CSV] {infile} failed to return a dataframe")
 
     def test_read_xlsx(self):
-        files = [file for file in unit_test_files if Path(file).suffix == '.xlsx']
+        files = [file for file in self.unit_test_files if Path(file).suffix == '.xlsx']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[XLSX] {infile} failed to return a dataframe")
 
     def test_read_txt(self):
-        files = [file for file in unit_test_files if Path(file).suffix == '.txt']
+        files = [file for file in self.unit_test_files if Path(file).suffix == '.txt']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
             if not hasattr(df,'shape'):
