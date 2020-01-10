@@ -5,16 +5,44 @@ methylcheck is a Python-based package for filtering and visualizing Illumina met
 
 ## methylcheck Package
 
-Methylcheck is designed to accept the output from the Methylprep package. It contains both high-level APIs for processing data from local files and low-level functionality allowing you to customize the flow of data and how it is processed.
+This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to methylprep for instructions on this step.
 
 ## Installation
 
 This package is available in PyPi.
-`pip install methylcheck`
+`pip install methylcheck` or `pip3 install methylcheck` if your OS defaults to python2x. This package only works in python3.6+.
 
-## How to use it
+## Importing your data
 
-In general, the best way to import data is to use `methylprep` and run `run_pipeline(data_folder, betas=True)`, collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook with methylcheck. From there, each data transformation is a single line of code using Panadas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+Methylcheck is designed to accept the output from the `methylprep` package. If you have a bunch of `idat` samples, `methylprep` will return a single pickled pandas dataframe containing all the beta values for probes.
+
+Load your data in a Jupyter Notebook like this:
+
+```python
+mydata = pandas.read_pickle('my_betas.pkl')
+```
+
+If you processed a large batch of samples using the `batch_size` option in `methylprep process`, there's a convenience function in `methylize` that will load and combine a bunch of output files in the same folder:
+
+```python
+import methylize
+df = methylize.load('<path to folder with methylprep output>')
+# or
+df,meta = methylize.load_both('<path to folder with methylprep output>')
+```
+
+This conveniently loads a dataframe of all meta data associated with the samples, if you are using public GEO data. Some analysis functions require specifying which samples are part of a treatment group (vs control) and the `meta` dataframe object can be used for this.
+
+### GEO
+
+Alternatively, you can import public GEO datasets directly, if they are processed data containing either probe `beta` values for samples or methylated/unmethylated signal intensities. If you have `idat` files, process them first with `methylprep`, or use the `methylprep download -i <GEO_ID>` option to download and process public data.
+
+In general, the best way to import data is to use `methylprep` and run
+```python
+run_pipeline(data_folder, betas=True)
+```
+
+collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook. From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 

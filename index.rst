@@ -10,6 +10,7 @@ methylcheck documentation
    :name: Help Files
 
    docs/demo-methylprep-to-methylcheck-example.ipynb
+   docs/demo_read_geo_processed.ipynb
    docs/filtering_probes.ipynb
    docs/methylprep_methylcheck_example.ipynb
    docs/another-methylcheck-qc-example.ipynb
