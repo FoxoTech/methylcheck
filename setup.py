@@ -50,6 +50,7 @@ setup(
             'flake8',
             'pytest',
             'coverage',
+            'xlrd',
             'coveralls-python',
             'sphinxcontrib-apidoc',
             'm2r',
