@@ -8,6 +8,7 @@ from .postprocessQC import (
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
     sample_plot,
     )
+from .read_geo_processed import read_geo
 
 getLogger(__name__).addHandler(NullHandler())
 
@@ -24,5 +25,6 @@ __all__ = [
     'list_problem_probes',
     'mean_beta_plot',
     'mean_beta_compare',
+    'read_geo'
     'sample_plot',
 ]
