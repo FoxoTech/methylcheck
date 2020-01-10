@@ -19,7 +19,7 @@ pytest-mock = "*"
 coverage = "*"
 coveralls-python = "*"
 nbsphinx = "*"
-xlrd >= 1.0.0
+xlrd = ">=1.0.0"
 
 [packages]
 tqdm = "*"
