@@ -1,18 +1,10 @@
 # -*- coding: utf-8 -*-
-import unittest
-import pandas as pd
 from pathlib import Path
-import sys
-#patching
-try:
-    # python 3.4+ should use builtin unittest.mock not mock package
-    from unittest.mock import patch
-except ImportError:
-    from mock import patch
+
 #app
 import methylcheck
 
-class TestReadGeo(unittest.TestCase):
+class TestReadGeo():
 
     # these files are small sub-sets of the real GEO files, created to ensure read_geo() can parse various file structures without commiting huge files to the repo.
     unit_test_files = [
@@ -28,21 +20,21 @@ class TestReadGeo(unittest.TestCase):
         'GSE138279_test.csv',
     ]
 
-    def test_read_csv(self, mock):
+    def test_read_csv(self):
         files = [file for file in unit_test_files if Path(file).suffix == '.csv']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[CSV] {infile} failed to return a dataframe")
 
-    def test_read_xlsx(self, mock):
+    def test_read_xlsx(self):
         files = [file for file in unit_test_files if Path(file).suffix == '.xlsx']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[XLSX] {infile} failed to return a dataframe")
 
-    def test_read_txt(self, mock):
+    def test_read_txt(self):
         files = [file for file in unit_test_files if Path(file).suffix == '.txt']
         for infile in files:
             df = methylcheck.read_geo(infile, verbose=False)
