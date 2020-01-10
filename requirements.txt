@@ -6,7 +6,7 @@ seaborn
 pytest
 coverage
 #coveralls-python
-python-coveralls
+#python-coveralls
 sphinx>=1.4
 sphinxcontrib-apidoc
 m2r
