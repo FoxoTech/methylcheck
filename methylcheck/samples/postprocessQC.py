@@ -12,10 +12,20 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 from sklearn.manifold import MDS
 #app
-from .progress_bar import * # tqdm, environment-specific import
+from methylcheck.progress_bar import * # tqdm, environment-specific import
+from ..probes.filters import drop_nan_probes
 
 LOGGER = logging.getLogger(__name__)
 
+__all__ = [
+    'mean_beta_plot',
+    'beta_density_plot',
+    'sample_plot',
+    'cumulative_sum_beta_distribution', # a QC function
+    'beta_mds',
+    'mean_beta_compare', #pre-vs-post
+    'combine_mds',
+]
 
 def mean_beta_plot(df, verbose=False, save=False, silent=False):
     """Returns a plot of the average beta values for all probes in a batch of samples.
@@ -276,7 +286,6 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
         print("Starting MDS fit_transform. this may take a while.")
         LOGGER.info("Starting MDS fit_transform. this may take a while.")
 
-    #df = drop_nan_probes(df, silent=silent, verbose=verbose)
 
     # CHECK for missing probe values NaN
     missing_probe_counts = df.isna().sum()
@@ -705,6 +714,8 @@ def combine_mds(*args, **kwargs):
 
 def _load_data(filepaths, progress_bar=False, tidy_it=True):
     """Loads all pickled ('.pkl') beta values dataframe files from a given folder.
+older, deprecated, redundant function to methylprep.load
+
 Output:
     A list of dataframes. It does not merge or concatenate these dataframes.
     Afterwards you can merge this this way:
@@ -738,32 +749,3 @@ Options:
 def _noprint(*messages):
     """ a helper function to suppress print() if not verbose mode. """
     pass
-
-
-def drop_nan_probes(df, silent=False, verbose=False):
-    """ accounts for df shape (probes in rows or cols) so dropna() will work.
-
-    the method used inside MDS may be faster, but doesn't tell you which probes were dropped."""
-    ### histogram can't have NAN values -- so need to exclude before running, or warn user.
-    # from https://dzone.com/articles/pandas-find-rows-where-columnfield-is-null -- returns a slimmer df of col/rows with NAN.
-    dfnan = df[df.isnull().any(axis=1)][df.columns[df.isnull().any()]]
-    if len(dfnan) > 0 and df.shape[0] > df.shape[1]: # a list of probe names that contain nan.
-        #probes in rows
-        pre_shape = df.shape
-        df = df.dropna()
-        note = "(probes,samples)"
-        if not silent:
-            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan}")
-            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
-        if verbose:
-            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan)))
-    elif len(dfnan.columns) > 0 and df.shape[1] > df.shape[0]:
-        pre_shape = df.shape
-        df = df.dropna(axis='columns')
-        note = "(samples,probes)"
-        if not silent:
-            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan.columns}")
-            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
-        if verbose:
-            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan.columns)))
-    return df

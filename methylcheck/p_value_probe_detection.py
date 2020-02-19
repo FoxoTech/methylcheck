@@ -6,7 +6,7 @@ import pandas as pd
 import numpy as np
 
 
-def pval_minfi(data_containers):
+def _pval_minfi(data_containers):
     # Pull M and U values
     meth = pd.DataFrame(data_containers[0]._SampleDataContainer__data_frame.index)
     unmeth = pd.DataFrame(data_containers[0]._SampleDataContainer__data_frame.index)
@@ -79,7 +79,7 @@ def pval_minfi(data_containers):
     pval = pval.sort_values(by='IlmnID')
     return pval
 
-def pval_sesame(data_containers):
+def _pval_sesame(data_containers):
     # Pull M and U values
     meth = pd.DataFrame(data_containers[0]._SampleDataContainer__data_frame.index)
     unmeth = pd.DataFrame(data_containers[0]._SampleDataContainer__data_frame.index)

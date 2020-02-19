@@ -1,25 +1,31 @@
 # -*- coding: utf-8 -*-
-import pkg_resources
+#import pkg_resources
+from importlib import resources # py3.7+
 import numpy as np
 import pandas as pd
 
+import logging
+# whilst debugging only: this is on.
+#logging.basicConfig(level=logging.DEBUG) # ROOT logger
+LOGGER = logging.getLogger(__name__)
+#LOGGER.setLevel(logging.DEBUG)
+pkg_namespace = 'methylcheck.data_files'
 
 def _import_probe_filter_list(array):
     """Function to identify array type and import the
     appropriate probe exclusion dataframe"""
-
     if array == 'IlluminaHumanMethylation450k':
-        path = 'data_files/450k_polymorphic_crossRxtve_probes.csv.gz'
-        filepath = pkg_resources.resource_filename(__name__, path)
-        filter_options = pd.read_csv(filepath)
+        filename = '450k_polymorphic_crossRxtve_probes.csv.gz'
     elif array == 'IlluminaHumanMethylationEPIC':
-        path = 'data_files/EPIC_polymorphic_crossRxtve_probes.csv.gz'
-        filepath = pkg_resources.resource_filename(__name__, path)
-        filter_options = pd.read_csv(filepath)
+        filename = 'EPIC_polymorphic_crossRxtve_probes.csv.gz'
+    elif array == 'IlluminaHumanMethylation27k':
+        raise ValueError("27K has no problem probe lists available")
     else:
         raise ValueError(
-            "Did not recognize array type. Please specify 'IlluminaHumanMethylation450k' or 'IlluminaHumanMethylationEPIC'.")
+            f"Did not recognize array type {array}. Please specify 'IlluminaHumanMethylation450k' or 'IlluminaHumanMethylationEPIC'.")
         return
+    with resources.path(pkg_namespace, filename) as filepath:
+        filter_options = pd.read_csv(filepath)
     return filter_options
 
 
@@ -39,18 +45,18 @@ def _import_probe_exclusion_list(array, type):
     type -- [sex, control]"""
 
     if array in ('IlluminaHumanMethylation450k','450k'):
-        path = 'data_files/450k_{0}.npy'.format(type)
+        filename = '450k_{0}.npy'.format(type)
     elif array in ('IlluminaHumanMethylationEPIC','EPIC'):
-        path = 'data_files/EPIC_{0}.npy'.format(type)
+        filename = 'EPIC_{0}.npy'.format(type)
     elif array in ('IlluminaHumanMethylationEPIC+','EPIC+'):
-        path = 'data_files/EPIC+_{0}.npy'.format(type)
+        filename = 'EPIC+_{0}.npy'.format(type)
     elif array =='27k':
-        raise NotImplementedError("We can't read 27k arrays yet.")
+        raise NotImplementedError("No probe lists available for 27k arrays.")
     else:
         raise ValueError("""Did not recognize array type. Please specify one of
             'IlluminaHumanMethylation450k', 'IlluminaHumanMethylationEPIC', '450k', 'EPIC', 'EPIC+', '27k'.""")
-    filepath = pkg_resources.resource_filename(__name__, path)
-    probe_list = np.load(filepath, allow_pickle=True)
+    with resources.path(pkg_namespace, filename) as filepath:
+        probe_list = np.load(filepath, allow_pickle=True)
     return probe_list
 
 
@@ -172,6 +178,82 @@ ADDED: checking whether array.index is string or int type. Regardless, this shou
     print("Nothing removed.")
     return array
 
+
+def problem_probe_reasons(array, criteria=None):
+    """
+    array: string
+        name for type of array used
+        'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
+        This shorthand names are also okay:
+        'EPIC','EPIC+','450k','27k'
+
+    criteria: list
+        List of the publications to use when excluding probes.
+        If the array is 450K the publications may include:
+            'Chen2013'
+            'Price2013'
+            'Zhou2016'
+            'Naeem2014'
+            'DacaRoszak2015'
+        If the array is EPIC the publications may include:
+            'Zhou2016'
+            'McCartney2016'
+        or these reasons:
+            'Polymorphism'
+            'CrossHybridization'
+            'BaseColorChange'
+            'RepeatSequenceElements'
+        If no publication list is specified, probes from
+        all publications will be added to the exclusion list.
+        If more than one publication is specified, all probes
+        from all publications in the list will be added to the
+        exclusion list.
+
+    returns: dataframe
+        this returns a dataframe showing how each probe in the list
+        is categorized for exclusion (based on criteria: reasons and paper-refs). This output
+        is not suitable for other functions that just expect a list of probe names.
+    """
+    all_criteria = ['Polymorphism', 'CrossHybridization',
+        'BaseColorChange', 'RepeatSequenceElements',
+        'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
+        'Zhou2016', 'McCartney2016'
+        ]
+    if criteria != None and set(criteria) - set(all_criteria) != set():
+        unrecognized = set(criteria) - set(all_criteria)
+        raise ValueError(f"Unrecognized criteria: ({unrecognized})\n One these are allowed: {all_criteria}")
+    translate = {
+        'EPIC+': 'IlluminaHumanMethylationEPIC',
+        'EPIC': 'IlluminaHumanMethylationEPIC',
+        '450k': 'IlluminaHumanMethylation450k',
+        '27k': 'IlluminaHumanMethylation27k',
+         }
+    probe_pubs_translate = {
+        'Price2013': 'Price_etal_2013',
+        'Chen2013': 'Chen_etal_2013',
+        'Naeem2014': 'Naeem_etal_2014',
+        'DacaRoszak2015': 'Daca-Roszak_etal_2015',
+        'McCartney2016': 'McCartney_etal_2016',
+        'Zhou2016': 'Zhou_etal_2016',
+        }
+    if array in translate:
+        array = translate[array]
+    probe_dataframe = _import_probe_filter_list(array)
+
+    if type(criteria) == str:
+        criteria = [criteria]
+
+    if not criteria:
+        return probe_dataframe
+    else:
+        criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
+        reasons = [reason for reason in criteria if reason in ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']]
+        pubs = [ref for ref in criteria if ref in probe_pubs_translate.values()]
+        filtered_probes = probe_dataframe[ (probe_dataframe['Reason'].isin(reasons)) | (probe_dataframe['ShortCitation'].isin(pubs)) ]
+        return filtered_probes
+
+
+
 def list_problem_probes(array, criteria=None, custom_list=None):
     """Function to create a list of probes to exclude from downstream processes.
     By default, all probes that have been noted in the literature to have
@@ -205,7 +287,7 @@ def list_problem_probes(array, criteria=None, custom_list=None):
             'DacaRoszak2015'
         If the array is EPIC the publications may include:
             'Zhou2016'
-            'McCarthey2016'
+            'McCartney2016'
         If no publication list is specified, probes from
         all publications will be added to the exclusion list.
         If more than one publication is specified, all probes
@@ -216,7 +298,7 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         List of the criteria to use when excluding probes.
         List may contain the following exculsion criteria:
             'Polymorphism'
-            'CrossHybridizing'
+            'CrossHybridization'
             'BaseColorChange'
             'RepeatSequenceElements'
         If no criteria list is specified, all critera will be
@@ -228,10 +310,46 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         User-provided list of probes to be excluded.
         These probe names have to match the probe names in your data exactly.
 
-    Returns
+
+    Return
     -------
     probe_exclusion_list: list
-        List containing probe identifiers to be excluded"""
+        List containing probe identifiers to be excluded
+    or probe_exclusion_dataframe: dataframe
+        DataFrame containing probe names as index and reason | paper_reference as columns
+
+If you apply maximum filtering (default, no criteria supplied):
+    EPIC will have 389050 probes removed
+    450k arrays will have 341057 probes removed
+
+Reason lists for 450k:
+    Daca-Roszak_etal_2015 (96427)
+    Chen_etal_2013 (445389)
+    Naeem_etal_2014 (146590)
+    Price_etal_2013 (284476)
+    Zhou_etal_2016 (184302)
+
+    Polymorphism (796290)
+    CrossHybridization (211330)
+    BaseColorChange (359)
+    RepeatSequenceElements (149205)
+
+Reason lists for epic:
+    McCartney_etal_2016 (384537)
+    Zhou_etal_2016 (293870)
+
+    CrossHybridization (173793)
+    Polymorphism (504208)
+    BaseColorChange (406)
+        """
+    all_criteria = ['Polymorphism', 'CrossHybridization',
+        'BaseColorChange', 'RepeatSequenceElements',
+        'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
+        'Zhou2016', 'McCartney2016'
+        ]
+    if criteria != None and set(criteria) - set(all_criteria) != set():
+        unrecognized = set(criteria) - set(all_criteria)
+        raise ValueError(f"Unrecognized criteria: ({unrecognized})\n One these are allowed: {all_criteria}")
 
     translate = {
         'EPIC+': 'IlluminaHumanMethylationEPIC',
@@ -252,12 +370,10 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         array = translate[array]
     probe_dataframe = _import_probe_filter_list(array)
     """
-    I had no idea how this works, so I replaced it. MM July 2019.
-    -- syntax error when I ran it: these vars are not defined.
-    args = [Polymorphism, CrossHybridization,
-            BaseColorChange, RepeatSequenceElements,
-            Chen2013, Price2013, Zhou2016, Naeem2014,
-            DacaRoszak2015, McCartney2016]"""
+    [Polymorphism, CrossHybridization,
+    BaseColorChange, RepeatSequenceElements,
+    Chen2013, Price2013, Zhou2016, Naeem2014,
+    DacaRoszak2015, McCartney2016]"""
     if not custom_list:
         custom_list = []
     if not criteria:
@@ -269,14 +385,15 @@ def list_problem_probes(array, criteria=None, custom_list=None):
 
         # rename criteria to match probe_dataframe names, or pass through.
         criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
-
         reasons = ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']
+
         for reason in criteria:
             if reason not in reasons:
                 continue
             df = probe_dataframe[probe_dataframe['Reason'] == reason]
             probe_exclusion_list = list(
                 set(df['Probe'].values)) + probe_exclusion_list
+            LOGGER.debug(f'{reason} --> {df.shape}')
 
         epic_pubs = ['Zhou_etal_2016', 'McCartney_etal_2016']
         fourfifty_pubs = ['Chen_etal_2013', 'Price_etal_2013', 'Naeem_etal_2014', 'Daca-Roszak_etal_2015']
@@ -295,6 +412,37 @@ def list_problem_probes(array, criteria=None, custom_list=None):
             df = probe_dataframe[probe_dataframe['ShortCitation'] == pub]
             probe_exclusion_list = list(
                 set(df['Probe'].values)) + probe_exclusion_list
+            LOGGER.debug(f'{pub} --> {df.shape[0]}')
 
         probe_exclusion_list = list(set(probe_exclusion_list + custom_list))
+    #LOGGER.debug(f'final probe list: {len(probe_exclusion_list)}')
     return probe_exclusion_list
+
+
+def drop_nan_probes(df, silent=False, verbose=False):
+    """ accounts for df shape (probes in rows or cols) so dropna() will work.
+
+    the method used inside MDS may be faster, but doesn't tell you which probes were dropped."""
+    ### histogram can't have NAN values -- so need to exclude before running, or warn user.
+    # from https://dzone.com/articles/pandas-find-rows-where-columnfield-is-null -- returns a slimmer df of col/rows with NAN.
+    dfnan = df[df.isnull().any(axis=1)][df.columns[df.isnull().any()]]
+    if len(dfnan) > 0 and df.shape[0] > df.shape[1]: # a list of probe names that contain nan.
+        #probes in rows
+        pre_shape = df.shape
+        df = df.dropna()
+        note = "(probes,samples)"
+        if not silent:
+            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan}")
+            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
+        if verbose:
+            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan)))
+    elif len(dfnan.columns) > 0 and df.shape[1] > df.shape[0]:
+        pre_shape = df.shape
+        df = df.dropna(axis='columns')
+        note = "(samples,probes)"
+        if not silent:
+            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan.columns}")
+            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
+        if verbose:
+            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan.columns)))
+    return df

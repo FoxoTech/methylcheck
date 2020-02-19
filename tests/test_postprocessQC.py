@@ -22,80 +22,59 @@ class TestPostProcessQC(unittest.TestCase):
         if df.shape != (485512, 6):
             raise AssertionError()
 
-    @patch("methylcheck.postprocessQC.plt.show")
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot(self, mock):
-        methylcheck.postprocessQC.mean_beta_plot(self.df, verbose=False, save=False)
-    @patch("methylcheck.postprocessQC.plt.show")
+        methylcheck.mean_beta_plot(self.df, verbose=False, save=False)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot_transposed(self, mock):
-        methylcheck.postprocessQC.mean_beta_plot(self.df.transpose(), verbose=False, save=False)
+        methylcheck.mean_beta_plot(self.df.transpose(), verbose=False, save=False)
 
-    @patch("methylcheck.postprocessQC.plt.show")
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_beta_density_plot(self, mock):
-        methylcheck.postprocessQC.beta_density_plot(self.df, verbose=False, save=False)
-    @patch("methylcheck.postprocessQC.plt.show")
+        methylcheck.beta_density_plot(self.df, verbose=False, save=False)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_beta_density_plot_transposed(self, mock):
-        methylcheck.postprocessQC.beta_density_plot(self.df.transpose(), verbose=False, save=False)
+        methylcheck.beta_density_plot(self.df.transpose(), verbose=False, save=False)
 
-    @patch("methylcheck.postprocessQC.plt.show")
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df, self.df, verbose=False, save=False)
-    @patch("methylcheck.postprocessQC.plt.show")
+        methylcheck.mean_beta_compare(self.df, self.df, verbose=False, save=False)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_1(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df.transpose(), self.df, verbose=False, save=False)
-    @patch("methylcheck.postprocessQC.plt.show")
+        methylcheck.mean_beta_compare(self.df.transpose(), self.df, verbose=False, save=False)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_2(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df, self.df.transpose(), verbose=False, save=False)
-    @patch("methylcheck.postprocessQC.plt.show")
+        methylcheck.mean_beta_compare(self.df, self.df.transpose(), verbose=False, save=False)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_both(self, mock):
-        methylcheck.postprocessQC.mean_beta_compare(self.df.transpose(), self.df.transpose(), verbose=False, save=False)
+        methylcheck.mean_beta_compare(self.df.transpose(), self.df.transpose(), verbose=False, save=False)
 
     def test_cumulative_sum_beta_distribution(self):
-        df2 = methylcheck.postprocessQC.cumulative_sum_beta_distribution(self.df, cutoff=0.7, verbose=False, save=False, silent=True)
+        df2 = methylcheck.cumulative_sum_beta_distribution(self.df, cutoff=0.7, verbose=False, save=False, silent=True)
     def test_cumulative_sum_beta_distribution_transposed(self):
-        df2 = methylcheck.postprocessQC.cumulative_sum_beta_distribution(self.df.transpose(), cutoff=0.7, verbose=False, save=False, silent=True)
+        df2 = methylcheck.cumulative_sum_beta_distribution(self.df.transpose(), cutoff=0.7, verbose=False, save=False, silent=True)
 
     def test_beta_mds_plot(self):
-        df2 = methylcheck.postprocessQC.beta_mds_plot(self.df, filter_stdev=2, verbose=False, save=False, silent=True)
+        df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, verbose=False, save=False, silent=True)
     def test_beta_mds_plot_transposed(self):
-        df2 = methylcheck.postprocessQC.beta_mds_plot(self.df.transpose(), filter_stdev=2, verbose=False, save=False, silent=True)
+        df2 = methylcheck.beta_mds_plot(self.df.transpose(), filter_stdev=2, verbose=False, save=False, silent=True)
 
     def test_combine_mds(self):
-        df2 = methylcheck.postprocessQC.combine_mds(self.df, self.df,
+        df2 = methylcheck.combine_mds(self.df, self.df,
             save=False, silent=True, verbose=False)
 
     def test_drop_nan_probes(self):
-        df2 = methylcheck.postprocessQC.drop_nan_probes(self.df, silent=True, verbose=False)
+        df2 = methylcheck.probes.filters.drop_nan_probes(self.df, silent=True, verbose=False)
     def test_drop_nan_probes_transposed(self):
-        df2 = methylcheck.postprocessQC.drop_nan_probes(self.df.transpose(), silent=True, verbose=False)
-
+        df2 = methylcheck.probes.filters.drop_nan_probes(self.df.transpose(), silent=True, verbose=False)
 
     def test_detect_array(self):
         ARRAY = methylcheck.cli.detect_array(self.df)
         if ARRAY != '450k':
             raise AssertionError()
 
-    def test_list_problem_probes_epic(self):
-        probes = methylcheck.filters.list_problem_probes('EPIC', criteria=None, custom_list=None)
-        if len(probes) != 389050:
-            raise AssertionError()
-
-    def test_list_problem_probes_450(self):
-        probes = methylcheck.filters.list_problem_probes('450k', criteria=None, custom_list=None)
-        if len(probes) != 341057:
-            raise AssertionError()
-
-    def test_list_problem_probes_reason(self):
-        probes = methylcheck.filters.list_problem_probes('EPIC', criteria=['BaseColorChange'], custom_list=None)
-        if len(probes) != 406:
-            raise AssertionError()
-
-    def test_list_problem_probes_pub(self):
-        probes = methylcheck.filters.list_problem_probes('450k', criteria=['Chen2013'], custom_list=None)
-        if len(probes) != 265410:
-            raise AssertionError()
-
     def test_exclude_sex_control_probes(self):
-        df2 = methylcheck.filters.exclude_sex_control_probes(self.df, 'EPIC', no_sex=True, no_control=True, verbose=False)
+        df2 = methylcheck.exclude_sex_control_probes(self.df, 'EPIC', no_sex=True, no_control=True, verbose=False)
         if len(df2) != 474929:
             raise AssertionError()
 
@@ -105,8 +84,8 @@ class TestPostProcessQC(unittest.TestCase):
             results = methylcheck.cli.cli_parser()
 
     def test_exclude_probes(self):
-        probe_list = methylcheck.filters.list_problem_probes('450k', criteria=None, custom_list=None)
-        df2 = methylcheck.filters.exclude_probes(self.df, probe_list)
+        probe_list = methylcheck.list_problem_probes('450k', criteria=None, custom_list=None)
+        df2 = methylcheck.exclude_probes(self.df, probe_list)
     def test_exclude_probes_transpose(self):
-        probe_list = methylcheck.filters.list_problem_probes('450k', criteria=None, custom_list=None)
-        df2 = methylcheck.filters.exclude_probes(self.df.transpose(), probe_list)
+        probe_list = methylcheck.list_problem_probes('450k', criteria=None, custom_list=None)
+        df2 = methylcheck.exclude_probes(self.df.transpose(), probe_list)
