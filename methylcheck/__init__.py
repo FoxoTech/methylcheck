@@ -14,11 +14,19 @@ from .samples.postprocessQC import (
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
     sample_plot,
     )
+from .samples.assign import assign, plot_assigned_groups
+
+from .predict.sex import get_sex
+
 from .qc_plot import (
     plot_M_vs_U,
     qc_signal_intensity,
+    plot_controls,
     )
 
+from .qc_report import run_pipeline
+
+'''
 try:
     import methylprep
     load = methylprep.load
@@ -26,30 +34,34 @@ try:
     del methylprep
 except ImportError as error:
     pass # these functions are not available otherwise.
-
+'''
+from .load_processed import load, load_both, container_to_pkl
 from .read_geo_processed import read_geo
 
 getLogger(__name__).addHandler(NullHandler())
 
 __all__ = [
+    'assign',
+    'plot_assigned_groups',
     'beta_density_plot',
     'beta_mds_plot',
     'combine_mds',
     'cumulative_sum_beta_distribution',
+    'container_to_pkl',
     'detect_array',
     'drop_nan_probes',
     'exclude_probes',
     'exclude_sex_control_probes',
+    'get_sex',
     'list_problem_probes',
+    'load',
+    'load_both',
     'mean_beta_plot',
     'mean_beta_compare',
     'read_geo'
+    'run_pipeline',
     'sample_plot',
     'qc_signal_intensity',
     'plot_M_vs_U',
+    'plot_controls',
 ]
-
-if "load" in dir():
-    __all__.append("load")
-if "load_both" in dir():
-    __all__.append("load_both")

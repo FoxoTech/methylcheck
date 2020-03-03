@@ -154,7 +154,7 @@ Also see methylcheck.list_problem_probes for more details.',
     elif args.data_file.suffix == '.pkl':
         df = pd.read_pickle(args.data_file)
     else:
-        raise FileNotFoundError("Could not find/read your data file.")
+        raise FileNotFoundError("Could not find/read your data file. Must be .pkl or .npy file.")
     # methylprep data will be long format, with samples in columns and probes in rows. MDS transposes this.'
 
     # determine array type

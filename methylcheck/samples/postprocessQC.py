@@ -57,7 +57,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -139,13 +139,15 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1):
                     values, hist=False, rug=False, kde=True,
                     ax=ax, axlabel='beta')
 
+    (obs_ymin, obs_ymax) = ax.get_ylim()
+    if ymax is not None and obs_ymax > ymax:
+        ax.set_ylim(0, ymax)
     if show_labels:
         plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #else:
     #    ax.get_legend().set_visible(False)
     #    print('suppressing legend')
-
-    plt.title('Beta Density Plot')
+    plt.title(plot_title or 'Beta Density Plot')
     plt.grid()
     plt.xlabel('Beta values')
     if save:
@@ -224,7 +226,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, multi_params={'draw_box':True}):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -268,24 +270,18 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     requires
     --------
         pandas, numpy, pyplot, sklearn.manifold.MDS """
-
+    # before running this, you'd typically exclude probes.
+    if verbose:
+        logging.basicConfig(level=logging.INFO)
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
-        ## methylcheck needs probes in rows and samples in cols. but MDS needs a wide matrix.
-        df = df.copy().transpose() # don't overwrite the original
+        pre_df_shape = df.shape
+        # MDS needs a wide matrix, with probes in columns
+        df = df.transpose() # don't overwrite the original
         if verbose:
-            print("Your data needed to be transposed (df = df.transpose()).")
-            LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
+            LOGGER.info(f"Your data needed to be transposed (from {pre_df_shape} to {df.shape}) to ensure probes are in columns.")
     if verbose == True:
-        print(df.shape)
-        df.head()
-        LOGGER.info('DataFrame has shape: {0}'.format(df.shape))
-        print("Making sure that probes are in columns (the second number should be larger than the first).")
-        LOGGER.info("Making sure that probes are in columns (the second number should be larger than the first).")
-        # before running this, you'd typically exclude probes.
-        print("Starting MDS fit_transform. this may take a while.")
         LOGGER.info("Starting MDS fit_transform. this may take a while.")
-
 
     # CHECK for missing probe values NaN
     missing_probe_counts = df.isna().sum()
@@ -300,6 +296,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
     mds = MDS(n_jobs=-1, random_state=1, verbose=1)
     #n_jobs=-1 means "use all processors"
     mds_transformed = mds.fit_transform(df.values)
+
     # pass in df.values (a np.array) instead of a dataframe, as it processes much faster.
     # old range is used for plotting, with some margin on outside for chart readability
 
@@ -371,7 +368,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
             #pandas style: mds2 = mds_transformed[mds_transformed[:, 0] == class_number[:, :2]
 
         # this is a np array, not a df. Remove all dots that are retained from the "exluded" data set (mds_transformed))
-        mds_transformed = np.delete(mds_transformed, [df_indexes_to_retain], axis=0)
+        #mds_transformed = np.delete(mds_transformed, [df_indexes_to_retain], axis=0)
         md2 = np.array(md2)
 
         color_num = multi_params.get('color_num',0)
@@ -438,9 +435,9 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
             plt.close(fig)
 
         ########## BEGIN INTERACTIVE MODE #############
-        print("Original samples {0} vs filtered {1}".format(mds_transformed.shape, md2.shape))
+        print(f"{mds_transformed.shape[0]} original samples; {md2.shape[0]} after filtering")
         print('Your scale factor was: {0}'.format(adj))
-        adj = input("Enter new scale factor, <enter> to accept and save:")
+        adj = input("Enter new scale factor, <enter> to accept and save: ")
         if adj == '':
             break
         try:
@@ -474,7 +471,6 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=True, save=False, silent=False, 
         plt.savefig(outfile)
         plt.close(fig) # avoids displaying plot again in jupyter.
         if verbose:
-            print("Saved {0}".format(outfile))
             LOGGER.info("Saved {0}".format(outfile))
     else:
         df_out = df
@@ -538,7 +534,7 @@ def combine_mds(*args, **kwargs):
     ------
         - *args: pass in any number of pandas dataframes, and it will combine them into one mds plot.
         - alternatively, you may pass in a list of filepaths as strings, and it will attempt to load these files as pickles.
-        but they must be pickles of pandas dataframes
+        but they must be pickles of pandas dataframes containing beta values or m-values
 
     optional keyword arguments
     --------------------------
