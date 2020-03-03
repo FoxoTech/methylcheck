@@ -47,6 +47,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
     sns.distplot(data['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
     plt.title('Mean Beta Plot')
     plt.grid()
+    plt.xlim(0,1.0)
     plt.xlabel('Mean Beta')
     if save:
         plt.savefig('mean_beta.png')
@@ -90,7 +91,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if df.shape[0] > df.shape[1]:
         df = df.transpose()
         # must have samples in rows/index to reindex. you can't "recolumn".
-        if list(df.index) != list(set(df.index)):
+        if len(list(df.index)) != len(list(set(df.index))):
             LOGGER.info("Your sample ids contain duplicates.")
             # rename these for this plot only
             df['ids'] = df.index.map(lambda x: x + '_' + str(int(1000000*np.random.rand())))
@@ -100,7 +101,6 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
-            print("Your data needed to be transposed (df = df.transpose()).")
             LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
         df = df.transpose()
     # 2nd check
@@ -149,6 +149,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     #    print('suppressing legend')
     plt.title(plot_title or 'Beta Density Plot')
     plt.grid()
+    plt.xlim(0,1.0)
     plt.xlabel('Beta values')
     if save:
         plt.savefig('beta.png')
@@ -168,7 +169,7 @@ def sample_plot(df, **kwargs):
     else:
         reduce = kwargs.get('reduce',0.1) # sets default
     kwargs['reduce'] = reduce
-    beta_density_plot(df, kwargs)
+    beta_density_plot(df, **kwargs)
 
 
 def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
@@ -473,8 +474,10 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         if verbose:
             LOGGER.info("Saved {0}".format(outfile))
     else:
-        df_out = df
-    # returning DataFrame in original structure: rows are probes; cols are samples.
+        df_out = df.drop(df.index[df_indexes_to_exclude])
+    # return DataFrame in original "long" format: rows are probes; cols are samples.
+    if df_out.shape[0] < df_out.shape[1]:
+        df_out = df_out.transpose()
     return df_out #, df_indexes_to_exclude  # may need to transpose this first.
 
 

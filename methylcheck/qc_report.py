@@ -133,7 +133,7 @@ returns:
         methylcheck.cumulative_sum_beta_distribution(wide_df, verbose=kwargs['verbose'], save=kwargs['save_plots'], silent=kwargs['silent'])
         pre_mds = wide_df.shape[0]
         df = methylcheck.beta_mds_plot(wide_df, verbose=kwargs['verbose'], save=kwargs['save_plots'], silent=kwargs['silent'])
-        LOGGER.info(f"MDS filtering dropped {pre_mds - df.shape[0]} samples from dataframe.")
+        LOGGER.info(f"MDS filtering dropped {pre_mds - df.shape[1]} samples from dataframe.")
     else:
         if 'mean_beta_plot' in args.plot:
             methylcheck.mean_beta_plot(df, verbose=kwargs['verbose'], save=kwargs.get('save_plots'), silent=kwargs['silent'])
@@ -145,12 +145,11 @@ returns:
         if 'beta_mds_plot' in args.plot:
             wide_df = df.copy().transpose()
             pre_mds = wide_df.shape[0]
-            wide_df = methylcheck.beta_mds_plot(wide_df, verbose=kwargs['verbose'], save=kwargs['save_plots'], silent=kwargs['silent'])
-            df = wide_df.transpose()
-            LOGGER.info(f"MDS filtering dropped {pre_mds - wide_df.shape[0]} samples from dataframe.")
+            df = methylcheck.beta_mds_plot(wide_df, verbose=kwargs['verbose'], save=kwargs['save_plots'], silent=kwargs['silent'])
+            LOGGER.info(f"MDS filtering dropped {pre_mds - df.shape[1]} samples from dataframe.")
             # also has filter_stdev params to pass in.
     if kwargs.get('export') == True:
-        outfile = 'beta_values_filtered.pkl'
+        outfile = 'beta_values_filtered.pkl' # in long format for faster loading
         df.to_pickle(outfile)
         LOGGER.info(f'Saved {outfile}')
     return df

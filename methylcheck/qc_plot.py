@@ -10,7 +10,7 @@ from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
 
-__all__ = ['qc_signal_intensity', 'plot_M_vs_U', 'plot_controls']
+__all__ = ['plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 'plot_controls']
 
 def qc_signal_intensity(data_containers=None, path=None, noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5):
     """
@@ -234,7 +234,7 @@ FIX:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
 
-def plot_beta_by_type(beta_df, probe_type='I'):
+def plot_beta_by_type(beta_df, probe_type='all'):
     """plotBetasByType (adopted from genome studio p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
@@ -242,17 +242,22 @@ Plot the overall density distribution of beta values and the density distributio
 
     Doesn't work with 27k arrays because they are all of the same type, Infinium Type I.
     """
-    probe_types = ('I', 'II') # 'SnpI', 'Control' are in manifest, but not in the processed data
+    probe_types = ('I', 'II', 'all') # 'SnpI', 'Control' are in manifest, but not in the processed data
     if probe_type not in probe_types:
         raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot")
+
     # get manifest data from .methylprep_manifest_files
-    from methylprep.files.manifests import MANIFEST_DIR_PATH, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
-    from methylprep.models.arrays import ArrayType
+    try:
+        from methylprep.files.manifests import MANIFEST_DIR_PATH, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
+        from methylprep.models.arrays import ArrayType
+    except ImportError:
+        raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
 
     # orient
     if beta_df.shape[1] > beta_df.shape[0]:
         beta_df = beta_df.transpose() # probes should be in rows.
-    # THIS WILL need to be updated if new arrays are added.
+
+    # THIS WILL need to be updated if new array types are added.
     #array_type = ArrayType.from_probe_count() --- this one doesn't match the probe counts we see
     lookup = {
         '450k': ArrayType.ILLUMINA_450K,
@@ -265,17 +270,24 @@ Plot the overall density distribution of beta values and the density distributio
     if Path.exists(man_filepath):
         manifest = Manifest(array_type, man_filepath)
     else:
-        print("Error: manifest file not found.")
-        return
+        raise FileNotFoundError("manifest file not found.")
+
     # II, I, SnpI, Control
     # merge reference col, filter probes, them remove ref col
     orig_shape = beta_df.shape
     mapper = manifest._Manifest__data_frame['probe_type']
     beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
-    subset = beta_df[beta_df['probe_type'] == probe_type]
-    subset = subset.drop('probe_type', axis='columns')
-    print(f'Found {subset.shape[0]} type {probe_type} probes.')
-    methylcheck.sample_plot(subset)
+
+    if probe_type in ('I', 'all'):
+        subset = beta_df[beta_df['probe_type'] == 'I']
+        subset = subset.drop('probe_type', axis='columns')
+        print(f'Found {subset.shape[0]} type I probes.')
+        methylcheck.sample_plot(subset)
+    if probe_type in ('II', 'all'):
+        subset = beta_df[beta_df['probe_type'] == 'II']
+        subset = subset.drop('probe_type', axis='columns')
+        print(f'Found {subset.shape[0]} type II probes.')
+        methylcheck.sample_plot(subset)
 
 
 def plot_controls(path=None, subset='all'):
@@ -324,7 +336,7 @@ options:
         stain_red = stain_red.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.T
         stain_green = stain_green.T
-        _qc_plotter(stain_red, stain_green, color_dict, ymax=50000, title='Staining')
+        _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining')
 
     if subset in ('negative','all'):
         neg_red = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -341,7 +353,10 @@ options:
                                              'Negative 6','Negative 7','Negative 8','Negative 9','Negative 10',
                                              'Negative 11','Negative 12','Negative 13','Negative 14','Negative 15',
                                              'Negative 16']
-        _qc_plotter(neg_red, neg_green, color_dict, columns=list_of_negative_controls_to_plot, title='Negative')
+        dynamic_controls = [c for c in list_of_negative_controls_to_plot if c in neg_red.columns and c in neg_green.columns]
+        dynamic_ymax = max([max(neg_red[dynamic_controls].max(axis=0)), max(neg_green[dynamic_controls].max(axis=0))])
+        dynamic_ymax = dynamic_ymax + int(0.1*dynamic_ymax)
+        _qc_plotter(neg_red, neg_green, color_dict, columns=list_of_negative_controls_to_plot, ymax=dynamic_ymax, title='Negative')
 
     if subset in ('hybridization','all'):
         hyb_red   = control_R[control_R['Control_Type']=='HYBRIDIZATION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -381,7 +396,7 @@ options:
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
         np_green = np_green.T
-        _qc_plotter(np_red, np_green, color_dict, ymax=20000, title='Non-polymorphic')
+        _qc_plotter(np_red, np_green, color_dict, ymax=30000, title='Non-polymorphic')
 
     if subset in ('target-removal','all'):
         tar_red = control_R[control_R['Control_Type']=='TARGET REMOVAL'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -412,11 +427,19 @@ def _qc_plotter(stain_red, stain_green, color_dict={}, columns=None, ymax=None,
 options:
 ========
     required: stain_red and stain_green
-        have red/green values in columns and probe characteristics in rows (transposed from pickle format).
+        contains: red/green values in columns and probe characteristics in rows (transposed from control_probes.pkl format).
     color_dict
         can be passed in: defines which color to make each value in the index.
+    ymax
+        if defined, constrains the plot y-max values. Used to standardize view of each probe type within normal ranges.
+        any probe values that fall outside this range generate warnings.
     columns
-        list of columns(probes) in stain_red and stain_green to plot (if ommitted it plots everything)."""
+        list of columns(probes) in stain_red and stain_green to plot (if ommitted it plots everything).
+
+todo:
+=====
+    add a batch option that splits large datasets into multiple charts, so labels are readable on x-axis.
+        """
     fig, (ax1,ax2) = plt.subplots(nrows=1,ncols=2,figsize=(12,10))
     plt.tight_layout(w_pad=15)
     plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90)
@@ -428,9 +451,20 @@ options:
     ax2.set_title(f'{title}Red')
 
     if columns != None:
+        # TODO: ensure all columns in list are in stain_red/green first.
+        # failed with Barnes idats_part3 missing some probes
+        if (set(columns) - set(stain_red.columns) != set() or
+        set(columns) - set(stain_green.columns) != set()):
+            cols_removed = [c for c in columns if c not in stain_red or c not in stain_green]
+            columns = [c for c in columns if c in stain_red and c in stain_green]
+            LOGGER.warning(f'These probes were expected but missing from the {title}data: ({", ".join(cols_removed)})')
         stain_red = stain_red.loc[:, columns]
         stain_green = stain_green.loc[:, columns]
     for c in stain_red.columns:
+        if ymax is not None and (stain_red[c] > ymax).any():
+            LOGGER.warning(f'Some Red {c} values exceed chart maximum and are not shown.')
+        if ymax is not None and (stain_green[c] > ymax).any():
+            LOGGER.warning(f'Some Green {c} values exceed chart maximum and are not shown.')
         ax1.plot(stain_green.index,
                  c,
                  data=stain_green, label=c,

@@ -19,6 +19,7 @@ from .samples.assign import assign, plot_assigned_groups
 from .predict.sex import get_sex
 
 from .qc_plot import (
+    plot_beta_by_type,
     plot_M_vs_U,
     qc_signal_intensity,
     plot_controls,
@@ -62,6 +63,7 @@ __all__ = [
     'run_pipeline',
     'sample_plot',
     'qc_signal_intensity',
+    'plot_beta_by_type',
     'plot_M_vs_U',
     'plot_controls',
 ]
