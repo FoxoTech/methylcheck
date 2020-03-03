@@ -44,6 +44,7 @@ setup(
     ],
     extras_require={
         'dev': [
+            'methylprep', # this is not REQUIRED but some functions in unit testing do require it, so in extras.
             'pytest',
             'pytest-pep8',
             'pytest-cov',
