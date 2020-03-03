@@ -51,7 +51,7 @@ setup(
             'pytest',
             'coverage',
             'xlrd',
-            'coveralls-python',
+            'python-coveralls',
             'sphinxcontrib-apidoc',
             'm2r',
             'nbsphinx',
