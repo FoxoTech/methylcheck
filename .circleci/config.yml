@@ -2,7 +2,8 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.7
+      - image: circleci/python:3.7.5
+      - image: rocker/tidyverse:latest
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci /usr/local/bin
@@ -13,11 +14,26 @@ jobs:
           key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run:
           command: |
-            pip install pipenv
+            pip3 install pipenv
             pipenv install --dev --skip-lock
             pipenv install -e . --skip-lock
             # This ^^^ installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
             # pytest recommends this: install your package in "editable" mode by running this from the same directory.
+      - run:
+          command: |
+            # RUN apt-get update && apt-get install -y r-base
+            Rscript \
+            -e 'chooseCRANmirror(ind=60)' \
+            -e 'packages <- c("BiocManager", "minfi", "IlluminaHumanMethylation450kanno.ilmn12.hg19", "IlluminaHumanMethylation450kmanifest")' \
+            -e 'if (length(setdiff(packages, rownames(installed.packages()))) > 0) {' \
+            -e '   install.packages(setdiff(packages, rownames(installed.packages())))' \
+            -e '}' \
+            -e 'if (!requireNamespace("BiocManager", quietly = TRUE))' \
+            -e '    install.packages("BiocManager")' \
+            -e 'BiocManager::install("minfi")' \
+            -e 'BiocManager::install("IlluminaHumanMethylation450kanno.ilmn12.hg19")' \
+            -e 'BiocManager::install("IlluminaHumanMethylation450kmanifest")' \
+            # BiocManager::install("IlluminaHumanMethylationEPICmanifest") --- not needed yet
       - save_cache:
           key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
           paths:
