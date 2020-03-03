@@ -2,8 +2,7 @@ version: 2
 jobs:
   build:
     docker:
-      - image: circleci/python:3.7.5
-      - image: rocker/tidyverse:latest
+      - image: circleci/python:3.7.5  # - image: rocker/tidyverse:latest == did not work (req'd password setting first)
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci /usr/local/bin
@@ -21,7 +20,7 @@ jobs:
             # pytest recommends this: install your package in "editable" mode by running this from the same directory.
       - run:
           command: |
-            # RUN apt-get update && apt-get install -y r-base
+            RUN apt-get update && apt-get install -y r-base
             Rscript \
             -e 'chooseCRANmirror(ind=60)' \
             -e 'packages <- c("BiocManager", "minfi", "IlluminaHumanMethylation450kanno.ilmn12.hg19", "IlluminaHumanMethylation450kmanifest")' \
