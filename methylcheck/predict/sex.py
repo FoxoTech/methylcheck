@@ -36,6 +36,10 @@ a list of data_containers containing raw meth/unmeth values, instead. This objec
 by methylprep.run_pipeline, or by using methylcheck.load(filepath, format='meth') and lets you
 customize the import if your files were not prepared using methylprep (non-standand CSV columns, for example)
     """
+    ## TODO in unit testing for 100%:
+    ## test the ImportError
+    ## test all conditions on the array_type probe count logic.
+
     try:
         from methylprep.files import Manifest
         from methylprep.models import ArrayType

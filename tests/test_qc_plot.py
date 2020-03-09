@@ -13,6 +13,7 @@ import methylcheck
 TESTPATH = 'tests'
 PROCESSED = Path('docs/example_data/GSE69852/9247377085')
 PROCESSED_ALL = Path('docs/example_data/GSE69852')
+PROCESSED_BATCH = Path('docs/example_data/GSE105018')
 
 
 def test_qc_plot_load_processed_beta():
@@ -20,6 +21,18 @@ def test_qc_plot_load_processed_beta():
 
 def test_qc_plot_load_processed_m():
     df = methylcheck.load(PROCESSED,'m_value')
+
+def test_load_processed_meth_df():
+    df = methylcheck.load(PROCESSED_BATCH, 'meth_df', silent=True, verbose=True)
+
+def test_load_processed_noob_df():
+    df = methylcheck.load(PROCESSED_BATCH, 'noob_df', silent=False, verbose=True)
+
+def test_load_processed_meth_df():
+    df = methylcheck.load(PROCESSED_BATCH, 'beta_value', silent=True, verbose=False)
+
+def test_load_processed_noob_df():
+    df = methylcheck.load(PROCESSED_BATCH, 'm_value', silent=False, verbose=False)
 
 def test_qc_plot_load_processed_meth():
     containers = methylcheck.load(PROCESSED,'meth')

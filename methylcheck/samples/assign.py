@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import methylcheck
 
+## TODO: assign() and plot_assigned_groups() has no unit tests
+
 def assign(df, two_pass=False):
     """Manually and interactively assign each sample to a group, based on beta-value distribution shape.
 

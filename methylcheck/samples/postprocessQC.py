@@ -14,6 +14,8 @@ from sklearn.manifold import MDS
 #app
 from methylcheck.progress_bar import * # tqdm, environment-specific import
 from ..probes.filters import drop_nan_probes
+## TODO unit-testing:
+## combine_mds and ._load_data are not tested
 
 LOGGER = logging.getLogger(__name__)
 

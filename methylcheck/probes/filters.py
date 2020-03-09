@@ -11,6 +11,10 @@ LOGGER = logging.getLogger(__name__)
 #LOGGER.setLevel(logging.DEBUG)
 pkg_namespace = 'methylcheck.data_files'
 
+## TODO for unit testing:
+## no coverage of 27k stuff
+## drop_nan_probes
+
 def _import_probe_filter_list(array):
     """Function to identify array type and import the
     appropriate probe exclusion dataframe"""

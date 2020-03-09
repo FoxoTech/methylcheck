@@ -32,11 +32,14 @@ Arguments:
     filepath:
         Where to look for all the pickle files of processed data.
 
-    format: ('beta_value', 'm_value', 'meth')
+    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df')
         This also allows processed.csv file data to be loaded.
         If you need meth and unmeth values, choose 'meth' and
         it will return a data_containers object with the 'meth' and 'unmeth' values,
         exactly like the data_containers object returned by methylprep.run_pipeline.
+
+        If you choose 'meth_df' or 'noob_df' it will load the pickled meth and unmeth dataframes from the
+        folder specified.
 
     file_stem (string):
         By default, methylprep process with batch_size creates a bunch of generically named files, such as
@@ -72,7 +75,7 @@ Use cases and format:
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
     """
-    formats = ('beta_value', 'm_value', 'meth')
+    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
     processed_csv = False # whether to use individual sample files, or beta pkl files.
@@ -81,11 +84,38 @@ Use cases and format:
     # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
     if format in ('beta_value', 'm_value'):
         total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
-    #elif format == 'meth':
-    #    # this needs to deal with batches too
-    #    test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
-    #    if 'meth_values.pkl' in test_parts and 'unmeth_values.pkl' in test_parts:
-
+    elif format == 'meth_df':
+        # this needs to deal with batches too
+        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
+        meth_dfs = []
+        unmeth_dfs = []
+        for part in test_parts:
+            if 'meth_values' in part and 'noob' not in part:
+                meth_dfs.append( pd.read_pickle(part) )
+            if 'unmeth_values' in part and 'noob' not in part:
+                unmeth_dfs.append( pd.read_pickle(part) )
+        if meth_dfs != [] and unmeth_dfs != []:
+            tqdm.pandas()
+            meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+            unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+            print(meth_dfs.shape, unmeth_dfs.shape)
+            return meth_dfs, unmeth_dfs
+    elif format == 'noob_df':
+        # this needs to deal with batches too
+        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
+        meth_dfs = []
+        unmeth_dfs = []
+        for part in test_parts:
+            if 'noob_meth_values' in part:
+                meth_dfs.append( pd.read_pickle(part) )
+            if 'noob_unmeth_values' in part:
+                unmeth_dfs.append( pd.read_pickle(part) )
+        if meth_dfs != [] and unmeth_dfs != []:
+            tqdm.pandas()
+            meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+            unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+            print(meth_dfs.shape, unmeth_dfs.shape)
+            return meth_dfs, unmeth_dfs
 
     if total_parts == []:
         # part 2: scan for *_processed.csv files in subdirectories and pull out beta values from them.
@@ -200,12 +230,12 @@ Use cases and format:
                     sample_names.append(sample_name)
                     data_container = SampleDataContainer(meth, unmeth, sample_name)
                     data_containers.append(data_container)
+                    if verbose and not silent:
+                        if meth.shape[0] != unmeth.shape[0]:
+                            LOGGER.warning(f"{sample_name} probe counts don't match: {meth.shape}|{unmeth.shape}")
+                        print(f'{sample_name} --> {len(data_containers)}')
                 else:
                     raise Exception(f"unknown format: {format} (allowed options: {formats})")
-                if verbose and not silent:
-                    if meth.shape[0] != unmeth.shape[0]:
-                        LOGGER.warning(f"{sample_name} probe counts don't match: {meth.shape}|{unmeth.shape}")
-                    print(f'{sample_name} --> {len(data_containers)}')
 
             # merge and return; dropping any probes that aren't shared across samples.
             tqdm.pandas() # https://stackoverflow.com/questions/56256861/is-it-possible-to-use-tqdm-for-pandas-merge-operation
