@@ -6,8 +6,8 @@ import sys
 import numpy as np
 import pandas as pd
 # App
-from .filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
-from .postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, beta_mds_plot
+from .probes.filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
+from .samples.postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, beta_mds_plot
 
 class DefaultParser(argparse.ArgumentParser):
     def error(self, message):
@@ -154,7 +154,7 @@ Also see methylcheck.list_problem_probes for more details.',
     elif args.data_file.suffix == '.pkl':
         df = pd.read_pickle(args.data_file)
     else:
-        raise FileNotFoundError("Could not find/read your data file.")
+        raise FileNotFoundError("Could not find/read your data file. Must be .pkl or .npy file.")
     # methylprep data will be long format, with samples in columns and probes in rows. MDS transposes this.'
 
     # determine array type
