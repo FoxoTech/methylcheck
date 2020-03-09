@@ -10,20 +10,49 @@ from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
 
-__all__ = ['plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 'plot_controls']
+__all__ = ['run_qc', 'plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 'plot_controls']
 
-def qc_signal_intensity(data_containers=None, path=None, noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5):
+def run_qc(path):
+    """Generates all QC plots for a dataset in the path provided.
+    This only works if batch_size option was NOT used during processing
+    and `process --all` was used to create control probes and raw values for QC.
     """
-input:
-    PATH to csv files processed using methylprep
+    try:
+        beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
+        controls = pd.read_pickle(Path(path,'control_probes.pkl'))
+        meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
+        unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+    except FileNotFoundError:
+        raise FileNotFoundError("run_qc() only works if you used `methylprep process --all` option.")
+    # needs meth_df, unmeth_df, controls, and beta_df
+    plot_M_vs_U(meth=meth_df, unmeth=unmeth_df)
+    qc_signal_intensity(meth=meth_df, unmeth=unmeth_df)
+    plot_controls(controls, 'all')
+    plot_beta_by_type(beta_df, 'all')
+
+
+def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None,
+    noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5):
+    """
+input (one of these):
+=====================
+    path
+        to csv files processed using methylprep
         these have "noob_meth" and "noob_unmeth" columns per sample file this function can use.
         if you want it to processed data uncorrected data.
 
-    data_containers = run_pipeline(data_dir = '../../junk-drawer-analyses/geneseek_data/archive_32_blood/',
-                                       save_uncorrected=True,
-                                       sample_sheet_filepath='../../junk-drawer-analyses/geneseek_data/archive_32_blood/SampleSheet.csv')
+    data_containers
+        output from the methylprep.run_pipeline() command when run in a script or notebook.
+        you can also recreate the list of datacontainers using methylcheck.load(<filepath>,'meth')
+
+    (meth and unmeth)
+        if you chose `process --all` you can load the raw intensities like this, and pass them in:
+        meth = pd.read_pickle('meth_values.pkl')
+        unmeth = pd.read_pickle('unmeth_values.pkl')
+        THIS will run the fastest.
 
 optional params:
+================
     bad_sample_cutoff (default 10.5): set the cutoff for determining good vs bad samples, based on signal intensities of meth and unmeth fluorescence channels. 10.5 was borrowed from minfi's internal defaults.
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
@@ -37,10 +66,11 @@ FIX:
     doesn't give good error message for compare
 
     """
-    if not path and not data_containers:
+    if not path and not data_containers and type(meth) is type(None) and type(unmeth) is type(None):
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
-    meth, unmeth = _get_data(data_containers, path, compare=False, noob=noob, verbose=verbose)
+    if type(meth) is type(None) and type(unmeth) is type(None):
+        meth, unmeth = _get_data(data_containers=data_containers, path=path, compare=False, noob=noob, verbose=verbose)
 
     # Plotting
     medians = _make_qc_df(meth,unmeth)
@@ -118,68 +148,85 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
             unmeth = pd.merge(left=unmeth,right=u[sample],left_on='IlmnID',right_on='IlmnID')
     elif path:
         n = 'noob_' if noob else ''
-        sample_filenames = []
-        csvs = []
-        files_found = False
-        for file in tqdm(Path(path).expanduser().rglob('*_processed.csv'), desc='Loading files', total=len(list(Path(path).expanduser().rglob('*_processed.csv')))):
-            this = pd.read_csv(file)
-            files_found = True
-            if f'{n}meth' in this.columns and f'{n}unmeth' in this.columns:
-                csvs.append(this)
-                sample_filenames.append(str(file.stem).replace('_processed',''))
-        # note, this doesn't give a clear error message if using compare and missing uncorrected data.
-        if verbose and len(csvs) > 0:
-            print(f"{len(csvs)} processed samples found.")
-
-        if csvs != []:
-            meth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n}meth']})
-            unmeth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n}unmeth']})
-            meth.set_index('IlmnID', inplace=True)
-            unmeth.set_index('IlmnID', inplace=True)
-            if compare:
-                n2 = '' if noob else 'noob_'
-                _meth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n2}meth']})
-                _unmeth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n2}unmeth']})
-                _meth.set_index('IlmnID', inplace=True)
-                _unmeth.set_index('IlmnID', inplace=True)
-            for idx, sample in tqdm(enumerate(csvs[1:],1), desc='Samples', total=len(csvs)):
-                # columns are meth, unmeth OR noob_meth, noob_unmeth, AND IlmnID
-                meth = pd.merge(left=meth, right=sample[f'{n}meth'], left_on='IlmnID', right_on=sample['IlmnID'])
-                meth = meth.rename(columns={f'{n}meth': sample_filenames[idx]})
-                unmeth = pd.merge(left=unmeth, right=sample[f'{n}unmeth'], left_on='IlmnID', right_on=sample['IlmnID'])
-                unmeth = unmeth.rename(columns={f'{n}unmeth': sample_filenames[idx]})
-                if compare:
-                    _meth = pd.merge(left=_meth, right=sample[f'{n2}meth'], left_on='IlmnID', right_on=sample['IlmnID'])
-                    _meth = _meth.rename(columns={f'{n2}meth': sample_filenames[idx]})
-                    _unmeth = pd.merge(left=_unmeth, right=sample[f'{n2}unmeth'], left_on='IlmnID', right_on=sample['IlmnID'])
-                    _unmeth = _unmeth.rename(columns={f'{n2}unmeth': sample_filenames[idx]})
+        # first try to load from disk
+        if Path(path, 'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists():
+            meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
+            unmeth = pd.read_pickle(Path(path, 'unmeth_values.pkl'))
+            return meth, unmeth
         else:
-            print(f"{len(csvs)} processed samples found in {path} using NOOB: {noob}.")
-            if files_found:
-                data_columns = "NOOB meth/unmeth" if noob else "non-NOOB-corrected meth/unmeth"
-                print(f"processed files found, but did not contain the right data ({data_columns})")
-            return
+            sample_filenames = []
+            csvs = []
+            files_found = False
+            for file in tqdm(Path(path).expanduser().rglob('*_processed.csv'), desc='Loading files', total=len(list(Path(path).expanduser().rglob('*_processed.csv')))):
+                this = pd.read_csv(file)
+                files_found = True
+                if f'{n}meth' in this.columns and f'{n}unmeth' in this.columns:
+                    csvs.append(this)
+                    sample_filenames.append(str(file.stem).replace('_processed',''))
+            # note, this doesn't give a clear error message if using compare and missing uncorrected data.
+            if verbose and len(csvs) > 0:
+                print(f"{len(csvs)} processed samples found.")
+
+            if csvs != []:
+                meth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n}meth']})
+                unmeth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n}unmeth']})
+                meth.set_index('IlmnID', inplace=True)
+                unmeth.set_index('IlmnID', inplace=True)
+                if compare:
+                    n2 = '' if noob else 'noob_'
+                    _meth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n2}meth']})
+                    _unmeth = pd.DataFrame({'IlmnID': csvs[0]['IlmnID'], 0: csvs[0][f'{n2}unmeth']})
+                    _meth.set_index('IlmnID', inplace=True)
+                    _unmeth.set_index('IlmnID', inplace=True)
+                for idx, sample in tqdm(enumerate(csvs[1:],1), desc='Samples', total=len(csvs)):
+                    # columns are meth, unmeth OR noob_meth, noob_unmeth, AND IlmnID
+                    meth = pd.merge(left=meth, right=sample[f'{n}meth'], left_on='IlmnID', right_on=sample['IlmnID'])
+                    meth = meth.rename(columns={f'{n}meth': sample_filenames[idx]})
+                    unmeth = pd.merge(left=unmeth, right=sample[f'{n}unmeth'], left_on='IlmnID', right_on=sample['IlmnID'])
+                    unmeth = unmeth.rename(columns={f'{n}unmeth': sample_filenames[idx]})
+                    if compare:
+                        _meth = pd.merge(left=_meth, right=sample[f'{n2}meth'], left_on='IlmnID', right_on=sample['IlmnID'])
+                        _meth = _meth.rename(columns={f'{n2}meth': sample_filenames[idx]})
+                        _unmeth = pd.merge(left=_unmeth, right=sample[f'{n2}unmeth'], left_on='IlmnID', right_on=sample['IlmnID'])
+                        _unmeth = _unmeth.rename(columns={f'{n2}unmeth': sample_filenames[idx]})
+            else:
+                print(f"{len(csvs)} processed samples found in {path} using NOOB: {noob}.")
+                if files_found:
+                    data_columns = "NOOB meth/unmeth" if noob else "non-NOOB-corrected meth/unmeth"
+                    print(f"processed files found, but did not contain the right data ({data_columns})")
+                return
     if compare:
         return meth, unmeth, _meth, _unmeth
     return meth, unmeth
 
 
-def plot_M_vs_U(data_containers_or_path=None, noob=True, silent=False, verbose=False, plot=True, compare=False):
+def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None,
+    noob=True, silent=False, verbose=False, plot=True, compare=False):
     """
-input:
+input (choose one of these):
+============================
     PATH to csv files processed using methylprep
         these have "noob_meth" and "noob_unmeth" columns per sample file this function can use.
         if you want it to processed data uncorrected data.
-    OR
-    data_containers = run_pipeline(data_dir = '../../junk-drawer-analyses/geneseek_data/archive_32_blood/',
+
+    data_containers = run_pipeline(data_dir = 'somepath',
                                        save_uncorrected=True,
-                                       sample_sheet_filepath='../../junk-drawer-analyses/geneseek_data/archive_32_blood/SampleSheet.csv')
+                                       sample_sheet_filepath='samplesheet.csv')
+        you can also recreate the list of datacontainers using methylcheck.load(<filepath>,'meth')
+
+    (meth and unmeth)
+        if you chose `process --all` you can load the raw intensities like this, and pass them in:
+        meth = pd.read_pickle('meth_values.pkl')
+        unmeth = pd.read_pickle('unmeth_values.pkl')
+        THIS will run the fastest.
 
 optional params:
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
-    compare: if the processed data contains both noob and uncorrected values, it will plot both in different colors
+    compare:
+        if the processed data contains both noob and uncorrected values, it will plot both in different colors
+        the compare option will not work with using the 'meth' and 'unmeth' inputs, only with path or data_containers.
 
 this will draw a diagonal line on plots
 
@@ -195,18 +242,19 @@ FIX:
         path = None
         data_containers = data_containers_or_path
 
-    if not path and not data_containers:
+    if not path and not data_containers and type(meth) is None and type(unmeth) is None:
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
-    try:
-        if compare:
-            meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare)
-        else:
-            meth, unmeth = _get_data(data_containers, path, compare=compare)
-    except Exception as e:
-        print(e)
-        print("No processed data found.")
-        return
+    elif type(meth) is None and type(unmeth) is None:
+        try:
+            if compare:
+                meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare)
+            else:
+                meth, unmeth = _get_data(data_containers, path, compare=compare)
+        except Exception as e:
+            print(e)
+            print("No processed data found.")
+            return
 
     if plot:
         # plot it
@@ -294,6 +342,12 @@ def plot_controls(path=None, subset='all'):
     """
     - uses control probe values to plot staining controls (available with the `--save_control` methylprep process option)
 
+input:
+======
+    path
+        can either be a path to the file, or a path to the folder containing a file called 'control_probes.pkl',
+        or it can be the dictionary of control dataframes in `control_probes.pkl`.
+
 options:
 ========
     subset ('staining' | 'negative' | 'hybridization' | 'extension' | 'bisulfite' |
@@ -307,10 +361,16 @@ options:
         print("You must specify a path to the control probes processed data file or folder (available with the `--save_control` methylprep process option).")
         return
     try:
-        if path.is_dir():
-            control = pd.read_pickle(Path(path, 'control_probes.pkl'))
-        elif path.is_file():
-            control = pd.read_pickle(path) # allows for any arbitrary filename to be used, so long as structure is same, and it is a pickle.
+        # detect a dict of dataframes (control_probes.pkl) object
+        if type(path) is dict and all([type(df) is type(pd.DataFrame()) for df in path.values()]):
+            control = path
+            path = None
+        else:
+            path = Path(path)
+            if path.is_dir():
+                control = pd.read_pickle(Path(path, 'control_probes.pkl'))
+            elif path.is_file():
+                control = pd.read_pickle(path) # allows for any arbitrary filename to be used, so long as structure is same, and it is a pickle.
     except Exception as e: # cannot unpack NoneType
         print(e)
         print("No data.")

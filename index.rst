@@ -13,6 +13,7 @@ methylcheck documentation
    docs/demo_read_geo_processed.ipynb
    docs/filtering_probes.ipynb
    docs/methylprep_methylcheck_example.ipynb
+   docs/demo_qc_functions.ipynb
    docs/another-methylcheck-qc-example.ipynb
    docs/demo_using_matched_meta_data.ipynb
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>

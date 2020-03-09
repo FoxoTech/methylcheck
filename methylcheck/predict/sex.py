@@ -19,10 +19,17 @@ def _get_copy_number(meth,unmeth):
     # log2(getMeth(object) + getUnmeth(object))
     return np.log2(meth+unmeth)
 
-def get_sex(filepath=None, data_containers=None, array_type=None, verbose=False, plot=False):
-    """
-    given a path to a folder with data that contains processed sample data,
-    calculate and predict the sex of each sample.
+
+def get_sex(data_source, array_type=None, verbose=False, plot=False):
+    """This will calculate and predict the sex of each sample.
+
+inputs:
+=======
+    the "data_source" can be any one of:
+        path -- to a folder with csv data that contains processed sample data
+        path -- to a folder with the 'meth_values.pkl' and 'unmeth_values.pkl' dataframes
+        data_containers -- object created from methylprep.run_pipeline() or methylcheck.load(path, 'meth')
+        tuple of (meth, unmeth) dataframes
 
 while providing a filepath is the easiest way, you can also pass in a data_containers object,
 a list of data_containers containing raw meth/unmeth values, instead. This object is produced
@@ -34,6 +41,25 @@ customize the import if your files were not prepared using methylprep (non-stand
         from methylprep.models import ArrayType
     except ImportError:
         raise ImportError("This function requires methylprep to be installed (pip3 install `methylprep`)")
+
+    (data_source_type, data_source) = methylcheck.load_processed._data_source_type(data_source)
+    # data_source_type is one of {'path', 'container', 'control', 'meth_unmeth_tuple'}
+    if data_source_type in ('path'):
+        # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
+        # the saved pickles function isn't working for batches yet.
+        meth, unmeth = methylcheck.qc_plot._get_data(
+            data_containers=None, path=data_source,
+            compare=False, noob=False, verbose=False)
+    elif data_source_type in ('container'):
+        # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
+        # the saved pickles function isn't working for batches yet.
+        meth, unmeth = methylcheck.qc_plot._get_data(
+            data_containers=data_source, path=None,
+            compare=False, noob=False, verbose=False)
+    elif data_source_type is 'meth_unmeth_tuple':
+        (meth, unmeth) = data_source
+
+    ''' # moved to _get_data in pc_plot.py
     if filepath and not data_containers:
         silent = False if verbose is True else False
         data_containers = methylcheck.load(filepath, format='meth', silent=silent)
@@ -54,6 +80,7 @@ customize the import if your files were not prepared using methylprep (non-stand
         unmeth = pd.merge(left=unmeth, right=u[sample], left_on='IlmnID', right_on='IlmnID')
     meth = meth.set_index('IlmnID')
     unmeth = unmeth.set_index('IlmnID')
+    '''
 
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")

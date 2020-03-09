@@ -52,6 +52,7 @@ Arguments:
 
     verbose:
         outputs more processing messages.
+
     silent:
         suppresses all processing messages, even warnings.
 
@@ -71,8 +72,21 @@ Use cases and format:
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
     """
+    formats = ('beta_value', 'm_value', 'meth')
+    if format not in formats:
+        raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
     processed_csv = False # whether to use individual sample files, or beta pkl files.
-    total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
+    total_parts = []
+
+    # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
+    if format in ('beta_value', 'm_value'):
+        total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
+    #elif format == 'meth':
+    #    # this needs to deal with batches too
+    #    test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
+    #    if 'meth_values.pkl' in test_parts and 'unmeth_values.pkl' in test_parts:
+
+
     if total_parts == []:
         # part 2: scan for *_processed.csv files in subdirectories and pull out beta values from them.
         total_parts = list(Path(filepath).rglob('*_R0[0-9]C0[0-9][_.]processed.csv'))
@@ -155,7 +169,7 @@ Use cases and format:
                     len(column_names) == 1 and
                     column_names[0] in sample.columns and
                     format in ('beta_value', 'm_value')):
-                    # HERE: loading beta_value or m_value from csvs using a custon column_names option
+                    # HERE: loading beta_value or m_value from csvs using a custom column_names option
                     col_name = column_names[0]
                     col = sample.loc[:, [col_name]]
                     col.rename(columns={col_name: sample_name}, inplace=True)
@@ -187,7 +201,7 @@ Use cases and format:
                     data_container = SampleDataContainer(meth, unmeth, sample_name)
                     data_containers.append(data_container)
                 else:
-                    raise Exception(f"unknown format: {format} (allowed options: ['beta_value', 'm_value', 'meth'])")
+                    raise Exception(f"unknown format: {format} (allowed options: {formats})")
                 if verbose and not silent:
                     if meth.shape[0] != unmeth.shape[0]:
                         LOGGER.warning(f"{sample_name} probe counts don't match: {meth.shape}|{unmeth.shape}")
@@ -355,7 +369,7 @@ Arguments:
 class SampleDataContainer():
     """compatible output to the methylprep class.
 
-    - includes option to store meth, unmeth, beta, and m_value in self._SampleData__data_frame.
+    - includes option to store meth, unmeth, beta, and m_value in self._SampleDataContainer__data_frame.
     - meth_col is a df with column called 'meth'.
     - output is a list of DFs with 'meth' and 'unmeth' columns in each __data_frame."""
 
@@ -483,3 +497,37 @@ example:
         return df, df2
     else:
         return df
+
+
+def _data_source_type(data_source):
+    """ determines the type of data_source (path, containers, or meth/unmeth from pickles).
+    returns a pair: (data_source_type, object)
+    where data_source_type is one of {'path', 'container', 'control', 'meth_unmeth_tuple'} """
+    data_source_type = type(data_source)
+    dummy_container = SampleDataContainer(pd.DataFrame(), pd.DataFrame(), 'test')
+
+    if data_source_type in [type(Path()), str]:
+        # filepath
+        path = Path(data_source)
+        return ('path', path)
+
+    elif (data_source_type is dict and
+        all([type(df) is type(pd.DataFrame()) for df in data_source.values()]) ):
+        # control_probes are a dict of dataframes
+        return ('control',data_source)
+
+    elif (data_source_type is list and
+        type(data_source[0]) is type(dummy_container) and
+        hasattr(data_source[0],'_SampleDataContainer__data_frame') and
+        all([type(df._SampleDataContainer__data_frame) is type(pd.DataFrame()) for df in data_source]) ):
+        # containers are a list of SampleDataContainer objects
+        return ('container', data_source)
+
+    elif (data_source_type is tuple and
+        len(data_source) == 2 and
+        type(data_source[0]) is type(pd.DataFrame()) and
+        type(data_source[1]) is type(pd.DataFrame()) ):
+        return ('meth_unmeth_tuple', data_source)
+
+    else:
+        raise ValueError("Unknown data structure.")
