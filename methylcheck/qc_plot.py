@@ -202,7 +202,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
 
 def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None,
     noob=True, silent=False, verbose=False, plot=True, compare=False):
-    """
+    """plot methylated vs unmethylated probe intensities
+
 input (choose one of these):
 ============================
     PATH to csv files processed using methylprep
@@ -283,7 +284,7 @@ FIX:
 
 
 def plot_beta_by_type(beta_df, probe_type='all'):
-    """plotBetasByType (adopted from genome studio p. 43)
+    """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
 1 distribution plot; user defines type (I or II infinium)
@@ -339,8 +340,7 @@ Plot the overall density distribution of beta values and the density distributio
 
 
 def plot_controls(path=None, subset='all'):
-    """
-    - uses control probe values to plot staining controls (available with the `--save_control` methylprep process option)
+    """internal array QC controls (available with the `--save_control` or `--all` methylprep process option)
 
 input:
 ======

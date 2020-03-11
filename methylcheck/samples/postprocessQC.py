@@ -24,7 +24,7 @@ __all__ = [
     'beta_density_plot',
     'sample_plot',
     'cumulative_sum_beta_distribution', # a QC function
-    'beta_mds',
+    'beta_mds_plot',
     'mean_beta_compare', #pre-vs-post
     'combine_mds',
 ]

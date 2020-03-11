@@ -27,16 +27,6 @@ from .qc_plot import (
     )
 
 from .qc_report import run_pipeline
-
-'''
-try:
-    import methylprep
-    load = methylprep.load
-    load_both = methylprep.load_both
-    del methylprep
-except ImportError as error:
-    pass # these functions are not available otherwise.
-'''
 from .load_processed import load, load_both, container_to_pkl
 from .read_geo_processed import read_geo
 
