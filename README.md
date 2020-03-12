@@ -1,13 +1,15 @@
 methylcheck is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
 [![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/LifeEGX/methylcheck.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methylcheck) [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methQC) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methylcheck&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methylcheck)
+[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white)
 
 ![methylprep snapshots](https://raw.githubusercontent.com/LifeEGX/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
 ## methylcheck Package
 
 This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
+
+![methylprep functions](https://raw.githubusercontent.com/LifeEGX/methylcheck/dev/docs/methylcheck_functions.png)
 
 ## Installation
 
