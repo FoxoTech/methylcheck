@@ -4,6 +4,10 @@ LOGGER = logging.getLogger(__name__)
 # app
 import methylcheck
 
+run_qc = methylcheck.run_qc
+
+__all__ = ['run_pipeline', 'run_qc']
+
 def run_pipeline(df, **kwargs):
     """ lets you run a variety of probe and sample filters in tandem, then plot results
     by specifying all of your options at once, instead of running every part of methylcheck
@@ -15,18 +19,18 @@ required:
     df -- data as a dataframe of beta values, sample names in columns and probes in rows
 
 options:
-    verbose (True/False)
+    verbose (True/False):
         default: False -- shows extra info about processing if True
-    silent (True/False)
+    silent (True/False):
         default: False -- suppresses all warnings/info
 
-    exclude_sex
+    exclude_sex:
         filters out probes on sex-chromosomes
-    exclude_control
+    exclude_control:
         filters out illumina control probes
-    exclude_all
+    exclude_all:
         filters out the most probes (sex-linked, control, and all sketchy-listed probes from papers)
-    exclude (list of strings, shorthand references to papers with sketchy probes to exclude)
+    exclude (list of strings, shorthand references to papers with sketchy probes to exclude):
         If the array is 450K the publications may include:
             'Chen2013'
             'Price2013'
@@ -43,14 +47,19 @@ options:
             'RepeatSequenceElements'
         or use 'exclude_all' to do maximum filtering, including these papers
 
-    plot (list of strings)
+    plot (list of strings):
         ['mean_beta_plot', 'beta_density_plot', 'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all']
         if 'all', then all of these plots will be generated. if omitted, no plots are created.
-    save_plots (True|False)
+    save_plots (True|False):
         default: False
 
-    export (True|False)
+    export (True|False):
         default: False -- will export the filtered df as a pkl file if True
+
+note:
+    this pipeline cannot also apply the array-level methylcheck.run_qc() function
+    because that relies on additional probe information that may not be present. Everything
+    in this pipeline applies to a dataframe of beta or m-values for a set of samples.
 
 returns:
     a filtered dataframe object
@@ -75,7 +84,8 @@ returns:
     'exclude_all': [True, False],
     'plot': ['mean_beta_plot', 'beta_density_plot', 'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all'],
     'save_plots': [True, False],
-    'export': [True, False]
+    'export': [True, False],
+    'run_qc': [True, False],
     }
     for k,v in kwargs.items():
         if k not in param_list:
@@ -89,6 +99,7 @@ returns:
             if v not in possible_values:
                 raise ValueError(f"{item} not a valid option for {k}: {possible_values}")
     # now we know all inputs are among the allowed/expected params.
+
     # set detail level of messages
     if kwargs.get('verbose') == True:
         logging.basicConfig(level=logging.INFO)
@@ -99,8 +110,19 @@ returns:
         logging.basicConfig(level=logging.ERROR)
     else:
         kwargs['silent'] = False
-    if kwargs.get('save_plots') is None:
-        kwargs['save_plots'] = False
+
+    # assign some default pipeline params, if not specified by user
+    default_params = {
+        'verbose': False,
+        'silent': False,
+        'exclude_all': True,
+        'plot': 'all',
+        'save_plots': False,
+        'export': False}
+    for param,setting in default_params.items():
+        if kwargs.get(param) is None:
+            kwargs[param] = setting
+
     # determine array type
     array_type = methylcheck.detect_array(df)
 

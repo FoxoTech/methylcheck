@@ -34,14 +34,14 @@ methylcheck package
    methylcheck.get_sex
    methylcheck.assign
 
-
-methylcheck.cli module (command line interface)
+methylcheck pipeline functions
 -----------------------------------------------
 
-.. automodule:: methylcheck.cli
-   :members:
-   :undoc-members:
-   :show-inheritance:
+.. automodule:: methylcheck.qc_report
+  :members:
+  :undoc-members:
+  :show-inheritance:
+
 
 methylcheck.probes module
 -------------------------

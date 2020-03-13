@@ -292,10 +292,10 @@ Use cases and format:
     return df
 
 
-def load_both(filepath='.', format='beta_values', file_stem='', verbose=False, silent=False):
-    """Loads any pickled files in the given filepath that match specified format,
-    plus the associated meta data frame. Returns TWO objects (data, meta) as dataframes for analysis.
+def load_both(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, rename_samples=False, sample_names='Sample_Name'):
+    """Creates and returns TWO objects (data and meta_data) from the given filepath. Confirms sample names match.
 
+    Returns TWO objects (data, meta) as dataframes for analysis.
     If meta_data files are found in multiple folders, it will read them all and try to match to the samples
     in the beta_values pickles by sample ID.
 
@@ -311,12 +311,24 @@ Arguments:
         'beta_values_1.pkl', 'beta_values_2.pkl', 'beta_values_3.pkl', and so on. IF you rename these or provide
         a custom name during processing, provide that name here.
         (i.e. if your pickle file is called 'GSE150999_beta_values_X.pkl', then your file_stem is 'GSE150999_')
+    column_names:
+        if your processed csv files contain column names that differ from those expected, you can specify them as a list of strings
+        by default it looks for ['noob_meth', 'noob_unmeth'] or ['meth', 'unmeth'] or ['beta_value'] or ['m_value']
+        Note: if you csv data has probe names in a column that is not the FIRST column, or is not named "IlmnID",
+        you should specify it with column_names and put it first in the list, like ['illumina_id', 'noob_meth', 'noob_umeth'].
+    rename_samples:
+        if your meta_data contains a 'Sample_Name' column, the returned data and meta_data will have
+        index and columns renamed to Sample_Names instead of Sample_IDs, respectively.
+    sample_name (string):
+        the column name to use in meta dataframe for sample names. Assumes 'Sample_Name' if unspecified.
 
     verbose:
         outputs more processing messages.
     silent:
         suppresses all processing messages, even warnings.
     """
+    if not Path(filepath).exists():
+        raise FileNotFoundError(f"Invalid filepath: {filepath}")
     meta_files = list(Path(filepath).rglob(f'*_meta_data.pkl'))
     multiple_metas = False
     partial_meta = False
@@ -329,8 +341,8 @@ Arguments:
         #    (a) the goal is a row-wise concatenation (i.e., axis=0) and
         #    (b) all dataframes share the same column names.
         frames = [pd.read_pickle(pkl) for pkl in meta_files]
-        meta_tags = frames[0].columns
-        # do all match?
+        meta_tags = frames[0].columns # assumes all have same columns
+        # do all tags match the first file's columns?
         meta_sets = set()
         for frame in frames:
             meta_sets |= set(frame.columns)
@@ -350,15 +362,17 @@ Arguments:
             LOGGER.info("Multiple meta_data found. Only loading the first file.")
         LOGGER.info(f"Loading {len(meta.index)} samples.")
     else:
-        LOGGER.info("No meta_data found.")
+        LOGGER.info(f"No meta_data found in ({filepath}).")
         meta = pd.DataFrame()
 
     data_df = load(filepath=filepath,
         format=format,
         file_stem=file_stem,
         verbose=verbose,
-        silent=silent
+        silent=silent,
+        column_names=column_names
         )
+
 
     ### confirm the Sample_ID in meta matches the columns (or index) in data_df.
     check = False
@@ -392,6 +406,24 @@ Arguments:
         LOGGER.warning("Data samples don't align with 'Sample_ID' column in meta_data.")
     else:
         LOGGER.info("meta.Sample_IDs match data.index (OK)")
+
+    # if rename_samples = True, swap out meta_data index and sample_df columns for Sample_Name field in meta_data
+    if rename_samples and 'Sample_Name' in meta.columns:
+        # orient
+        if data_df.shape[1] > data_df.shape[0]:
+            data_df = data_df.transpose()
+        if ( (len(set(data_df.columns)) < len(data_df.columns)) or
+            (len(set(meta.index.tolist())) < len(meta.index.tolist())) ):
+            LOGGER.error(f"Some of your sample_ids or sample_names are repeated (duplicates) and this cannot rename your dataframe columns. Returning with Sample_IDs instead.")
+            return data_df, meta
+        sample_order = {v:k for k,v in list(enumerate(data_df.index))}
+        meta_order = {v:k for k,v in list(enumerate(meta.columns))}
+        sample_mapping = {v['Sample_ID']: v['Sample_Name'] for k,v in meta.iterrows()}
+        # replace data_df sample columns
+        #meta.set_index('Sample_Name', inplace=True) --- meta doesn't use its index
+        data_df = data_df.rename(columns=sample_mapping)
+        LOGGER.info("Renamed data_df.index and meta_df.columns to Sample_Name")
+
     return data_df, meta
 
 
@@ -419,6 +451,7 @@ class SampleDataContainer():
         # reduce to float32 during processing.
         self.__data_frame = self.__data_frame.astype('float32')
         self.__data_frame = self.__data_frame.round(3)
+
 
 # was previously named 'container_to_beta'
 def container_to_pkl(containers, output='betas', save=True):
