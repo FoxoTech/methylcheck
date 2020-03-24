@@ -105,9 +105,18 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         if verbose:
             LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
         df = df.transpose()
-    # 2nd check
+    # 2nd check: incomplete probes
     if df.shape[0] < 27000:
         LOGGER.warning("data does not appear to be full probe data")
+    # 3rd check: missing probe values (common with EPIC+)
+    missing_probes = sum(df.isna().sum())
+    if missing_probes > 0 and not verbose:
+        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall). For a list per sample, use verbose=True")
+        df = df.copy().dropna()
+    elif missing_probes > 0:
+        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall).")
+        LOGGER.info(df.isna().sum())
+        df = df.copy().dropna()
 
     if reduce != None and reduce < 1.0:
         if not isinstance(reduce, (int, float)):

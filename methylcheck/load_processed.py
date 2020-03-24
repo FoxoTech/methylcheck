@@ -1,10 +1,7 @@
 import time
 from pathlib import Path
 import numpy as np
-#try:
-#    import modin.pandas as pd # claims to be 4X faster loading csvs, using all processor cores
-#    print('modin.pandas active')
-#except ImportError:
+import re # for sesame filename extraction
 import pandas as pd
 #app
 from .progress_bar import * # context tqdm
@@ -17,7 +14,7 @@ __all__ = ['load', 'load_both', 'container_to_pkl']
 
 
 ## modified this from methylprep on 2020-02-20 to allow for data_containers to be returned as option
-def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None):
+def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, no_poobah=False, pval_cutoff=0.05):
     """When methylprep processes large datasets, you use the 'batch_size' option to keep memory and file size
     more manageable. Use the `load` helper function to quickly load and combine all of those parts into a single
     data frame of beta-values or m-values.
@@ -53,6 +50,15 @@ Arguments:
         Note: if you csv data has probe names in a column that is not the FIRST column, or is not named "IlmnID",
         you should specify it with column_names and put it first in the list, like ['illumina_id', 'noob_meth', 'noob_umeth'].
 
+    no_poobah:
+        if loading from CSVs, and there is a column for probe p-values (the poobah_pval column),
+        the default is to filter out probes that fail the p < 0.05 cutoff. if you specify 'no_poobah'=True,
+        it will load everything, regardless of p-values.
+
+    pval_cutoff:
+        if applying poobah (pvalue probe detection based on poor signal to noise)
+        this specifies the threashold for cutoff (0.05 by default)
+
     verbose:
         outputs more processing messages.
 
@@ -74,14 +80,34 @@ Use cases and format:
     format = meth (dataframe)
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
+    format = sesame
+        for reading csvs processed using R's sesame package. It has a different format (Probe_ID, ind_beta, ind_negs, ind_poob) per sample.
+        Only those probes that pass the p-value cutoff will be included.
+
+TODO:
+    - BUG: custom fields cannot auto detect the -pval- column and this isn't supplied in kwargs
+    - DONE: meth_df deal with batches of files
+
     """
-    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df')
+    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
+    if format == 'sesame':
+        return load_sesame(
+            filepath=filepath,
+            format=format,
+            file_stem=file_stem,
+            verbose=verbose,
+            silent=silent,
+            column_names=column_names,
+            no_poobah=no_poobah,
+            pval_cutoff=pval_cutoff
+            )
     processed_csv = False # whether to use individual sample files, or beta pkl files.
     total_parts = []
 
     # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
+    # looking for multiple pickled files (beta/m)
     if format in ('beta_value', 'm_value'):
         total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
     elif format == 'meth_df':
@@ -143,6 +169,10 @@ Use cases and format:
                         columns = ['IlmnID', 'm_value']
                     elif format == 'meth':
                         columns = ['IlmnID', 'noob_meth', 'noob_unmeth']
+                    else:
+                        raise ValueError(f"format {format} not supported. fix.")
+                    if no_poobah == False:
+                        columns.append('poobah_pval')
                     index_column = 'IlmnID' if 'IlmnID' in columns else columns[0] # fragile assumption: first column is index
                     sample = pd.read_csv(part,
                         # this param assigns the index from one column
@@ -151,7 +181,7 @@ Use cases and format:
                         usecols=columns,
                         dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float16,
                             'noob_unmeth':np.float16, 'meth':np.float16, 'unmeth':np.float16,
-                            'beta_value':np.float16, 'm_value':np.float16},
+                            'beta_value':np.float16, 'm_value':np.float16, 'poobah_pval':np.float16},
                         engine='c',
                         memory_map=True, # load all into memory at once for faster reading (less IO)
                         #na_filter=False, # disable to speed read, if not expecting NAs
@@ -182,6 +212,9 @@ Use cases and format:
                 # incorporate .load_both() here
 
                 if 'beta_value' in sample.columns and format == 'beta_value':
+                    if no_poobah == False and 'beta_value' in sample.columns and 'poobah_pval' in sample.columns:
+                        sample.loc[sample['poobah_pval'] >= pval_cutoff, 'beta_value'] = np.nan
+
                     col = sample.loc[:, ['beta_value']]
                     col.rename(columns={'beta_value': sample_name}, inplace=True)
                     sample_names.append(sample_name)
@@ -189,6 +222,9 @@ Use cases and format:
                     if verbose and not silent:
                         print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
                 elif 'm_value' in sample.columns and format == 'm_value':
+                    if no_poobah == False and 'm_value' in sample.columns and 'poobah_pval' in sample.columns:
+                        sample.loc[sample['poobah_pval'] >= pval_cutoff, 'm_value'] = np.nan
+
                     col = sample.loc[:, ['m_value']]
                     col.rename(columns={'m_value': sample_name}, inplace=True)
                     sample_names.append(sample_name)
@@ -200,6 +236,11 @@ Use cases and format:
                     column_names[0] in sample.columns and
                     format in ('beta_value', 'm_value')):
                     # HERE: loading beta_value or m_value from csvs using a custom column_names option
+                    # BUG::: cannot auto detect the -pval- column and isn't supplied in kwargs
+
+                    if no_poobah == False and 'poobah_pval' in sample.columns:
+                        sample.loc[sample['poobah_pval'] >= pval_cutoff, col_name] = np.nan
+
                     col_name = column_names[0]
                     col = sample.loc[:, [col_name]]
                     col.rename(columns={col_name: sample_name}, inplace=True)
@@ -250,7 +291,9 @@ Use cases and format:
             return df
         elif not silent:
             LOGGER.warning(f"No pickled files of type ({format}) found in {filepath} (or sub-folders).")
-        return
+        return # wrapped up _processed.csv and _calls.csv.gz version of load()
+
+    # does this apply only to batches of beta/m-val.pkl files???
     start = time.process_time()
     parts = []
     #for i in range(1,total_parts):
@@ -594,3 +637,71 @@ def _data_source_type(data_source):
 
     else:
         raise ValueError("Unknown data structure.")
+
+
+def load_sesame(filepath='.',
+    format='sesame',
+    file_stem='',
+    verbose=False,
+    silent=False,
+    column_names=None,
+    no_poobah=False,
+    pval_cutoff=0.05,
+    # these are not passed in from .load() but can be overridden if calling this directly.
+    index_column='Probe_ID',
+    beta_column='ind_beta',
+    poobah_column='ind_poob'
+    ):
+    """ called within .load() for loading sesame-processed samples in csvs (optionally gzipped).
+    returns a dataframe of betas, with failing probes filtered out (unless overridden). """
+    SESAME_RGLOB_PATTERN = '*_R0[0-9]C0[0-9]*_calls.csv*'
+    SESAME_FILENAME_REGEX = '(.*_R0[0-9]C0[0-9]).*_calls\.csv(\.gz)?'
+
+    # files are Sentrix_ID ... manifest code ... _calls.csv.gz
+    total_parts = list(Path(filepath).rglob(SESAME_RGLOB_PATTERN))
+    if verbose and not silent:
+        print(len(total_parts),'files matched')
+    if total_parts != []:
+        sample_betas = []
+        sample_names = []
+        columns = [index_column, beta_column, poobah_column]
+        for part in (tqdm(total_parts, desc='Files', total=len(total_parts)) if (not verbose and not silent) else total_parts):
+            sample = pd.read_csv(part,
+                # this param assigns the index from one column
+                index_col=index_column,
+                # usecols param speeds up reading
+                usecols=columns,
+                # compression='infer' by default; works for .gz files
+                dtype={index_column: str,
+                    beta_column: np.float16,
+                    poobah_column: np.float16
+                    },
+                engine='c', #fastest
+                memory_map=True, # load all into memory at once for faster reading (less IO)
+                #na_filter=False, # disable to speed read, if not expecting NAs
+            )
+            if no_poobah == False:
+                # remove all failed probes by replacing with NaN before building DF.
+                sample.loc[sample[poobah_column] >= pval_cutoff, beta_column] = np.nan
+
+            fname = str(Path(part).name)
+            pattern = re.match(SESAME_FILENAME_REGEX, fname, re.I)
+            if pattern and len(pattern.groups()) >= 1:
+                sample_name = pattern.groups(1)
+            else:
+                sample_name = ''
+
+            col = sample.loc[:, [beta_column]]
+            col.rename(columns={'beta_value': sample_name}, inplace=True)
+            sample_names.append(sample_name)
+            sample_betas.append(col)
+            if verbose and not silent:
+                print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+        if len(sample_betas) > 30:
+            tqdm.pandas()
+            df = pd.concat(sample_betas, axis='columns', join='inner').progress_apply(lambda x: x)
+        else:
+            df = pd.concat(sample_betas, axis='columns', join='inner')
+        return df
+    else:
+        print("No sesame files found.")
