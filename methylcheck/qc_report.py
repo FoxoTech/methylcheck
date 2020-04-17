@@ -1,4 +1,7 @@
 import pandas as pd
+import numpy as np
+from pathlib import Path, PurePath
+import re
 import logging
 LOGGER = logging.getLogger(__name__)
 # app
@@ -9,7 +12,7 @@ run_qc = methylcheck.run_qc
 __all__ = ['run_pipeline', 'run_qc']
 
 def run_pipeline(df, **kwargs):
-    """ lets you run a variety of probe and sample filters in tandem, then plot results
+    """Run a variety of probe and sample filters in tandem, then plot results
     by specifying all of your options at once, instead of running every part of methylcheck
     in piacemeal fashion.
 
@@ -175,3 +178,339 @@ returns:
         df.to_pickle(outfile)
         LOGGER.info(f'Saved {outfile}')
     return df
+
+
+def detection_poobah(poobah_df, pval_cutoff):
+    """ given a dataframe of p-values with sample_ids in columns and probes in index,
+    calculates the percent failed probes per sample. Part of QC report."""
+    out = {}
+    for sample_id in poobah_df.columns:
+        total = poobah_df.shape[0]
+        failed = poobah_df[sample_id][poobah_df[sample_id] >= pval_cutoff].count()
+        percent_failed = round(100*failed/total,1)
+        out[sample_id] = percent_failed
+    return out
+
+class ReportPDF:
+    """ this will call a batch of plotting functions and compile a PDF with annotation and save file to disk """
+    # large font
+    # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
+    #MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
+    #MAXLINES = 26
+    #FONTSIZE = 16
+    #ORIGIN = (0.1, 0.1) # achored on page in lower left
+    # normal font -- for 12pt font: use 100 x 44 lines
+    MAXWIDTH = 100
+    MAXLINES = 44
+    FONTSIZE = 12
+    ORIGIN = (0.1, 0.05) # achored on page in lower left
+
+    def __init__(self, **kwargs):
+        """ supply kwargs to specify which QC plots to include
+        and order (list) for the order.
+        include 'path' with path to processed pickled files.
+        include optional 'outpath' for where to save the pdf report.
+
+        kwargs: filename, poobah_max_percent, pval_cutoff,
+        title, author, subject, keywords, outpath, path
+
+    when using:
+        you must run report.pdf.close() after you run_qc(). """
+        # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
+        self.__dict__.update(kwargs)
+        self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
+        self.__dict__['pval_cutoff'] = self.__dict__.get('pval_cutoff', 0.05)
+
+        #SHELVING the PDF_PART, since it worked but not neeeded right now
+        from matplotlib.backends.backend_pdf import PdfPages
+        self.outfile = Path(self.__dict__.get('outpath','.'), self.__dict__.get('filename', 'multipage_pdf.pdf'))
+        self.pdf = PdfPages(self.outfile)
+        import matplotlib.pyplot as plt
+        self.plt = plt
+        import textwrap
+        self.textwrap = textwrap
+        import datetime
+        self.today = str(datetime.date.today())
+        d = self.pdf.infodict()
+        if any(kwarg in ('title','author','subject','keywords') for kwarg in kwargs):
+            # set the file's metadata via the PdfPages object:
+            d['Title'] = self.__dict__.get('title','')
+            d['Author'] = self.__dict__.get('author','')
+            d['Subject'] = self.__dict__.get('subject','')
+            d['Keywords'] = self.__dict__.get('keywords','')
+        d['CreationDate'] = datetime.datetime.today()
+        d['ModDate'] = datetime.datetime.today()
+
+        """
+Pre-processing pipeline
+    Probe-level (w/explanations of suggested exclusions)
+        Links to recommended probe exclusion lists/files/papers
+        Background subtraction and normalization (‘noob’)
+        Detection p-value (‘neg’ vs ‘oob’)
+        Dye-bias correction (from SeSAMe)
+    Sample-level (w/explanations of suggested exclusions)
+        Detection p-value (% failed probes)
+            custom detection (% failed, of those in a user-defined-list supplied to function)
+        MDS
+        Suggested for customer to do on their own
+            Sex check
+            Age check
+            SNP check
+        """
+        self.order = ['beta_density_plot', 'detection_poobah', 'mds', 'auto_qc',
+         'M_vs_U', 'qc_signal_intensity', 'controls', 'probe_types']
+
+        self.tests = {
+            'detection_poobah': self.__dict__.get('poobah',True),
+            'mds': self.__dict__.get('mds',True),
+            'auto_qc': self.__dict__.get('auto_qc',True),
+        }
+        self.plots = {
+            'beta_density_plot': self.__dict__.get('beta_density_plot',True),
+            'M_vs_U': self.__dict__.get('M_vs_U',True),
+            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True), # not sure Brian wanted this, but it is available
+            'controls': self.__dict__.get('controls',True), # genome studio plots
+            'probe_types': self.__dict__.get('probe_types',True),
+            # FUTURE lower priority: bis-conversion completeness, or GCT score --- https://rdrr.io/bioc/sesame/src/R/sesame.R
+        }
+
+
+
+    def run_qc(self):
+        # load all the data from self.path; make S3-compatible too.
+        path = self.__dict__.get('path','')
+        if self.tests['detection_poobah'] is True:
+            try:
+                poobah_df = pd.read_pickle(Path(path,'poobah_values.pkl')) # off by default, process with --export_poobah
+            except FileNotFoundError:
+                raise FileNotFoundError(f"Could not load pickle file: 'poobah_values.pkl'. Add 'poobah=False' to inputs to turn this off.")
+        try:
+            beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
+            meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
+            unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+            control_dict_of_dfs = pd.read_pickle(Path(path,'control_probes.pkl'))
+            LOGGER.info("data loaded")
+        except FileNotFoundError:
+            raise FileNotFoundError("Could not load pickle files")
+
+        '''
+        self.functions = { # NOT USED #
+            'detection_poobah': detection_poobah,
+            'mds': methylcheck.beta_mds_plot,
+            'auto_qc': None,
+            'beta_density_plot': methylcheck.beta_density_plot,
+            'M_vs_U': methylcheck.plot_M_vs_U,
+            'controls': methylcheck.plot_controls,
+            'qc_signal_intensity': methylcheck.qc_signal_intensity,
+        }
+        '''
+
+        for part in self.order:
+            if part in self.tests and self.tests[part] == True:
+                if part == 'detection_poobah':
+                    max_allowed = self.__dict__.get('poobah_max_percent')
+                    sample_percent_failed_probes_dict = detection_poobah(poobah_df, pval_cutoff=self.__dict__['pval_cutoff'])
+                    sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
+                    #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
+                    LOGGER.info(f"{len([k for k in sample_poobah_failures.values() if k =='fail'])} sample_poobah_failures out of {len(sample_poobah_failures)} samples.")
+                    pretty_table = Table(titles=['Sample_ID', 'Percent', 'Pass/Fail'])
+
+                    for count, (sample_id,percent) in enumerate(sample_percent_failed_probes_dict.items()):
+                        row = [sample_id, percent, sample_poobah_failures[sample_id]]
+                        pretty_table.add_row(row)
+                        count+=1
+                        if count >= self.MAXLINES:
+                            break
+                        ####### TODO FIX THIS #########
+                    table_str = pretty_table.__str__()
+                    #self.page_of_paragraphs(["Percent Failed Probes per Sample", table_str], self.pdf)
+                    self.page_of_text(table_str, self.pdf)
+
+                if part == 'mds':
+                    LOGGER.info("beta MDS")
+                    # ax and df_to_retain are not used, but could go into a qc chart
+                    fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
+                    self.pdf.savefig(fig)
+                    self.plt.close()
+                    #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
+                    #for sample_id in df_indexes_to_retain:
+
+            elif part in self.plots:
+                if part == 'beta_density_plot':
+                    LOGGER.info("beta")
+                    fig = methylcheck.beta_density_plot(beta_df, save=False, silent=True, verbose=False, reduce=0.1, plot_title=None, ymax=None, return_fig=True)
+                    self.pdf.savefig(fig)
+                    self.plt.close()
+                elif part == 'M_vs_U':
+                    LOGGER.info(f"M_vs_U")
+                    fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True)
+                    self.pdf.savefig(fig)
+                    self.plt.close()
+                    # if not plotting, it will return dict with meth median and unmeth median.
+                elif part == 'qc_signal_intensity':
+                    LOGGER.info(f"qc_signal_intensity")
+                    fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True)
+                    self.pdf.savefig(fig)
+                    self.plt.close()
+                elif part == 'controls':
+                    LOGGER.info(f"controls")
+                    list_of_figs = methylcheck.plot_controls(control_dict_of_dfs, 'all', return_fig=True)
+                    for fig in list_of_figs:
+                        self.pdf.savefig(figure=fig, bbox_inches='tight')
+                    self.plt.close('all')
+                elif part == 'probe_types':
+                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True)
+                    for fig in list_of_figs:
+                        self.pdf.savefig(figure=fig, bbox_inches='tight')
+                    self.plt.close('all')
+
+    def page_of_text(self, text, pdf):
+        """text is a single big string of text, with whitespace for line breaks.
+        https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
+        print([len(i.split('\n')) for i in [text]])
+        firstPage = self.plt.figure(figsize=(11,8.5))
+        firstPage.clf()
+        wrapped_txt = self.textwrap.fill(text, width=self.MAXWIDTH)
+        #wrapped_txt_list = textwrap.wrap(txt, width=80)
+        # next, identify paragraph breaks here as strings of writespace, and wrap each part separately? then move onto page.
+        #firstPage.text(0.5,0.5,txt, size=12, ha="left") # transform=firstPage.transFigure
+        firstPage.text(self.ORIGIN[0], self.ORIGIN[1], wrapped_txt, size=self.FONTSIZE)
+        pdf.savefig()
+        self.plt.close()
+
+    def page_of_paragraphs(self, para_list, pdf):
+        """ https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right.
+        this version estimates the size of each paragraph and moves the origin downward accordingly.
+        tricky because the anchors are lower left, not upper left.
+
+        ok if a paragraph contains whitespace line breaks, OR each para is one long line to be wrapped here.
+        also - if a paragraph wraps, this accounts for it in total lines count"""
+        #1 - finding the start points for each paragraph in page, counting backwards, so first paragraph is at top of page.
+        para_lengths = [len(i.split('\n')) for i in para_list]
+        extra_line_wraps = [max(len(self.textwrap.wrap(para, width=self.MAXWIDTH)) -1, 0) for para in para_list]
+        if (sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)) > self.MAXLINES:
+            raise ValueError(f"Text lines {(sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps))} > {self.MAXLINES}, the max lines per PDF page allowed.")
+        #print(para_lengths) -- ok if a paragraph contains whitespace line breaks, OR each para is one long line to be wrapped here.
+        # assume each line height is 0.1/26 fraction of total page height
+
+        line_height = round((1 - 2*ORIGIN[1])/self.MAXLINES,3)
+        #print('line height', line_height)
+
+        paragraph_spacing = line_height # 1 line
+
+        firstPage = self.plt.figure(figsize=(11,8.5))
+        firstPage.clf()
+        current_y_position = (1.0 - self.ORIGIN[1]) # working down page by subtracting
+        extra_lines = [] # if something doesn't fit on page, include this in error message
+        for nth, para in enumerate(para_list):
+            # each para is assumed to be one paragraph of text with no whitespace formatting.
+            wrapped_txt = self.textwrap.fill(para, width=self.MAXWIDTH)
+            wrapped_addtl_line_count = max(len(self.textwrap.wrap(para, width=self.MAXWIDTH)) -1, 0)
+            x_margin = self.ORIGIN[0]
+            current_y_position -= (line_height * len(para.split('\n')))
+            current_y_position -= (line_height * wrapped_addtl_line_count)
+            if nth > 0:
+                current_y_position -= paragraph_spacing
+            if current_y_position < self.ORIGIN[1]:
+                extra_lines.append(wrapped_txt)
+                #print(current_y_position, wrapped_addtl_line_count, wrapped_txt)
+            else:
+                firstPage.text(x_margin, current_y_position, wrapped_txt, size=self.FONTSIZE)
+        if extra_lines != []:
+            print("WARNING: DID NOT FIT")
+            for extra_line in extra_lines:
+                print(extra_line)
+                print("")
+        pdf.savefig()
+        self.plt.close()
+
+
+class Table(object):
+    """Pretty-print tabular data. Smart align numbers.
+
+    Provide a list of tuples like:
+    data = [
+        (1,2,3),
+        (4,5,6),
+    ]
+    this = Table(titles= ['This', 'That', 'The Other'])
+    for row in data:
+        this.add_row(row)
+    """
+
+
+    def __init__(self, titles=None):
+        self.centred_titles = True
+        self.rows = []
+        self._titlerows = []
+        self._size = 0
+        if titles:
+            self.add_row(titles, True)
+
+    def coerce(self, obj):
+        if isinstance(obj, str): # python3, unicode == str
+            return obj
+        return str(obj) # convert numbers
+
+    def add_row(self, row, title=False):
+        self.rows.append(row)
+        if title:
+            self._titlerows.append(True)
+        else:
+            self._titlerows.append(False)
+
+    def __unicode__(self):
+        # Calculate column parameters
+        ncols = max([len(r) for r in self.rows])
+        widths = [0] * ncols  # width of each column
+        formats = [None] * ncols  # format string for each column
+        # calculate column widths
+        for r in self.rows:
+            for i, n in enumerate([len(self.coerce(c)) for c in r]):
+                widths[i] = max([widths[i], n])
+
+        # Widget
+        hr = [(u'-' * w) for w in widths]
+        hr = u'---'.join(hr)
+
+        # Get row data formatted to length
+        lines = []
+        for y, r in enumerate(self.rows):
+            title = self._titlerows[y]
+            objs = list(r)
+            while len(objs) < ncols:  # Ensure row is long enough
+                objs.append(u'')
+
+            # Format each cell
+            data = []
+            for i, o in enumerate(objs):
+                u = self.coerce(o)
+                w = widths[i]
+
+                # Column formatting
+                # left-align by default
+                fmt = u'{{:{}s}}'.format(w)
+                if title and self.centred_titles:  # centre-align titles
+                    fmt = u'{{:^{}s}}'.format(w)
+
+                elif u.strip():  # Use or determine default for this column
+                    if formats[i]:
+                        fmt = formats[i]
+                    elif re.match(r'[$€£]?\s*[0-9,.% ]+', u):  # number
+                            fmt = u'{{:>{}s}}'.format(w)
+                    # Save as default for this column
+                    formats[i] = fmt
+
+                u = fmt.format(u)
+                data.append(u)
+
+            # Combine cells into text for row
+            u = u' | '.join(data)
+            lines.append(u)
+            if title:
+                lines.append(hr)
+
+        return u'\n'.join([s.rstrip() for s in lines])
+
+    def __str__(self):
+        return self.__unicode__()
