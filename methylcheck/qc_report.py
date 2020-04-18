@@ -1,8 +1,10 @@
 import pandas as pd
 import numpy as np
 from pathlib import Path, PurePath
+from io import StringIO
 import re
 import logging
+import math
 LOGGER = logging.getLogger(__name__)
 # app
 import methylcheck
@@ -205,6 +207,16 @@ class ReportPDF:
     FONTSIZE = 12
     ORIGIN = (0.1, 0.05) # achored on page in lower left
 
+    # preparing a stream of log messages to add to report appendix.
+    appendix = logging.getLogger()
+    appendix.setLevel(logging.INFO)
+    errors = StringIO()
+    # %(module)s.%(funcName)s() ... %Y-%m-%d
+    formatter = logging.Formatter('^^^%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
+    error_handler = logging.StreamHandler(errors)
+    error_handler.setFormatter(formatter)
+    appendix.addHandler(error_handler)
+
     def __init__(self, **kwargs):
         """ supply kwargs to specify which QC plots to include
         and order (list) for the order.
@@ -313,18 +325,13 @@ Pre-processing pipeline
                     sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
                     #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
                     LOGGER.info(f"{len([k for k in sample_poobah_failures.values() if k =='fail'])} sample_poobah_failures out of {len(sample_poobah_failures)} samples.")
-                    pretty_table = Table(titles=['Sample_ID', 'Percent', 'Pass/Fail'])
 
-                    for count, (sample_id,percent) in enumerate(sample_percent_failed_probes_dict.items()):
+                    list_of_lists = []
+                    for sample_id,percent in sample_percent_failed_probes_dict.items():
                         row = [sample_id, percent, sample_poobah_failures[sample_id]]
-                        pretty_table.add_row(row)
-                        count+=1
-                        if count >= self.MAXLINES:
-                            break
-                        ####### TODO FIX THIS #########
-                    table_str = pretty_table.__str__()
-                    #self.page_of_paragraphs(["Percent Failed Probes per Sample", table_str], self.pdf)
-                    self.page_of_text(table_str, self.pdf)
+                        list_of_lists.append(row)
+                    self.to_table(list_of_lists, col_names=['Sample_ID', 'Percent', 'Pass/Fail'],
+                        row_names=None, add_title='Detection Poobah')
 
                 if part == 'mds':
                     LOGGER.info("beta MDS")
@@ -364,6 +371,36 @@ Pre-processing pipeline
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
 
+        # and finally, appendix of log messages
+        appendix_msgs = self.errors.getvalue()
+        print(repr(appendix_msgs))
+        appendix_msgs = appendix_msgs.split('^^^')
+        appendix_msgs.insert(0, 'APPENDIX I: PROCESSING MESSAGES')
+        total_rows = len(appendix_msgs)
+        last_row = 0
+        while last_row <= total_rows:
+            rows_per_page = 26
+            # pretest whether length will fit on a pgae
+            while True:
+                para_list = appendix_msgs[last_row : (last_row + rows_per_page)]
+                para_lengths = [len(i.split('\n')) for i in para_list]
+                extra_line_wraps = [max(len(self.textwrap.wrap(para, width=self.MAXWIDTH)) -1, 0) for para in para_list]
+                print((sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)))
+                if (sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)) > self.MAXLINES:
+                    rows_per_page -= 2
+                    print('---',rows_per_page)
+                else:
+                    break
+                if rows_per_page <= 0:
+                    break
+            if rows_per_page <= 0:
+                LOGGER.error("couldn't write log messages to appendix")
+                break
+            self.page_of_paragraphs(para_list, self.pdf)
+            last_row += rows_per_page
+        self.errors.close()
+
+
     def page_of_text(self, text, pdf):
         """text is a single big string of text, with whitespace for line breaks.
         https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
@@ -393,7 +430,7 @@ Pre-processing pipeline
         #print(para_lengths) -- ok if a paragraph contains whitespace line breaks, OR each para is one long line to be wrapped here.
         # assume each line height is 0.1/26 fraction of total page height
 
-        line_height = round((1 - 2*ORIGIN[1])/self.MAXLINES,3)
+        line_height = round((1 - 2*self.ORIGIN[1])/self.MAXLINES,3)
         #print('line height', line_height)
 
         paragraph_spacing = line_height # 1 line
@@ -424,93 +461,34 @@ Pre-processing pipeline
         pdf.savefig()
         self.plt.close()
 
+    def to_table(self, list_of_lists, col_names, row_names=None, add_title=''):
+        """
+        - embeds a table in a PDF page.
+        - attempts to split long tables into multiple pages.
+        - should warn if table is too wide to fit. """
 
-class Table(object):
-    """Pretty-print tabular data. Smart align numbers.
+        # stringify numbers
+        for idx, sub in enumerate(list_of_lists):
+            list_of_lists[idx] = [str(i) for i in sub]
 
-    Provide a list of tuples like:
-    data = [
-        (1,2,3),
-        (4,5,6),
-    ]
-    this = Table(titles= ['This', 'That', 'The Other'])
-    for row in data:
-        this.add_row(row)
-    """
-
-
-    def __init__(self, titles=None):
-        self.centred_titles = True
-        self.rows = []
-        self._titlerows = []
-        self._size = 0
-        if titles:
-            self.add_row(titles, True)
-
-    def coerce(self, obj):
-        if isinstance(obj, str): # python3, unicode == str
-            return obj
-        return str(obj) # convert numbers
-
-    def add_row(self, row, title=False):
-        self.rows.append(row)
-        if title:
-            self._titlerows.append(True)
-        else:
-            self._titlerows.append(False)
-
-    def __unicode__(self):
-        # Calculate column parameters
-        ncols = max([len(r) for r in self.rows])
-        widths = [0] * ncols  # width of each column
-        formats = [None] * ncols  # format string for each column
-        # calculate column widths
-        for r in self.rows:
-            for i, n in enumerate([len(self.coerce(c)) for c in r]):
-                widths[i] = max([widths[i], n])
-
-        # Widget
-        hr = [(u'-' * w) for w in widths]
-        hr = u'---'.join(hr)
-
-        # Get row data formatted to length
-        lines = []
-        for y, r in enumerate(self.rows):
-            title = self._titlerows[y]
-            objs = list(r)
-            while len(objs) < ncols:  # Ensure row is long enough
-                objs.append(u'')
-
-            # Format each cell
-            data = []
-            for i, o in enumerate(objs):
-                u = self.coerce(o)
-                w = widths[i]
-
-                # Column formatting
-                # left-align by default
-                fmt = u'{{:{}s}}'.format(w)
-                if title and self.centred_titles:  # centre-align titles
-                    fmt = u'{{:^{}s}}'.format(w)
-
-                elif u.strip():  # Use or determine default for this column
-                    if formats[i]:
-                        fmt = formats[i]
-                    elif re.match(r'[$€£]?\s*[0-9,.% ]+', u):  # number
-                            fmt = u'{{:>{}s}}'.format(w)
-                    # Save as default for this column
-                    formats[i] = fmt
-
-                u = fmt.format(u)
-                data.append(u)
-
-            # Combine cells into text for row
-            u = u' | '.join(data)
-            lines.append(u)
-            if title:
-                lines.append(hr)
-
-        return u'\n'.join([s.rstrip() for s in lines])
-
-    def __str__(self):
-        return self.__unicode__()
+        rows_per_page = 42 # appears to work for standard default PDF page size and font size.
+        pages = math.ceil(len(list_of_lists)/rows_per_page)
+        #paginate table
+        for page in range(pages):
+            #LOGGER.debug(f'page {page+1} -- {(page * rows_per_page)}:{(page + 1) * rows_per_page}')
+            page_data = list_of_lists[(page * rows_per_page) : (page + 1) * rows_per_page]
+            LOGGER.info(len(page_data))
+            fig, ax = self.plt.subplots(1, figsize=(10,8))
+            #ax.axis('tight')
+            ax.axis('off')
+            matplotlib_table = ax.table(
+                cellText=page_data,
+                colLabels=col_names,
+                loc='center', # if len(page_data) >= rows_per_page else 'top',
+                edges='open',
+                colLoc='right',
+                )
+            if page == 0:
+                self.plt.title(add_title, y=1.1) #pad=20) # -- placement is off
+            self.pdf.savefig(fig)
+            self.plt.close()
