@@ -29,6 +29,7 @@ from .qc_plot import (
 from .qc_report import run_pipeline
 from .load_processed import load, load_both, container_to_pkl
 from .read_geo_processed import read_geo
+from .version import __version__
 
 getLogger(__name__).addHandler(NullHandler())
 
