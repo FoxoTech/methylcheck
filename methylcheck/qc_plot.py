@@ -318,6 +318,7 @@ options:
             from methylprep.files.manifests import Manifest
         except ImportError:
             raise ImportError("this required methylprep")
+
         manifest = Manifest(array_type, man_filepath)
     else:
         raise FileNotFoundError("manifest file not found.")
@@ -370,6 +371,7 @@ options:
 
 def plot_controls(path=None, subset='all', return_fig=False):
     """internal array QC controls (available with the `--save_control` or `--all` methylprep process option)
+
 
 input:
 ======

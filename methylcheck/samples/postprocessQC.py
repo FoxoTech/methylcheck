@@ -302,6 +302,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
+
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
         pre_df_shape = df.shape
@@ -539,6 +540,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         # pre_df_excl = len(df.index[df_indexes_to_exclude])
         # unique_df_excl = len(set(df.index[df_indexes_to_exclude]))
         # print(pre_df_excl, unique_df_excl)
+
         image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
         outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
         plt.savefig(outfile)
