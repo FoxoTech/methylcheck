@@ -29,7 +29,7 @@ seaborn = "*"
 matplotlib = "*"
 tqdm = "*"
 scikit-learn = "*"
-# methylcheck = {editable = true,extras = ["socks"], path = "."}
+# methylcheck = {editable = true,extras = ["dev"],path = "."}
 
 [requires]
 python_version = "3.7"

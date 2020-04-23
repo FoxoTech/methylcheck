@@ -1,6 +1,6 @@
 # Lib
 from setuptools import setup, find_packages
-exec(open('methylprep/version.py').read())
+exec(open('methylcheck/version.py').read())
 
 # note: ANY param must fit on a single line or twine breaks.
 setup(
@@ -38,11 +38,11 @@ setup(
     install_requires=[
         'numpy',
         'pandas',
-        'seaborn',
+        'statsmodels',
         'matplotlib',
+        'seaborn',
         'tqdm',
         'scikit-learn',
-        'statsmodels',
     ],
     extras_require={
         'dev': [
