@@ -21,12 +21,15 @@ nbsphinx = "*"
 xlrd = ">=1.0.0"
 
 [packages]
-tqdm = "*"
 numpy = "==1.16.3"
 pandas = "==0.24.2"
 statsmodels = "==0.9.0"
 scipy = "==1.2.1"
-methylcheck = {editable = true,extras = ["socks"], path = "."}
+seaborn = "*"
+matplotlib = "*"
+tqdm = "*"
+scikit-learn = "*"
+# methylcheck = {editable = true,extras = ["socks"], path = "."}
 
 [requires]
 python_version = "3.7"

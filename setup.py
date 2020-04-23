@@ -42,6 +42,7 @@ setup(
         'matplotlib',
         'tqdm',
         'scikit-learn',
+        'statsmodels',
     ],
     extras_require={
         'dev': [
