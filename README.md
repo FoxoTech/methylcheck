@@ -5,6 +5,8 @@ methylcheck is a Python-based package for filtering and visualizing Illumina met
 
 ![methylprep snapshots](https://raw.githubusercontent.com/LifeEGX/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
+![methylprep snapshots](https://raw.githubusercontent.com/LifeEGX/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
+
 ## methylcheck Package
 
 This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
@@ -52,6 +54,7 @@ python -m methylprep process -d <filepath to idats> --all
 ```
 
 collect the `beta_values.pkl` file it returns/saves to disk, and load that in a Jupyter notebook. From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 

@@ -36,6 +36,7 @@ options:
     exclude_all:
         filters out the most probes (sex-linked, control, and all sketchy-listed probes from papers)
     exclude (list of strings, shorthand references to papers with sketchy probes to exclude):
+
         If the array is 450K the publications may include:
             'Chen2013'
             'Price2013'
