@@ -17,8 +17,36 @@ class DefaultParser(argparse.ArgumentParser):
         self.exit(status=2)
 
 
-def detect_array(df):
-    """Determines array type using number of probes columns in df. Returns array string."""
+def detect_array(df, returns='name'):
+    """Determines array type using number of probes columns in df. Returns array string.
+    Note: this is different from methylprep.models.arrays.ArrayType.from_probe_count, which looks at idat files.
+
+    returns (name | filepath)
+        default is 'name' -- returns a string
+        if 'filepath', this also returns the filepath to the array, using ArrayType and
+        methylprep.files.manifests ARRAY_TYPE_MANIFEST_FILENAMES."""
+
+    if returns == 'filepath':
+        # get manifest data from .methylprep_manifest_files
+        try:
+            from methylprep.files.manifests import MANIFEST_DIR_PATH, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
+            from methylprep.models.arrays import ArrayType
+        except ImportError:
+            raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
+
+        def get_filename(array_name):
+            ARRAY_FILENAME = {
+                '27k': 'hm27.hg19.manifest.csv.gz',
+                '450k': 'HumanMethylation450_15017482_v1-2.CoreColumns.csv.gz',
+                'epic': 'MethylationEPIC_v-1-0_B4.CoreColumns.csv.gz',
+                'epic+': 'CombinedManifestEPIC.manifest.CoreColumns.csv.gz',
+                'mouse': 'LEGX_B1_manifest_mouse_v1_min.csv.gz',
+            }
+            man_path = Path(MANIFEST_DIR_PATH).expanduser()
+            man_filename = ARRAY_FILENAME[array_name]
+            man_filepath = Path(man_path, man_filename)
+            return man_filepath
+
     # shape: should be wide, with more columns than rows. The larger dimension is the probe count.
     if df.shape[0] > df.shape[1]:
         # WARNING: this will need to be transposed later.
@@ -26,13 +54,15 @@ def detect_array(df):
     else:
         col_count = (df.shape[1])
     if 26000 <= col_count <= 28000:
-        return '27k'
-    if 440000 <= col_count <= 490000: #485512
-        return '450k'
-    if 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
-        return 'EPIC+'
-    if 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
-        return 'EPIC'
+        return '27k' if returns == 'name' else (ArrayType('27k'), get_filename('27k'))
+    elif 440000 <= col_count <= 490000: #485512
+        return '450k' if returns == 'name' else (ArrayType('450k'), get_filename('450k'))
+    elif 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
+        return 'EPIC+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
+    elif 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
+        return 'EPIC' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
+    elif 250000 <= col_count <= 270000: #actual count: 262812
+        return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
         raise ValueError('Unsupported Illumina array type. Your data file contains {0} rows for probes.'.format(col_count))
 

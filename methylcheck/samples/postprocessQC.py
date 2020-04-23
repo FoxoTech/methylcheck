@@ -24,7 +24,7 @@ __all__ = [
     'beta_density_plot',
     'sample_plot',
     'cumulative_sum_beta_distribution', # a QC function
-    'beta_mds',
+    'beta_mds_plot',
     'mean_beta_compare', #pre-vs-post
     'combine_mds',
 ]
@@ -60,7 +60,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -72,6 +72,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
 
     Returns:
         None
+        (but if return_fig is True, returns the figure object instead of showing plot)
 
     Parameters:
         verbose:
@@ -86,6 +87,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
             the distribution. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
             Using 0.1 will speed up plotting 10-fold.
+        return_fig: (False) if True, returns figure object instead of showing plot.
+
     Note:
         if the sample_ids in df.index are not unique, it will make them so for the purpose of plotting.
      """
@@ -105,9 +108,18 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         if verbose:
             LOGGER.info("Your data needed to be transposed (df = df.transpose()).")
         df = df.transpose()
-    # 2nd check
+    # 2nd check: incomplete probes
     if df.shape[0] < 27000:
         LOGGER.warning("data does not appear to be full probe data")
+    # 3rd check: missing probe values (common with EPIC+)
+    missing_probes = sum(df.isna().sum())
+    if missing_probes > 0 and not verbose:
+        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall). For a list per sample, use verbose=True")
+        df = df.copy().dropna()
+    elif missing_probes > 0:
+        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall).")
+        LOGGER.info(df.isna().sum())
+        df = df.copy().dropna()
 
     if reduce != None and reduce < 1.0:
         if not isinstance(reduce, (int, float)):
@@ -155,6 +167,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     plt.xlabel('Beta values')
     if save:
         plt.savefig('beta.png')
+    if return_fig:
+        return fig
     if not silent:
         plt.show()
     else:
@@ -166,7 +180,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
 def sample_plot(df, **kwargs):
     """ more intuitive alias of beta_density_plot(), since not all values are beta distributions.
     this changes the default to show a reduced, faster version of probe data, sampling 10% of probes present for10-fold faster processing time."""
-    if 'reduce' not in kwargs:
+    if 'reduce' in kwargs and kwargs.get('reduce') is None:
         reduce = None
     else:
         reduce = kwargs.get('reduce',0.1) # sets default
@@ -229,7 +243,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick'):
     """
     1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
         manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
@@ -257,6 +271,13 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         xy_lim=None,
         color_num=0,
         PSF=1.2 -- plot scale factor (margin beyond points to display)}
+    plot_removed
+        if True, displays a plot of samples' beta-distributions that were removed by MDS filtering.
+        ignored if silent=True.
+    nafill ('quick' | 'impute')
+        by default, most samples will contain missing values where probes failed the signal-noise detection
+        in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
+        with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
 
     Options
     --------
@@ -272,10 +293,16 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
 
     requires
     --------
-        pandas, numpy, pyplot, sklearn.manifold.MDS """
+        pandas, numpy, pyplot, sklearn.manifold.MDS
+
+    notes
+    -----
+        this will remove probes from ALL samples in batch from consideration if any samples contain NaN (missing values) for that probe."""
     # before running this, you'd typically exclude probes.
     if verbose:
         logging.basicConfig(level=logging.INFO)
+
+
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
         pre_df_shape = df.shape
@@ -283,18 +310,49 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         df = df.transpose() # don't overwrite the original
         if verbose:
             LOGGER.info(f"Your data needed to be transposed (from {pre_df_shape} to {df.shape}) to ensure probes are in columns.")
-    if verbose == True:
-        LOGGER.info("Starting MDS fit_transform. this may take a while.")
+    original_df = df.copy() # samples in index, guaranteed. transpose at end
 
-    # CHECK for missing probe values NaN
+    # CHECK for missing probe values NaN -- this is common as of methylprep version 1.2.5 because pOOBah removes probes from samples by default.
     missing_probe_counts = df.isna().sum()
-    total_missing_probes = sum([i for i in missing_probe_counts])/len(df) # sum / columns
+    total_missing_probes = round(sum([i for i in missing_probe_counts])/len(df),1) # sum / columns
     if sum([i for i in missing_probe_counts]) > 0:
-        df = df.dropna()
+        #df = df.dropna() # removes samples containing NaN probes. apparently ALL removed with poobah.
+        # replace
+        # random_big_ints = {i:np.random.randint(10,1000000) for i in list(df.index)}
+        #random_int_df = pd.DataFrame(np.random.randint(10, 1000000, size=(df.shape[0], df.shape[1])), columns=df.columns, index=df.index)
+
+        #val = np.ravel(df.values)
+        #val = val[~np.isnan(val)]
+        #val = np.random.choice(val, size=(df.shape[0], df.shape[1]))
+        #random_int_df = pd.DataFrame(val, columns=df.columns, index=df.index)
+        #LOGGER.info("PRE random")
+        #LOGGER.info(random_int_df.head())
+        #df.update(random_int_df) # only replaces NaNs with random numbers.
+        #LOGGER.info("POST random")
+        #LOGGER.info(df.head())
+
+        if nafill == 'quick': # gave best/fastest reasonable results. uses adj probe value from same sample.
+            df = df.fillna(axis='index', method='bfill') # uses adjacent probe value from same sample to make MDS work.
+            df = df.fillna(axis='index', method='ffill') # uses adjacent probe value from same sample to make MDS work.
+            df = df.replace(np.nan, -1) # anything still NA
+        elif nafill == 'impute':
+            if verbose == True:
+                LOGGER.info("Starting to fill in missing probes using average of that probe's value in batch of samples. This may take a while.")
+            # use average value for each probe to fill in NaNs for that probe -- a much slower method.
+            #probe_means = df.mean(axis=0, skipna=True) #.to_dict()
+            df = df.apply(lambda x: x.fillna(x.mean()), axis=0) # per column (per probe) mean imputing.
+            if sum(df.isna().sum()) > 0:
+                df = df.fillna(-1)
+        elif nafill == 'debug': # using adj sample probe's value instead of same sample adj probe
+            df = df.fillna(axis='columns', method='bfill') # uses adjacent probe value from same sample to make MDS work.
+            df = df.fillna(axis='columns', method='ffill') # uses adjacent probe value from same sample to make MDS work.
+            df = df.replace(np.nan, -1) # anything still NA
+
         if verbose == True:
-            print("We found {0} probe(s) were missing values and removed them from MDS calculations.".format(total_missing_probes))
+            print(f"{total_missing_probes} probe(s) [avg per sample] were missing values and removed from MDS calculations; {df.shape[1]} remaining.")
+            print(f"used the 'forward-fill' method to assign values from adjacent probes so MDS can run. results are fuzzier now.")
         if silent == False:
-            LOGGER.info("{0} probe(s) were missing values removed from MDS calculations.".format(total_missing_probes))
+            LOGGER.info(f"{total_missing_probes} probe(s) [avg per sample] were missing values and removed from MDS calculations; {df.shape[1]} remaining.")
 
     mds = MDS(n_jobs=-1, random_state=1, verbose=1)
     #n_jobs=-1 means "use all processors"
@@ -450,6 +508,23 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
             continue
 
     prev_df = len(df)
+    # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
+    df_removed = df.loc[df.index[df_indexes_to_exclude]]
+    df_out = df.drop(df.index[df_indexes_to_exclude]) # inplace=True will modify the original DF outside this function.
+    # df_out: probes in cols and samples in index.
+
+    if plot_removed == True and df_removed.shape[0] > 0:
+        LOGGER.info(df_removed.shape)
+        try:
+            if df_removed.shape[1] < 50000 and df_removed.shape[0] < 50:
+                sample_plot(df_removed, reduce=0.999)
+            elif df_removed.shape[0] < 30:
+                sample_plot(df_removed, reduce=0.999)
+            else:
+                sample_plot(df_removed, reduce=None)
+        except:
+            LOGGER.error("Could not plot removed samples.")
+
     if save:
         # save file. return dataframe.
         fig = plt.figure(figsize=(12, 9))
@@ -460,10 +535,7 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth='0.2',) # EXCLUDED
         ax.set_xlim(old_X_range)
         ax.set_ylim(old_Y_range)
-        # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
-        df_out = df.drop(df.index[df_indexes_to_exclude]) # inplace=True will modify the original DF outside this function.
-
-        # UNRESOLVED BUG.
+        # UNRESOLVED BUG. (but not seen again since Sep 2019)
         # was getting 1069 samples back from this; expected 1076. discrepancy is because
         # pre_df_excl = len(df.index[df_indexes_to_exclude])
         # unique_df_excl = len(set(df.index[df_indexes_to_exclude]))
@@ -475,12 +547,11 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         plt.close(fig) # avoids displaying plot again in jupyter.
         if verbose:
             LOGGER.info("Saved {0}".format(outfile))
-    else:
-        df_out = df.drop(df.index[df_indexes_to_exclude])
     # return DataFrame in original "long" format: rows are probes; cols are samples.
+    df_out = original_df.drop(original_df.index[df_indexes_to_exclude])
     if df_out.shape[0] < df_out.shape[1]:
         df_out = df_out.transpose()
-    return df_out #, df_indexes_to_exclude  # may need to transpose this first.
+    return df_out
 
 
 def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):

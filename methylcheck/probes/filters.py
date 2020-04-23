@@ -65,7 +65,7 @@ def _import_probe_exclusion_list(array, type):
 
 
 def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=False):
-    """Function to exclude probes from an array, and return a filtered array.
+    """Exclude probes from an array, and return a filtered array.
 
     Parameters
     ----------
@@ -138,9 +138,7 @@ from {2} samples. {3} probes remaining.""".format(
     return filtered
 
 def exclude_probes(array, probe_list):
-    """
-How to:
-    use list_problem_probes to obtain a list of probes, then pass that in as a probe_list along with the dataframe of beta values (array)
+    """Exclude probes from a df of samples. Use list_problem_probes() to obtain a list of probes, then pass that in as a probe_list along with the dataframe of beta values (array)
 
 Resolves a problem whereby probe lists have basic names, but samples have additional meta data added.
 Example:

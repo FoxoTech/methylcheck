@@ -6,6 +6,7 @@ from pathlib import Path
 import logging
 #app
 import methylcheck
+from .cli import detect_array
 from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
@@ -32,8 +33,9 @@ def run_qc(path):
 
 
 def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None,
-    noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5):
-    """
+    noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5, return_fig=False):
+    """Suggests sample outliers based on methylated and unmethylated signal intensity.
+
 input (one of these):
 =====================
     path
@@ -57,6 +59,7 @@ optional params:
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
+    return_fig (False default), if True, and plot is True, returns a figure object instead of showing plot.
     compare: if the processed data contains both noob and uncorrected values, it will plot both in different colors
 
 this will draw a diagonal line on plots
@@ -110,10 +113,13 @@ FIX:
     # legend
     plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1)
     # display plot
+    if return_fig:
+        return fig
     plt.show()
     # print list of bad samples for user
-    print('List of Bad Samples')
-    print([str(s) for s in bad_samples])
+    if len(bad_samples) > 0:
+        print('List of Bad Samples')
+        print([str(s) for s in bad_samples])
 
 
 def _make_qc_df(meth,unmeth):
@@ -201,8 +207,9 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
 
 
 def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None,
-    noob=True, silent=False, verbose=False, plot=True, compare=False):
-    """
+    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False):
+    """plot methylated vs unmethylated probe intensities
+
 input (choose one of these):
 ============================
     PATH to csv files processed using methylprep
@@ -224,6 +231,7 @@ optional params:
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
+    return_fig: (False default), if True (and plot is true), returns the figure object instead of showing it.
     compare:
         if the processed data contains both noob and uncorrected values, it will plot both in different colors
         the compare option will not work with using the 'meth' and 'unmeth' inputs, only with path or data_containers.
@@ -277,70 +285,93 @@ FIX:
         for i in range(1000):
             sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
             sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
-        sb.scatterplot(x=sx, y=sy, s=3)
+        if return_fig:
+            sns_scatterplot = sb.scatterplot(x=sx, y=sy, s=3)
+            return sns_scatterplot.get_figure()
+        else:
+            sb.scatterplot(x=sx, y=sy, s=3)
     else:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
 
-def plot_beta_by_type(beta_df, probe_type='all'):
-    """plotBetasByType (adopted from genome studio p. 43)
+def plot_beta_by_type(beta_df, probe_type='all', return_fig=False):
+    """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
 1 distribution plot; user defines type (I or II infinium)
 
     Doesn't work with 27k arrays because they are all of the same type, Infinium Type I.
+
+options:
+    return_fig: (default False) if True, returns a list of figure objects instead of showing plots.
     """
-    probe_types = ('I', 'II', 'all') # 'SnpI', 'Control' are in manifest, but not in the processed data
+    probe_types = ('I', 'II', 'IR', 'IG', 'all') # 'SnpI', 'Control' are in manifest, but not in the processed data
     if probe_type not in probe_types:
         raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot")
-
-    # get manifest data from .methylprep_manifest_files
-    try:
-        from methylprep.files.manifests import MANIFEST_DIR_PATH, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
-        from methylprep.models.arrays import ArrayType
-    except ImportError:
-        raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
 
     # orient
     if beta_df.shape[1] > beta_df.shape[0]:
         beta_df = beta_df.transpose() # probes should be in rows.
-
-    # THIS WILL need to be updated if new array types are added.
-    #array_type = ArrayType.from_probe_count() --- this one doesn't match the probe counts we see
-    lookup = {
-        '450k': ArrayType.ILLUMINA_450K,
-        'epic': ArrayType.ILLUMINA_EPIC}
-    array_type = 'epic' if len(beta_df) > 500000 else '450k'
-    array_type = lookup[array_type]
-    man_path = Path(MANIFEST_DIR_PATH).expanduser()
-    man_filename = ARRAY_TYPE_MANIFEST_FILENAMES[array_type]
-    man_filepath = Path(man_path, man_filename)
+    array_type, man_filepath = detect_array(beta_df, returns='filepath')
     if Path.exists(man_filepath):
+        try:
+            from methylprep.files.manifests import Manifest
+        except ImportError:
+            raise ImportError("this required methylprep")
+
         manifest = Manifest(array_type, man_filepath)
     else:
         raise FileNotFoundError("manifest file not found.")
 
-    # II, I, SnpI, Control
-    # merge reference col, filter probes, them remove ref col
+    # II, I, SnpI, SnpII, IR, IG, Control
+    # merge reference col, filter probes, them remove ref col(s)
     orig_shape = beta_df.shape
-    mapper = manifest._Manifest__data_frame['probe_type']
+    mapper = manifest._Manifest__data_frame.loc[:, ['probe_type','Color_Channel']]
     beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
 
+    figs = []
     if probe_type in ('I', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'I']
         subset = subset.drop('probe_type', axis='columns')
-        print(f'Found {subset.shape[0]} type I probes.')
-        methylcheck.sample_plot(subset)
+        subset = subset.drop('Color_Channel', axis='columns')
+        if return_fig:
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True) )
+        else:
+            print(f'Found {subset.shape[0]} type I probes.')
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes',)
     if probe_type in ('II', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'II']
         subset = subset.drop('probe_type', axis='columns')
-        print(f'Found {subset.shape[0]} type II probes.')
-        methylcheck.sample_plot(subset)
+        subset = subset.drop('Color_Channel', axis='columns')
+        if return_fig:
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True) )
+        else:
+            print(f'Found {subset.shape[0]} type II probes.')
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes',)
+    if probe_type in ('IR', 'all'):
+        subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Red')]
+        subset = subset.drop('probe_type', axis='columns')
+        subset = subset.drop('Color_Channel', axis='columns')
+        if return_fig:
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True) )
+        else:
+            print(f'Found {subset.shape[0]} type I Red (IR) probes.')
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes',)
+    if probe_type in ('IG', 'all'):
+        subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Grn')]
+        subset = subset.drop('probe_type', axis='columns')
+        subset = subset.drop('Color_Channel', axis='columns')
+        if return_fig:
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True) )
+        else:
+            print(f'Found {subset.shape[0]} type I Green (IG) probes.')
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes',)
+    if return_fig:
+        return figs
 
+def plot_controls(path=None, subset='all', return_fig=False):
+    """internal array QC controls (available with the `--save_control` or `--all` methylprep process option)
 
-def plot_controls(path=None, subset='all'):
-    """
-    - uses control probe values to plot staining controls (available with the `--save_control` methylprep process option)
 
 input:
 ======
@@ -353,6 +384,9 @@ options:
     subset ('staining' | 'negative' | 'hybridization' | 'extension' | 'bisulfite' |
             'non-polymorphic' | 'target-removal' | 'specificity' | 'all'):
     'all' will plot every control function (default)
+
+    return_fig (False)
+        if True, returns a list of matplotlib.pyplot figure objects INSTEAD of showing then. Used in QC ReportPDF.
     """
     subset_options = {'staining', 'negative', 'hybridization', 'extension', 'bisulfite', 'non-polymorphic', 'target-removal', 'specificity', 'all'}
     if subset not in subset_options:
@@ -388,6 +422,7 @@ options:
         control_R = pd.merge(left=control_R,right=df_red,on=['Extended_Type'])
         control_G = pd.merge(left=control_G,right=df_green,on=['Extended_Type'])
 
+    figs = []
     if subset in ('staining','all'):
         stain_red = control_R[control_R['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         stain_green = control_G[control_G['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -396,7 +431,9 @@ options:
         stain_red = stain_red.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.T
         stain_green = stain_green.T
-        _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining')
+        fig = _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('negative','all'):
         neg_red = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -416,7 +453,9 @@ options:
         dynamic_controls = [c for c in list_of_negative_controls_to_plot if c in neg_red.columns and c in neg_green.columns]
         dynamic_ymax = max([max(neg_red[dynamic_controls].max(axis=0)), max(neg_green[dynamic_controls].max(axis=0))])
         dynamic_ymax = dynamic_ymax + int(0.1*dynamic_ymax)
-        _qc_plotter(neg_red, neg_green, color_dict, columns=list_of_negative_controls_to_plot, ymax=dynamic_ymax, title='Negative')
+        fig = _qc_plotter(neg_red, neg_green, color_dict, columns=list_of_negative_controls_to_plot, ymax=dynamic_ymax, title='Negative', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('hybridization','all'):
         hyb_red   = control_R[control_R['Control_Type']=='HYBRIDIZATION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -426,7 +465,9 @@ options:
         hyb_red = hyb_red.drop(columns=['Color']).set_index('Extended_Type')
         hyb_red = hyb_red.T
         hyb_green = hyb_green.T
-        _qc_plotter(hyb_red, hyb_green, color_dict, ymax=35000, title='Hybridization')
+        fig = _qc_plotter(hyb_red, hyb_green, color_dict, ymax=35000, title='Hybridization', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('extension','all'):
         ext_red   = control_R[control_R['Control_Type']=='EXTENSION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -436,7 +477,9 @@ options:
         ext_red = ext_red.drop(columns=['Color']).set_index('Extended_Type')
         ext_red = ext_red.T
         ext_green = ext_green.T
-        _qc_plotter(ext_red, ext_green, color_dict, ymax=50000, title='Extension')
+        fig = _qc_plotter(ext_red, ext_green, color_dict, ymax=50000, title='Extension', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('bisulfite','all'):
         bci_red   = control_R[control_R['Control_Type']=='BISULFITE CONVERSION I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -446,7 +489,9 @@ options:
         bci_red = bci_red.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.T
         bci_green = bci_green.T
-        _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, title='Bisulfite Conversion')
+        fig = _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, title='Bisulfite Conversion', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('non-polymorphic','all'):
         np_red = control_R[control_R['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -456,7 +501,9 @@ options:
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
         np_green = np_green.T
-        _qc_plotter(np_red, np_green, color_dict, ymax=30000, title='Non-polymorphic')
+        fig = _qc_plotter(np_red, np_green, color_dict, ymax=30000, title='Non-polymorphic', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('target-removal','all'):
         tar_red = control_R[control_R['Control_Type']=='TARGET REMOVAL'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -466,7 +513,9 @@ options:
         tar_red = tar_red.drop(columns=['Color']).set_index('Extended_Type')
         tar_red = tar_red.T
         tar_green = tar_green.T
-        _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, title='Target Removal')
+        fig = _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, title='Target Removal', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
 
     if subset in ('specificity','all'):
         spec_red = control_R[control_R['Control_Type']=='SPECIFICITY I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -476,11 +525,16 @@ options:
         spec_red = spec_red.drop(columns=['Color']).set_index('Extended_Type')
         spec_red = spec_red.T
         spec_green = spec_green.T
-        _qc_plotter(spec_red, spec_green, color_dict, ymax=30000, title='Specificity (Type I)')
+        fig = _qc_plotter(spec_red, spec_green, color_dict, ymax=30000, title='Specificity (Type I)', return_fig=return_fig)
+        if fig:
+            figs.append(fig)
+
+    if return_fig and figs != []:
+        return figs
 
 
 def _qc_plotter(stain_red, stain_green, color_dict={}, columns=None, ymax=None,
-        title=''):
+        title='', return_fig=False):
     """ draft generic plotting function for all the genome studio QC functions.
     used by plot_staining_controls()
 
@@ -495,12 +549,14 @@ options:
         any probe values that fall outside this range generate warnings.
     columns
         list of columns(probes) in stain_red and stain_green to plot (if ommitted it plots everything).
+    return_fig (False)
+        if True, returns the figure object instead of showing plot
 
 todo:
 =====
     add a batch option that splits large datasets into multiple charts, so labels are readable on x-axis.
         """
-    fig, (ax1,ax2) = plt.subplots(nrows=1,ncols=2,figsize=(12,10))
+    fig, (ax1,ax2) = plt.subplots(nrows=1,ncols=2,figsize=(10,8)) # was (12,10)
     plt.tight_layout(w_pad=15)
     plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90)
     plt.setp(ax2.xaxis.get_majorticklabels(), rotation=90)
@@ -542,4 +598,6 @@ todo:
         ax1.set_ylim([0,ymax])
         ax2.set_ylim([0,ymax])
 
+    if return_fig:
+        return fig
     plt.show()

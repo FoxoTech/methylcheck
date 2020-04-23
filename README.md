@@ -1,13 +1,17 @@
 methylcheck is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
 [![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/LifeEGX/methylcheck.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/LifeEGX/methylcheck) [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methQC) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=LifeEGX/methylcheck&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methylcheck)
+[![Coverage Status](https://coveralls.io/repos/github/LifeEGX/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/LifeEGX/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white)
+
+![methylprep snapshots](https://raw.githubusercontent.com/LifeEGX/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
 ![methylprep snapshots](https://raw.githubusercontent.com/LifeEGX/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
 ## methylcheck Package
 
-This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to methylprep for instructions on this step.
+This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
+
+![methylprep functions](https://raw.githubusercontent.com/LifeEGX/methylcheck/dev/docs/methylcheck_functions.png)
 
 ## Installation
 
@@ -24,16 +28,18 @@ Load your data in a Jupyter Notebook like this:
 mydata = pandas.read_pickle('beta_values.pkl')
 ```
 
-If you processed a large batch of samples using the `batch_size` option in `methylprep process`, there's a convenience function in `methylize` (methylize.load) that will load and combine a bunch of output files in the same folder:
+If you processed a large batch of samples using the `batch_size` option in `methylprep process`, there's a convenience function in `methylcheck` (methylcheck.load) that will load and combine a bunch of output files in the same folder:
 
 ```python
 import methylize
-df = methylize.load('<path to folder with methylprep output>')
+df = methylcheck.load('<path to folder with methylprep output>')
 # or
-df,meta = methylize.load_both('<path to folder with methylprep output>')
+df,meta = methylcheck.load_both('<path to folder with methylprep output>')
 ```
 
 This conveniently loads a dataframe of all meta data associated with the samples, if you are using public GEO data. Some analysis functions require specifying which samples are part of a treatment group (vs control) and the `meta` dataframe object can be used for this.
+
+For more, check out our [examples of loading data into `methylcheck`](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/docs/demo_qc_functions.html)
 
 ### GEO
 
@@ -44,10 +50,11 @@ In general, the best way to import data is to use `methylprep` and run
 run_pipeline(data_folder, betas=True)
 
 # or from the command line:
-`python -m methylprep process -d <filepath to idats> --all`
+python -m methylprep process -d <filepath to idats> --all
 ```
 
-collect the beta_values.pkl file it returns/saves to disk, and load that in a Jupyter notebook. From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+collect the `beta_values.pkl` file it returns/saves to disk, and load that in a Jupyter notebook. From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 
