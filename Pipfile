@@ -28,7 +28,7 @@ scipy = "==1.2.1"
 seaborn = "*"
 matplotlib = "*"
 tqdm = "*"
-scikit-learn = "*"
+# scikit-learn = "*" #<--- MDS is embedded in this package, but it will use sklearn if present.
 # methylcheck = {editable = true,extras = ["dev"],path = "."}
 
 [requires]

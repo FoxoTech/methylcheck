@@ -42,7 +42,6 @@ setup(
         'matplotlib',
         'seaborn',
         'tqdm',
-        'scikit-learn',
     ],
     extras_require={
         'dev': [

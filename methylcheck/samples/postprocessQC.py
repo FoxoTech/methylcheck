@@ -10,7 +10,14 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
-from sklearn.manifold import MDS
+
+# because sklearn is a HUGE library and we're only using a single function from it,
+# I've embedded the code we need in a local file. This makes methylcheck small enough to run in AWS lambda,
+# but it won't use our local code copy if sklearn is installed in the environment. Just a fallback / low-env option.
+try:
+    from sklearn.manifold import MDS
+except (ImportError, ModuleNotFoundError):
+    from .sklearn_mds import *
 #app
 from methylcheck.progress_bar import * # tqdm, environment-specific import
 from ..probes.filters import drop_nan_probes
