@@ -377,7 +377,7 @@ Pre-processing pipeline
 
         # and finally, appendix of log messages
         appendix_msgs = self.errors.getvalue()
-        print(repr(appendix_msgs))
+        LOGGER.info(f"{repr(appendix_msgs)}")
         appendix_msgs = appendix_msgs.split('^^^')
         appendix_msgs.insert(0, 'APPENDIX I: PROCESSING MESSAGES')
         total_rows = len(appendix_msgs)

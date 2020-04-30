@@ -107,3 +107,5 @@ methylcheck/450k_polymorphic_crossRxtve_probes.csv
 
 .DS_Store
 docs/.DS_Store
+docs/example_data/GSE69852/.DS_Store
+docs/example_data/GSE69852/samplesheet.csv
