@@ -92,6 +92,7 @@ returns:
     'save_plots': [True, False],
     'export': [True, False],
     'run_qc': [True, False],
+    'on_lambda': [True, False],
     }
     for k,v in kwargs.items():
         if k not in param_list:
@@ -124,13 +125,14 @@ returns:
         'exclude_all': True,
         'plot': 'all',
         'save_plots': False,
-        'export': False}
+        'export': False,
+        'on_lambda': False}
     for param,setting in default_params.items():
         if kwargs.get(param) is None:
             kwargs[param] = setting
 
     # determine array type
-    array_type = methylcheck.detect_array(df)
+    array_type = methylcheck.detect_array(df, on_lambda=kwargs.get('on_lambda'))
 
     # apply some filters
     if kwargs.get('exclude_all'):
@@ -244,6 +246,7 @@ class ReportPDF:
         self.textwrap = textwrap
         import datetime
         self.today = str(datetime.date.today())
+        self.on_lambda = self.__dict__.get('on_lambda', False)
         d = self.pdf.infodict()
         if any(kwarg in ('title','author','subject','keywords') for kwarg in kwargs):
             # set the file's metadata via the PdfPages object:
@@ -367,7 +370,7 @@ Pre-processing pipeline
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
                 elif part == 'probe_types':
-                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True)
+                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True, on_lambda=self.on_lambda)
                     for fig in list_of_figs:
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')

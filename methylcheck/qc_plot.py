@@ -6,7 +6,6 @@ from pathlib import Path
 import logging
 #app
 import methylcheck
-from .cli import detect_array
 from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
@@ -294,7 +293,7 @@ FIX:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
 
-def plot_beta_by_type(beta_df, probe_type='all', return_fig=False):
+def plot_beta_by_type(beta_df, probe_type='all', return_fig=False, on_lambda=False):
     """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
@@ -312,14 +311,14 @@ options:
     # orient
     if beta_df.shape[1] > beta_df.shape[0]:
         beta_df = beta_df.transpose() # probes should be in rows.
-    array_type, man_filepath = detect_array(beta_df, returns='filepath')
+    array_type, man_filepath = methylcheck.detect_array(beta_df, returns='filepath', on_lambda=on_lambda)
     if Path.exists(man_filepath):
         try:
-            from methylprep.files.manifests import Manifest
+            from methylprep.files import Manifest
         except ImportError:
             raise ImportError("this required methylprep")
 
-        manifest = Manifest(array_type, man_filepath)
+        manifest = Manifest(array_type, man_filepath, on_lambda=on_lambda)
     else:
         raise FileNotFoundError("manifest file not found.")
 

@@ -4,7 +4,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import seaborn as sb
 #app
-import methylcheck # uses .load; get_sex uses methylprep models too
+import methylcheck # uses .load; get_sex uses methylprep models too and detect_array()
 
 import logging
 LOGGER = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ def _get_copy_number(meth,unmeth):
     return np.log2(meth+unmeth)
 
 
-def get_sex(data_source, array_type=None, verbose=False, plot=False):
+def get_sex(data_source, array_type=None, verbose=False, plot=False, on_lambda=False):
     """This will calculate and predict the sex of each sample.
 
 inputs:
@@ -89,24 +89,13 @@ customize the import if your files were not prepared using methylprep (non-stand
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")
 
-    # get list of X any Y probes - using .methylprep_manifest_files and auto-detected array here
-    if not array_type:
-        probe_count = len(meth)
-        if 27000 < probe_count < 30000:
-            array_type = ArrayType.ILLUMINA_27K
-        elif 30000 < probe_count < 500000:
-            array_type = ArrayType.ILLUMINA_450K
-        elif 500000 < probe_count < 867000:
-            array_type = ArrayType.ILLUMINA_EPIC
-        elif 867000 < probe_count < 870000:
-            array_type = ArrayType.ILLUMINA_EPIC_PLUS
-        else:
-            raise ValueError(f"{error} -- are you loading full sample array data, or a subset? The manifest file can only work with full array probe data.")
+    # get list of X any Y probes - using .methylprep_manifest_files (or MANIFEST_DIR_PATH_LAMBDA) and auto-detected array here
+    array_type = ArrayType(methylcheck.detect_array(meth, on_lambda=on_lambda))
 
     if verbose:
         LOGGER.debug(array_type)
     LOGGER.setLevel(logging.DEBUG)
-    manifest = Manifest(array_type)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
+    manifest = Manifest(array_type, on_lambda=on_lambda)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
     LOGGER.setLevel(logging.INFO)
     x_probes = manifest.index[manifest['CHR']=='X']
     y_probes = manifest.index[manifest['CHR']=='Y']
