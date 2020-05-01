@@ -293,7 +293,7 @@ FIX:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
 
-def plot_beta_by_type(beta_df, probe_type='all', return_fig=False, on_lambda=False):
+def plot_beta_by_type(beta_df, probe_type='all', return_fig=False, silent=False, on_lambda=False):
     """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
@@ -334,37 +334,37 @@ options:
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent)
     if probe_type in ('II', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'II']
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type II probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent)
     if probe_type in ('IR', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Red')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I Red (IR) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent)
     if probe_type in ('IG', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Grn')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I Green (IG) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent)
     if return_fig:
         return figs
 

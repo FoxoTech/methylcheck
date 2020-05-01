@@ -210,16 +210,6 @@ class ReportPDF:
     FONTSIZE = 12
     ORIGIN = (0.1, 0.05) # achored on page in lower left
 
-    # preparing a stream of log messages to add to report appendix.
-    appendix = logging.getLogger()
-    appendix.setLevel(logging.INFO)
-    errors = StringIO()
-    # %(module)s.%(funcName)s() ... %Y-%m-%d
-    formatter = logging.Formatter('^^^%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
-    error_handler = logging.StreamHandler(errors)
-    error_handler.setFormatter(formatter)
-    appendix.addHandler(error_handler)
-
     def __init__(self, **kwargs):
         """ supply kwargs to specify which QC plots to include
         and order (list) for the order.
@@ -235,6 +225,7 @@ class ReportPDF:
         self.__dict__.update(kwargs)
         self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
         self.__dict__['pval_cutoff'] = self.__dict__.get('pval_cutoff', 0.05)
+        self.errors = self.open_error_buffer()
 
         #SHELVING the PDF_PART, since it worked but not neeeded right now
         from matplotlib.backends.backend_pdf import PdfPages
@@ -279,7 +270,7 @@ Pre-processing pipeline
         self.tests = {
             'detection_poobah': self.__dict__.get('poobah',True),
             'mds': self.__dict__.get('mds',True),
-            'auto_qc': self.__dict__.get('auto_qc',True),
+            'auto_qc': self.__dict__.get('auto_qc',True), # NOT IMPLEMENTED YET #
         }
         self.plots = {
             'beta_density_plot': self.__dict__.get('beta_density_plot',True),
@@ -290,7 +281,17 @@ Pre-processing pipeline
             # FUTURE lower priority: bis-conversion completeness, or GCT score --- https://rdrr.io/bioc/sesame/src/R/sesame.R
         }
 
-
+    def open_error_buffer(self):
+        """ preparing a stream of log messages to add to report appendix. """
+        appendix = logging.getLogger()
+        appendix.setLevel(logging.INFO)
+        errors = StringIO()
+        error_handler = logging.StreamHandler(errors)
+        # %(module)s.%(funcName)s() ... %Y-%m-%d
+        formatter = logging.Formatter('^^^%(asctime)s - %(levelname)s - %(message)s', "%H:%M:%S")
+        error_handler.setFormatter(formatter)
+        appendix.addHandler(error_handler)
+        return errors
 
     def run_qc(self):
         # load all the data from self.path; make S3-compatible too.
@@ -305,12 +306,12 @@ Pre-processing pipeline
             meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
             unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
             control_dict_of_dfs = pd.read_pickle(Path(path,'control_probes.pkl'))
-            LOGGER.info("data loaded")
+            LOGGER.info("Data loaded")
         except FileNotFoundError:
             raise FileNotFoundError("Could not load pickle files")
 
         '''
-        self.functions = { # NOT USED #
+        self.functions = { # NOT USED --  needed to provide different conditions for each function below. #
             'detection_poobah': detection_poobah,
             'mds': methylcheck.beta_mds_plot,
             'auto_qc': None,
@@ -328,7 +329,7 @@ Pre-processing pipeline
                     sample_percent_failed_probes_dict = detection_poobah(poobah_df, pval_cutoff=self.__dict__['pval_cutoff'])
                     sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
                     #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
-                    LOGGER.info(f"{len([k for k in sample_poobah_failures.values() if k =='fail'])} sample_poobah_failures out of {len(sample_poobah_failures)} samples.")
+                    LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
 
                     list_of_lists = []
                     for sample_id,percent in sample_percent_failed_probes_dict.items():
@@ -338,7 +339,7 @@ Pre-processing pipeline
                         row_names=None, add_title='Detection Poobah')
 
                 if part == 'mds':
-                    LOGGER.info("beta MDS")
+                    LOGGER.info("Beta MDS Plot")
                     # ax and df_to_retain are not used, but could go into a qc chart
                     fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
                     self.pdf.savefig(fig)
@@ -348,37 +349,39 @@ Pre-processing pipeline
 
             elif part in self.plots:
                 if part == 'beta_density_plot':
-                    LOGGER.info("beta")
+                    LOGGER.info("Beta Density Plot")
                     fig = methylcheck.beta_density_plot(beta_df, save=False, silent=True, verbose=False, reduce=0.1, plot_title=None, ymax=None, return_fig=True)
                     self.pdf.savefig(fig)
                     self.plt.close()
                 elif part == 'M_vs_U':
-                    LOGGER.info(f"M_vs_U")
+                    LOGGER.info(f"M_vs_U plot")
                     fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True)
                     self.pdf.savefig(fig)
                     self.plt.close()
                     # if not plotting, it will return dict with meth median and unmeth median.
                 elif part == 'qc_signal_intensity':
-                    LOGGER.info(f"qc_signal_intensity")
+                    LOGGER.info(f"QC signal intensity plot")
                     fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True)
                     self.pdf.savefig(fig)
                     self.plt.close()
                 elif part == 'controls':
-                    LOGGER.info(f"controls")
+                    LOGGER.info(f"Control probes")
                     list_of_figs = methylcheck.plot_controls(control_dict_of_dfs, 'all', return_fig=True)
                     for fig in list_of_figs:
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
                 elif part == 'probe_types':
-                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True, on_lambda=self.on_lambda)
+                    LOGGER.info(f"Betas by probe type")
+                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True, silent=True, on_lambda=self.on_lambda)
                     for fig in list_of_figs:
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
 
         # and finally, appendix of log messages
         appendix_msgs = self.errors.getvalue()
-        LOGGER.info(f"{repr(appendix_msgs)}")
         appendix_msgs = appendix_msgs.split('^^^')
+        # drop the trailing \n at end of each message, if present, but preserve within-line \n line breaks
+        appendix_msgs = [(msg[:-2] if msg[-2:] == '\n' else msg) for msg in appendix_msgs]
         appendix_msgs.insert(0, 'APPENDIX I: PROCESSING MESSAGES')
         total_rows = len(appendix_msgs)
         last_row = 0
@@ -389,10 +392,10 @@ Pre-processing pipeline
                 para_list = appendix_msgs[last_row : (last_row + rows_per_page)]
                 para_lengths = [len(i.split('\n')) for i in para_list]
                 extra_line_wraps = [max(len(self.textwrap.wrap(para, width=self.MAXWIDTH)) -1, 0) for para in para_list]
-                print((sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)))
+                #print((sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)))
                 if (sum(para_lengths) + len(para_lengths) + sum(extra_line_wraps)) > self.MAXLINES:
                     rows_per_page -= 2
-                    print('---',rows_per_page)
+                    #print('---',rows_per_page)
                 else:
                     break
                 if rows_per_page <= 0:
@@ -400,7 +403,7 @@ Pre-processing pipeline
             if rows_per_page <= 0:
                 LOGGER.error("couldn't write log messages to appendix")
                 break
-            self.page_of_paragraphs(para_list, self.pdf)
+            self.page_of_paragraphs(para_list, self.pdf, line_height='single')
             last_row += rows_per_page
         self.errors.close()
 
@@ -419,7 +422,7 @@ Pre-processing pipeline
         pdf.savefig()
         self.plt.close()
 
-    def page_of_paragraphs(self, para_list, pdf):
+    def page_of_paragraphs(self, para_list, pdf, line_height='double'):
         """ https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right.
         this version estimates the size of each paragraph and moves the origin downward accordingly.
         tricky because the anchors are lower left, not upper left.
@@ -434,8 +437,14 @@ Pre-processing pipeline
         #print(para_lengths) -- ok if a paragraph contains whitespace line breaks, OR each para is one long line to be wrapped here.
         # assume each line height is 0.1/26 fraction of total page height
 
-        line_height = round((1 - 2*self.ORIGIN[1])/self.MAXLINES,3)
-        #print('line height', line_height)
+        # paragraph spacing
+        if line_height == 'double':
+            line_height = round((1 - 2*self.ORIGIN[1])/self.MAXLINES,3)
+        elif line_height == 'single':
+            line_height = round(0.5*(1 - 2*self.ORIGIN[1])/self.MAXLINES,3)
+        else:
+            pass
+            # else, line_height is whatever int/float you pass in, for custom spacing. (as fraction of page, so use 0.01 to 0.03)
 
         paragraph_spacing = line_height # 1 line
 
@@ -481,7 +490,6 @@ Pre-processing pipeline
         for page in range(pages):
             #LOGGER.debug(f'page {page+1} -- {(page * rows_per_page)}:{(page + 1) * rows_per_page}')
             page_data = list_of_lists[(page * rows_per_page) : (page + 1) * rows_per_page]
-            LOGGER.info(len(page_data))
             fig, ax = self.plt.subplots(1, figsize=(10,8))
             #ax.axis('tight')
             ax.axis('off')

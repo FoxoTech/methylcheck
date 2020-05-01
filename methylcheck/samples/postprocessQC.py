@@ -120,11 +120,13 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         LOGGER.warning("data does not appear to be full probe data")
     # 3rd check: missing probe values (common with EPIC+)
     missing_probes = sum(df.isna().sum())
-    if missing_probes > 0 and not verbose:
-        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall). For a list per sample, use verbose=True")
+    if missing_probes > 0 and silent:
         df = df.copy().dropna()
-    elif missing_probes > 0:
-        LOGGER.warning(f"You data contains missing probe values: {missing_probes/len(df.columns)} per sample ({missing_probes} overall).")
+    elif missing_probes > 0 and not verbose:
+        LOGGER.warning(f"Your data contains {int(missing_probes/len(df.columns))} missing probe values per sample, ({missing_probes} overall). For a list per sample, use verbose=True")
+        df = df.copy().dropna()
+    elif missing_probes > 0 and verbose:
+        LOGGER.warning(f"Your data contains {int(missing_probes/len(df.columns))} missing probe values per sample, ({missing_probes} overall).")
         LOGGER.info(df.isna().sum())
         df = df.copy().dropna()
 
