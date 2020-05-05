@@ -298,7 +298,7 @@ Pre-processing pipeline
         self.custom = {}
         if 'custom_tables' in self.__dict__:
             self.parse_custom_tables(self.__dict__['custom_tables'])
-            LOGGER.info(f"found custom_tables, new order: {self.order}")
+            LOGGER.info(f"Found custom_tables and inserted into order: {self.order}")
             LOGGER.info(self.custom)
 
     def parse_custom_tables(self, tables):
@@ -316,7 +316,7 @@ Pre-processing pipeline
                     raise KeyError("Your custom table must contain these keys: {required_attributes} (row_names is optional)")
             #1 place order -- refer to this later in self.custom
             try:
-                _index = self.order(table['order_after'])
+                _index = self.order.index(table['order_after'])
                 self.order.insert(_index, table['title'])
                 self.custom[table['title']] = table
             except ValueError:
@@ -427,7 +427,6 @@ Pre-processing pipeline
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
             elif part in self.custom:
-                LOGGER.info("adding custom table")
                 table = self.custom[part]
                 self.to_table(table['data'], col_names=table['col_names'],
                     row_names=table.get('row_names'), add_title=table['title'])
@@ -464,6 +463,30 @@ Pre-processing pipeline
         self.errors.close()
 
 
+    def exec_summary(self):
+        """QC exec summary
+    	sample_name/ID
+    	probe % failures
+    	probe_failure pass
+    	auto-qc result (only if present in kwargs passed in, otherwise omitted)
+    	MDS pass
+    	signal intensity pass
+    	if any fails, fail it (so overall pass)
+    table 2: meta
+    	array type (detect from data)
+    	number of samples (from data)
+    	processing pipeline version number (passed in)
+    	date processed (passed in)
+    	avg probe failure rate
+    	percent of samples that failed
+    	any failures from 'control probes'
+    	   reqs a way to capture warnings of data-off-chart
+        """
+        exec_summary_1 = []
+        exec_summary_2 = [] # list of lists
+        exec_summary_samples = [] # temp storage lookup
+        pass
+
     def page_of_text(self, text, pdf):
         """text is a single big string of text, with whitespace for line breaks.
         https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
@@ -477,6 +500,7 @@ Pre-processing pipeline
         firstPage.text(self.ORIGIN[0], self.ORIGIN[1], wrapped_txt, size=self.FONTSIZE)
         pdf.savefig()
         self.plt.close()
+
 
     def page_of_paragraphs(self, para_list, pdf, line_height='double'):
         """ https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right.
@@ -536,9 +560,9 @@ Pre-processing pipeline
         - attempts to split long tables into multiple pages.
         - should warn if table is too wide to fit. """
 
-        # stringify numbers
+        # stringify numbers; replace None
         for idx, sub in enumerate(list_of_lists):
-            list_of_lists[idx] = [str(i) for i in sub]
+            list_of_lists[idx] = [('' if isinstance(i,type(None)) else str(i)) for i in sub]
 
         rows_per_page = 42 # appears to work for standard default PDF page size and font size.
         pages = math.ceil(len(list_of_lists)/rows_per_page)
