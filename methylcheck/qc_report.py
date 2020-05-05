@@ -220,7 +220,21 @@ class ReportPDF:
         title, author, subject, keywords, outpath, path
 
     when using:
-        you must run report.pdf.close() after you run_qc(). """
+        you must run report.pdf.close() after you run_qc().
+
+    custom tables:
+        pass in arbitrary data using kwarg "custom_tables" as list with this structure:
+            'custom_tables': [
+                {
+                'title': "some title, optional",
+                'col_names': [list of strings],
+                'row_names': [list of strings, optional],
+                'data': [list of lists, with order matching col_names],
+                'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+                },
+                {...second table here...}
+            ]
+    """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
@@ -280,6 +294,42 @@ Pre-processing pipeline
             'probe_types': self.__dict__.get('probe_types',True),
             # FUTURE lower priority: bis-conversion completeness, or GCT score --- https://rdrr.io/bioc/sesame/src/R/sesame.R
         }
+
+        self.custom = {}
+        if 'custom_tables' in self.__dict__:
+            self.parse_custom_tables(self.__dict__['custom_tables'])
+            LOGGER.info(f"found custom_tables, new order: {self.order}")
+            LOGGER.info(self.custom)
+
+    def parse_custom_tables(self, tables):
+        """tables is a list of {
+        'title': "some title, optional",
+        'col_names': [list of strings],
+        'row_names': [list of strings, optional],
+        'data': [list of lists, with order matching col_names],
+        'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+        }"""
+        for table in tables:
+            required_attributes = {'title', 'data', 'order_after', 'col_names'}
+            for i in required_attributes:
+                if i not in table:
+                    raise KeyError("Your custom table must contain these keys: {required_attributes} (row_names is optional)")
+            #1 place order -- refer to this later in self.custom
+            try:
+                _index = self.order(table['order_after'])
+                self.order.insert(_index, table['title'])
+                self.custom[table['title']] = table
+            except ValueError:
+                raise ValueError(f"Your custom table's 'order_after' label is not in this list of chart objects, so could not be ordered: {self.order}")
+            if not isinstance(table['col_names'], list):
+                raise TypeError(f"Your custom table 'col_names' must be a list.")
+            if table.get('row_names') and not isinstance(table['row_names'], list):
+                raise TypeError(f"Your custom table 'row_names' must be a list.")
+            if not isinstance(table['data'], list):
+                raise TypeError(f"Your custom table 'data' must be a list of lists, matching the number of columns listed in col_names.")
+                if not (isinstance(table['data'][0],list) and len(table['data'][0]) == len(table['col_names'])):
+                    raise TypeError(f"Your custom table 'data' must be a list of lists, matching the number of columns listed in col_names.")
+            # passes! later, the table will be looked-up by title name and fed into chart in order.
 
     def open_error_buffer(self):
         """ preparing a stream of log messages to add to report appendix. """
@@ -347,7 +397,7 @@ Pre-processing pipeline
                     #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
                     #for sample_id in df_indexes_to_retain:
 
-            elif part in self.plots:
+            elif part in self.plots and self.plots[part] == True:
                 if part == 'beta_density_plot':
                     LOGGER.info("Beta Density Plot")
                     fig = methylcheck.beta_density_plot(beta_df, save=False, silent=True, verbose=False, reduce=0.1, plot_title=None, ymax=None, return_fig=True)
@@ -376,6 +426,12 @@ Pre-processing pipeline
                     for fig in list_of_figs:
                         self.pdf.savefig(figure=fig, bbox_inches='tight')
                     self.plt.close('all')
+            elif part in self.custom:
+                LOGGER.info("adding custom table")
+                table = self.custom[part]
+                self.to_table(table['data'], col_names=table['col_names'],
+                    row_names=table.get('row_names'), add_title=table['title'])
+
 
         # and finally, appendix of log messages
         appendix_msgs = self.errors.getvalue()
