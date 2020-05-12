@@ -64,9 +64,9 @@ def detect_array(df, returns='name', on_lambda=False):
     elif 440000 <= col_count <= 490000: #485512
         return '450k' if returns == 'name' else (ArrayType('450k'), get_filename('450k'))
     elif 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
-        return 'EPIC+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
+        return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
-        return 'EPIC' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
+        return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
     elif 250000 <= col_count <= 270000: #actual count: 262812
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
