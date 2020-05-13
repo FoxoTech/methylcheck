@@ -46,6 +46,8 @@ setup(
     extras_require={
         'dev': [
             'methylprep', # this is not REQUIRED but some functions in unit testing do require it, so in extras.
+            'joblib', # used by MDS only
+            'sklearn', # used by MDS only
             'pytest',
             'pytest-pep8',
             'pytest-cov',
