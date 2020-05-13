@@ -430,7 +430,6 @@ options:
         stain_red = control_R[control_R['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         stain_green = control_G[control_G['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(stain_green.Extended_Type, stain_green.Color))
-        color_dict['-99'] = 'Black'
         stain_green = stain_green.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.T
@@ -443,7 +442,7 @@ options:
         neg_red = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         neg_green= control_G[control_G['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(neg_green.Extended_Type, neg_green.Color))
-        color_dict['-99'] = 'Black'
+        color_dict.update({k: (v if v != '-99' else 'Black') for k,v in color_dict.items()})
         neg_green = neg_green.drop(columns=['Color']).set_index('Extended_Type')
         neg_red = neg_red.drop(columns=['Color']).set_index('Extended_Type')
         neg_red = neg_red.T
@@ -471,7 +470,6 @@ options:
         hyb_red   = control_R[control_R['Control_Type']=='HYBRIDIZATION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         hyb_green = control_G[control_G['Control_Type']=='HYBRIDIZATION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(hyb_green.Extended_Type, hyb_green.Color))
-        color_dict['-99'] = 'Black'
         hyb_green = hyb_green.drop(columns=['Color']).set_index('Extended_Type')
         hyb_red = hyb_red.drop(columns=['Color']).set_index('Extended_Type')
         hyb_red = hyb_red.T
@@ -484,7 +482,6 @@ options:
         ext_red   = control_R[control_R['Control_Type']=='EXTENSION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         ext_green = control_G[control_G['Control_Type']=='EXTENSION'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(ext_green.Extended_Type, ext_green.Color))
-        color_dict['-99'] = 'Black'
         ext_green = ext_green.drop(columns=['Color']).set_index('Extended_Type')
         ext_red = ext_red.drop(columns=['Color']).set_index('Extended_Type')
         ext_red = ext_red.T
@@ -497,7 +494,6 @@ options:
         bci_red   = control_R[control_R['Control_Type']=='BISULFITE CONVERSION I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         bci_green = control_G[control_G['Control_Type']=='BISULFITE CONVERSION I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(bci_green.Extended_Type, bci_green.Color))
-        color_dict['-99'] = 'Black'
         bci_green = bci_green.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.T
@@ -510,7 +506,6 @@ options:
         np_red = control_R[control_R['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         np_green = control_G[control_G['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(np_green.Extended_Type, np_green.Color))
-        color_dict['-99'] = 'Black'
         np_green = np_green.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
@@ -523,7 +518,6 @@ options:
         tar_red = control_R[control_R['Control_Type']=='TARGET REMOVAL'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         tar_green = control_G[control_G['Control_Type']=='TARGET REMOVAL'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(tar_green.Extended_Type, tar_green.Color))
-        color_dict['-99'] = 'Black'
         tar_green = tar_green.drop(columns=['Color']).set_index('Extended_Type')
         tar_red = tar_red.drop(columns=['Color']).set_index('Extended_Type')
         tar_red = tar_red.T
@@ -536,7 +530,6 @@ options:
         spec_red = control_R[control_R['Control_Type']=='SPECIFICITY I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         spec_green = control_G[control_G['Control_Type']=='SPECIFICITY I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(spec_green.Extended_Type, spec_green.Color))
-        color_dict['-99'] = 'Black'
         spec_green = spec_green.drop(columns=['Color']).set_index('Extended_Type')
         spec_red = spec_red.drop(columns=['Color']).set_index('Extended_Type')
         spec_red = spec_red.T
