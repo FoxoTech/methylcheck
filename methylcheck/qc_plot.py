@@ -506,6 +506,7 @@ options:
         np_red = control_R[control_R['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         np_green = control_G[control_G['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(np_green.Extended_Type, np_green.Color))
+        color_dict.update({k: (v if v != '-99' else 'Black') for k,v in color_dict.items()})
         np_green = np_green.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
@@ -574,6 +575,12 @@ todo:
     title = title + ' ' if title != '' else title
     ax1.set_title(f'{title}Green')
     ax2.set_title(f'{title}Red')
+
+    # DEBUG: control probes contain '-99 in the Color column. Breaks plot.' But resolved by plot_controls() now.
+    if '-99' in color_dict.values():
+        missing_colors = {k:v for k,v in color_dict.items() if v == '-99'}
+        LOGGER.warning(f"{title} has invalid colors: {missing_colors}")
+        color_dict.update({k:'Black' for k,v in missing_colors.items()})
 
     if columns != None:
         # TODO: ensure all columns in list are in stain_red/green first.

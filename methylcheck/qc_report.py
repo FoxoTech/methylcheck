@@ -234,9 +234,13 @@ class ReportPDF:
                 },
                 {...second table here...}
             ]
+
+    if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
     """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
+        self.debug = True if self.__dict__.get('debug') == True else False
+        self.__dict__.pop('debug',None)
         self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
         self.__dict__['pval_cutoff'] = self.__dict__.get('pval_cutoff', 0.05)
         self.errors = self.open_error_buffer()
@@ -374,58 +378,73 @@ Pre-processing pipeline
 
         for part in self.order:
             if part in self.tests and self.tests[part] == True:
-                if part == 'detection_poobah':
-                    max_allowed = self.__dict__.get('poobah_max_percent')
-                    sample_percent_failed_probes_dict = detection_poobah(poobah_df, pval_cutoff=self.__dict__['pval_cutoff'])
-                    sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
-                    #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
-                    LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
+                try:
+                    if part == 'detection_poobah':
+                        max_allowed = self.__dict__.get('poobah_max_percent')
+                        sample_percent_failed_probes_dict = detection_poobah(poobah_df, pval_cutoff=self.__dict__['pval_cutoff'])
+                        sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
+                        #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
+                        LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
 
-                    list_of_lists = []
-                    for sample_id,percent in sample_percent_failed_probes_dict.items():
-                        row = [sample_id, percent, sample_poobah_failures[sample_id]]
-                        list_of_lists.append(row)
-                    self.to_table(list_of_lists, col_names=['Sample_ID', 'Percent', 'Pass/Fail'],
-                        row_names=None, add_title='Detection Poobah')
+                        list_of_lists = []
+                        for sample_id,percent in sample_percent_failed_probes_dict.items():
+                            row = [sample_id, percent, sample_poobah_failures[sample_id]]
+                            list_of_lists.append(row)
+                        self.to_table(list_of_lists, col_names=['Sample_ID', 'Percent', 'Pass/Fail'],
+                            row_names=None, add_title='Detection Poobah')
 
-                if part == 'mds':
-                    LOGGER.info("Beta MDS Plot")
-                    # ax and df_to_retain are not used, but could go into a qc chart
-                    fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
-                    self.pdf.savefig(fig)
-                    self.plt.close()
-                    #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
-                    #for sample_id in df_indexes_to_retain:
+                    if part == 'mds':
+                        LOGGER.info("Beta MDS Plot")
+                        # ax and df_to_retain are not used, but could go into a qc chart
+                        fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
+                        self.pdf.savefig(fig)
+                        self.plt.close()
+                        #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
+                        #for sample_id in df_indexes_to_retain:
+                except Exception as e:
+                    if self.debug:
+                        LOGGER.error(f"Could not process {part}; {e}")
+                        continue
+                    else:
+                        raise Exception(f"Could not process {part}; {e}")
 
             elif part in self.plots and self.plots[part] == True:
-                if part == 'beta_density_plot':
-                    LOGGER.info("Beta Density Plot")
-                    fig = methylcheck.beta_density_plot(beta_df, save=False, silent=True, verbose=False, reduce=0.1, plot_title=None, ymax=None, return_fig=True)
-                    self.pdf.savefig(fig)
-                    self.plt.close()
-                elif part == 'M_vs_U':
-                    LOGGER.info(f"M_vs_U plot")
-                    fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True)
-                    self.pdf.savefig(fig)
-                    self.plt.close()
-                    # if not plotting, it will return dict with meth median and unmeth median.
-                elif part == 'qc_signal_intensity':
-                    LOGGER.info(f"QC signal intensity plot")
-                    fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True)
-                    self.pdf.savefig(fig)
-                    self.plt.close()
-                elif part == 'controls':
-                    LOGGER.info(f"Control probes")
-                    list_of_figs = methylcheck.plot_controls(control_dict_of_dfs, 'all', return_fig=True)
-                    for fig in list_of_figs:
-                        self.pdf.savefig(figure=fig, bbox_inches='tight')
-                    self.plt.close('all')
-                elif part == 'probe_types':
-                    LOGGER.info(f"Betas by probe type")
-                    list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True, silent=True, on_lambda=self.on_lambda)
-                    for fig in list_of_figs:
-                        self.pdf.savefig(figure=fig, bbox_inches='tight')
-                    self.plt.close('all')
+                try:
+                    if part == 'beta_density_plot':
+                        LOGGER.info("Beta Density Plot")
+                        fig = methylcheck.beta_density_plot(beta_df, save=False, silent=True, verbose=False, reduce=0.1, plot_title=None, ymax=None, return_fig=True)
+                        self.pdf.savefig(fig)
+                        self.plt.close()
+                    elif part == 'M_vs_U':
+                        LOGGER.info(f"M_vs_U plot")
+                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True)
+                        self.pdf.savefig(fig)
+                        self.plt.close()
+                        # if not plotting, it will return dict with meth median and unmeth median.
+                    elif part == 'qc_signal_intensity':
+                        LOGGER.info(f"QC signal intensity plot")
+                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True)
+                        self.pdf.savefig(fig)
+                        self.plt.close()
+                    elif part == 'controls':
+                        LOGGER.info(f"Control probes")
+                        list_of_figs = methylcheck.plot_controls(control_dict_of_dfs, 'all', return_fig=True)
+                        for fig in list_of_figs:
+                            self.pdf.savefig(figure=fig, bbox_inches='tight')
+                        self.plt.close('all')
+                    elif part == 'probe_types':
+                        LOGGER.info(f"Betas by probe type")
+                        list_of_figs = methylcheck.plot_beta_by_type(beta_df, 'all', return_fig=True, silent=True, on_lambda=self.on_lambda)
+                        for fig in list_of_figs:
+                            self.pdf.savefig(figure=fig, bbox_inches='tight')
+                        self.plt.close('all')
+                except Exception as e:
+                    if self.debug:
+                        LOGGER.error(f"Could not process {part}; {e}")
+                        continue
+                    else:
+                        raise Exception(f"Could not process {part}; {e}")
+                        
             elif part in self.custom:
                 table = self.custom[part]
                 self.to_table(table['data'], col_names=table['col_names'],
