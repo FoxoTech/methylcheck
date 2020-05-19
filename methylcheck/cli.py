@@ -17,19 +17,22 @@ class DefaultParser(argparse.ArgumentParser):
         self.exit(status=2)
 
 
-def detect_array(df, returns='name'):
+def detect_array(df, returns='name', on_lambda=False):
     """Determines array type using number of probes columns in df. Returns array string.
     Note: this is different from methylprep.models.arrays.ArrayType.from_probe_count, which looks at idat files.
 
     returns (name | filepath)
         default is 'name' -- returns a string
         if 'filepath', this also returns the filepath to the array, using ArrayType and
-        methylprep.files.manifests ARRAY_TYPE_MANIFEST_FILENAMES."""
+        methylprep.files.manifests ARRAY_TYPE_MANIFEST_FILENAMES.
+    on_lambda (True | False)
+        looks for manifest files in /tmp instead of ~/.methylprep_manifest_files
+    """
 
     if returns == 'filepath':
         # get manifest data from .methylprep_manifest_files
         try:
-            from methylprep.files.manifests import MANIFEST_DIR_PATH, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
+            from methylprep.files.manifests import MANIFEST_DIR_PATH, MANIFEST_DIR_PATH_LAMBDA, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
             from methylprep.models.arrays import ArrayType
         except ImportError:
             raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
@@ -42,7 +45,10 @@ def detect_array(df, returns='name'):
                 'epic+': 'CombinedManifestEPIC.manifest.CoreColumns.csv.gz',
                 'mouse': 'LEGX_B1_manifest_mouse_v1_min.csv.gz',
             }
-            man_path = Path(MANIFEST_DIR_PATH).expanduser()
+            if on_lambda:
+                man_path = Path(MANIFEST_DIR_PATH_LAMBDA).expanduser()
+            else:
+                man_path = Path(MANIFEST_DIR_PATH).expanduser()
             man_filename = ARRAY_FILENAME[array_name]
             man_filepath = Path(man_path, man_filename)
             return man_filepath
@@ -58,9 +64,9 @@ def detect_array(df, returns='name'):
     elif 440000 <= col_count <= 490000: #485512
         return '450k' if returns == 'name' else (ArrayType('450k'), get_filename('450k'))
     elif 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
-        return 'EPIC+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
+        return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
-        return 'EPIC' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
+        return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
     elif 250000 <= col_count <= 270000: #actual count: 262812
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:

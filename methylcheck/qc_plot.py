@@ -6,7 +6,6 @@ from pathlib import Path
 import logging
 #app
 import methylcheck
-from .cli import detect_array
 from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
@@ -24,7 +23,11 @@ def run_qc(path):
         meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
         unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
     except FileNotFoundError:
-        raise FileNotFoundError("run_qc() only works if you used `methylprep process --all` option.")
+        if not Path(path).exists():
+            raise FileNotFoundError("Invalid path")
+        elif Path(path).is_dir():
+            raise FileNotFoundError("Path is not a directory.")
+        raise FileNotFoundError("Files missing. run_qc() only works if you used `methylprep process --all` option.")
     # needs meth_df, unmeth_df, controls, and beta_df
     plot_M_vs_U(meth=meth_df, unmeth=unmeth_df)
     qc_signal_intensity(meth=meth_df, unmeth=unmeth_df)
@@ -294,7 +297,7 @@ FIX:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
 
-def plot_beta_by_type(beta_df, probe_type='all', return_fig=False):
+def plot_beta_by_type(beta_df, probe_type='all', return_fig=False, silent=False, on_lambda=False):
     """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
@@ -312,14 +315,14 @@ options:
     # orient
     if beta_df.shape[1] > beta_df.shape[0]:
         beta_df = beta_df.transpose() # probes should be in rows.
-    array_type, man_filepath = detect_array(beta_df, returns='filepath')
+    array_type, man_filepath = methylcheck.detect_array(beta_df, returns='filepath', on_lambda=on_lambda)
     if Path.exists(man_filepath):
         try:
-            from methylprep.files.manifests import Manifest
+            from methylprep.files import Manifest
         except ImportError:
             raise ImportError("this required methylprep")
 
-        manifest = Manifest(array_type, man_filepath)
+        manifest = Manifest(array_type, man_filepath, on_lambda=on_lambda)
     else:
         raise FileNotFoundError("manifest file not found.")
 
@@ -335,37 +338,37 @@ options:
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent)
     if probe_type in ('II', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'II']
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type II probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent)
     if probe_type in ('IR', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Red')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I Red (IR) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent)
     if probe_type in ('IG', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Grn')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent) )
         else:
             print(f'Found {subset.shape[0]} type I Green (IG) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes',)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent)
     if return_fig:
         return figs
 
@@ -439,6 +442,7 @@ options:
         neg_red = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         neg_green= control_G[control_G['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(neg_green.Extended_Type, neg_green.Color))
+        color_dict.update({k: (v if v != '-99' else 'Black') for k,v in color_dict.items()})
         neg_green = neg_green.drop(columns=['Color']).set_index('Extended_Type')
         neg_red = neg_red.drop(columns=['Color']).set_index('Extended_Type')
         neg_red = neg_red.T
@@ -450,6 +454,11 @@ options:
                                              'Negative 6','Negative 7','Negative 8','Negative 9','Negative 10',
                                              'Negative 11','Negative 12','Negative 13','Negative 14','Negative 15',
                                              'Negative 16']
+        # UPDATE: picking a smattering of probes that are in both EPIC and EPIC+
+        list_of_negative_controls_to_plot = ['Negative 1','Negative 142','Negative 3','Negative 4','Negative 5',
+                                             'Negative 6','Negative 7','Negative 8','Negative 119','Negative 10',
+                                             'Negative 484','Negative 12','Negative 13','Negative 144','Negative 151',
+                                             'Negative 166']
         dynamic_controls = [c for c in list_of_negative_controls_to_plot if c in neg_red.columns and c in neg_green.columns]
         dynamic_ymax = max([max(neg_red[dynamic_controls].max(axis=0)), max(neg_green[dynamic_controls].max(axis=0))])
         dynamic_ymax = dynamic_ymax + int(0.1*dynamic_ymax)
@@ -497,6 +506,7 @@ options:
         np_red = control_R[control_R['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         np_green = control_G[control_G['Control_Type']=='NON-POLYMORPHIC'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(np_green.Extended_Type, np_green.Color))
+        color_dict.update({k: (v if v != '-99' else 'Black') for k,v in color_dict.items()})
         np_green = np_green.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
@@ -565,6 +575,12 @@ todo:
     title = title + ' ' if title != '' else title
     ax1.set_title(f'{title}Green')
     ax2.set_title(f'{title}Red')
+
+    # DEBUG: control probes contain '-99 in the Color column. Breaks plot.' But resolved by plot_controls() now.
+    if '-99' in color_dict.values():
+        missing_colors = {k:v for k,v in color_dict.items() if v == '-99'}
+        LOGGER.warning(f"{title} has invalid colors: {missing_colors}")
+        color_dict.update({k:'Black' for k,v in missing_colors.items()})
 
     if columns != None:
         # TODO: ensure all columns in list are in stain_red/green first.
