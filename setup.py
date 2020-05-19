@@ -11,8 +11,8 @@ setup(
     long_description_content_type='text/markdown',
     project_urls = {
         "Documentation": "https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/",
-        "Source": "https://github.com/lifeEGX/methylcheck/",
-        "Funding": "https://lifeegx.com/"
+        "Source": "https://github.com/FOXOBioScience/methylcheck/",
+        "Funding": "https://FOXOBioScience.com/"
     },
     classifiers=[
         'Development Status :: 4 - Beta',
@@ -29,10 +29,10 @@ setup(
         'Operating System :: POSIX :: Linux',
       ],
     keywords='methylation dna data processing epigenetics illumina',
-    url='https://github.com/LifeEGX/methylcheck',
+    url='https://github.com/FOXOBioScience/methylcheck',
     license="MIT License",
     author='Life Epigenetics',
-    author_email='info@lifeegx.com',
+    author_email='info@FOXOBioScience.com',
     packages=find_packages(),
     include_package_data=True,
     install_requires=[

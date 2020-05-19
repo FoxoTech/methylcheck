@@ -84,6 +84,16 @@ Use cases and format:
         for reading csvs processed using R's sesame package. It has a different format (Probe_ID, ind_beta, ind_negs, ind_poob) per sample.
         Only those probes that pass the p-value cutoff will be included.
 
+Science on p-value cutoff:
+    This function defaults to a p-value cutoff of 0.05, which is typical for scientific tests.
+    There is currently no consensus on what percent of a sample's probes can fail. For example,
+    if a sample has 860,000 probes and 5% of them fail, should you reject the whole sample from the batch?
+    For large batch industrial scale testing, the authors assign some limit, like 5%, 10%, 20%, 30%, etc as a cutoff. And methylcheck's run_qc() function defaults to 10 percent.
+    But the academics we spoke to don't automatically throw out any samples. Because it depends.
+    Cancer samples have lots of anueploidy (an abnormal number of chromosomes in a haploid set) and lost chromosomes, so one would expect no signal for these CpG sites.
+    So those researchers wouldn't throw out samples unless most of the sample fails.
+    People are working on deriving a calibration curve from public GEO data as a guide, and give a frame of reference, but none exist yet. And public data rarely includes failed samples.
+
 TODO:
     - BUG: custom fields cannot auto detect the -pval- column and this isn't supplied in kwargs
     - DONE: meth_df deal with batches of files
