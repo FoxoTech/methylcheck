@@ -28,7 +28,7 @@ from .qc_plot import (
 
 from .qc_report import run_pipeline
 from .load_processed import load, load_both, container_to_pkl
-from .read_geo_processed import read_geo
+from .read_geo_processed import read_geo, detect_header_pattern
 from .version import __version__
 
 getLogger(__name__).addHandler(NullHandler())
@@ -42,6 +42,7 @@ __all__ = [
     'cumulative_sum_beta_distribution',
     'container_to_pkl',
     'detect_array',
+    'detect_header_pattern',
     'drop_nan_probes',
     'exclude_probes',
     'exclude_sex_control_probes',
