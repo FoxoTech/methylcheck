@@ -67,7 +67,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -94,6 +94,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
             the distribution. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
             Using 0.1 will speed up plotting 10-fold.
+        ymax (None): If defined, upper limit of plot will not exceed this value. But it y-range can be smaller if values are less than this range.
+        full_range: (False) if True, x-axis will be auto-scaled, instead of fixed in the 0-to-1.0 range.
         return_fig: (False) if True, returns figure object instead of showing plot.
 
     Note:
@@ -117,7 +119,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         df = df.transpose()
     # 2nd check: incomplete probes
     if df.shape[0] < 27000:
-        LOGGER.warning("data does not appear to be full probe data")
+        LOGGER.warning("Data does not appear to be full probe data")
     # 3rd check: missing probe values (common with EPIC+)
     missing_probes = sum(df.isna().sum())
     if missing_probes > 0 and silent:
@@ -172,7 +174,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     #    print('suppressing legend')
     plt.title(plot_title or 'Beta Density Plot')
     plt.grid()
-    plt.xlim(0,1.0)
+    if not full_range:
+        plt.xlim(0,1.0)
     plt.xlabel('Beta values')
     if save:
         plt.savefig('beta.png')
