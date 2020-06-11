@@ -11,7 +11,7 @@ methylcheck is a Python-based package for filtering and visualizing Illumina met
 
 This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
 
-![methylprep functions](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/dev/docs/methylcheck_functions.png)
+![methylprep functions](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_functions.png)
 
 ## Installation
 
@@ -31,7 +31,7 @@ mydata = pandas.read_pickle('beta_values.pkl')
 If you processed a large batch of samples using the `batch_size` option in `methylprep process`, there's a convenience function in `methylcheck` (methylcheck.load) that will load and combine a bunch of output files in the same folder:
 
 ```python
-import methylize
+import methycheck
 df = methylcheck.load('<path to folder with methylprep output>')
 # or
 df,meta = methylcheck.load_both('<path to folder with methylprep output>')
@@ -41,24 +41,39 @@ This conveniently loads a dataframe of all meta data associated with the samples
 
 For more, check out our [examples of loading data into `methylcheck`](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/docs/demo_qc_functions.html)
 
-### GEO
+### GEO (`idat`)
 
-Alternatively, you can import public GEO datasets directly, if they are processed data containing either probe `beta` values for samples or methylated/unmethylated signal intensities. If you have `idat` files, process them first with `methylprep`, or use the `methylprep download -i <GEO_ID>` option to download and process public data.
+Alternatively, you can download and process public GEO datasets. If you have a gzip of `idat` files, process them first with `methylprep`, or use the `methylprep download -i <GEO_ID>` option to download and process public data.
 
 In general, the best way to import data is to use `methylprep` and run
 ```python
-run_pipeline(data_folder, betas=True)
+import methylprep
+methylprep.run_pipeline(data_folder, betas=True)
 
 # or from the command line:
 python -m methylprep process -d <filepath to idats> --all
 ```
 
-collect the `beta_values.pkl` file it returns/saves to disk, and load that in a Jupyter notebook. From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
+collect the `beta_values.pkl` file it returns/saves to disk, and load that in a Jupyter notebook.
 
+### GEO (processed data in `csv, txt, xlsx` formats)
+If idats are not available on GEO, you can imported the processed tabular data using `methylcheck.read_geo`. This will convert methylation/unmethylated signal intensities to beta values by default, returning a Pandas dataframe with samples in columns and probes in rows. As of version 0.6, it recognizes six different ways authors have organized their data, but does not handle these cases yet:
+
+- Combining two files containing methylated and unmethylated values for a set of samples
+- Reading GSM12345-tbl-1.txt type files (found in GSExxxx_family.tar.gz packages)
+
+To obtain probe `beta` values for samples or methylated/unmethylated signal intensities, download the file locally and run:
+```python
+import methylcheck
+df = methylcheck.read_geo(filepath)
+```
+If you include `verbose=True` it will explain what it is doing. You can also use `test_only=True` to ensure the parser will work without loading the whole file (which can be several gigabytes in size). Test mode will only return the first 200 probes, but should parse the header and detect the file structure if it can.
+
+From there, each data transformation is a single line of code using Pandas DataFrames. `methylcheck` will keep track of the data format/structures for you, and you can visualize the effect of each filter as you go. You can also export images of your charts for publication.
 
 Refer to the Jupyter notebooks on readthedocs for examples of filtering probes from a batch of samples, removing outlier samples, and generating plots of data.
 
-## Quality Control (QC)
+## Quality Control (QC) reports
 
 The simplest way to generate a battery of plots about your data is to run this function in a Jupyter notebook:
 
@@ -66,6 +81,8 @@ The simplest way to generate a battery of plots about your data is to run this f
 import methylcheck
 methylcheck.run_qc('<path to your methylprep processed files>')
 ```
+
+There is also a `methylcheck.qc_report.ReportPDF` class that allows you to build your own QC report and save it to PDF.
 
 ## Other functions
 

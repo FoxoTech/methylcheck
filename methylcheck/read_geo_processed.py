@@ -518,6 +518,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
     _family
 
     TODO: GSM12345-tbl-1.txt type files (in _family.tar.gz packages) are possible, but needs more work.
+    TODO: combining two files with meth/unmeth values
 
     - numbered samples handled differently from sample_ids in columns
     - won't detect columns with no separators in strings
