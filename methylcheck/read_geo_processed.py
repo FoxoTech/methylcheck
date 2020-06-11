@@ -2,8 +2,10 @@ from pathlib import Path
 import pandas as pd
 import numpy as np
 import re
+import csv # for pd_load quote-chars
 from collections import Counter
 import logging
+from pandas.io.parsers import ParserError
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel( logging.INFO )
@@ -257,31 +259,7 @@ notes:
     """
 
     #1. load and read the file, regardless of type and CSV delimiter choice.
-    this = Path(filepath)
     kwargs = {'nrows':200} if test_only else {}
-
-    def pd_load(filepath, **kwargs):
-        if '.csv' in this.suffixes:
-            raw = pd.read_csv(this, **kwargs)
-        elif '.xlsx' in this.suffixes:
-            raw = pd.read_excel(this, **kwargs)
-        elif '.pkl' in this.suffixes:
-            raw = pd.read_pickle(this, **kwargs)
-            #return raw
-        elif '.txt' in this.suffixes:
-            try:
-                raw = pd.read_csv(this, sep='\t', **kwargs)
-            except ParserError as e:
-                if debug: print(f"{e}: look at file and deleted few header rows first.")
-                raw = pd.read_csv(this, **kwargs)
-            if raw.shape[1] == 1: # pandas doesn't handle \r\n two char line terminators, but seems to handle windows default if unspecified.
-                raw = pd.read_csv(this, sep='\t', lineterminator='\r', **kwargs) # leaves \n in values of first column, but loads
-                # lineterminator='\r\n')
-                # or use codecs first to load and parse text file before dataframing...
-        else:
-            print(f'ERROR: this file type ({this.suffix}) is not supported')
-            return
-        return raw
 
     raw = pd_load(filepath, **kwargs)
     if not isinstance(raw, pd.DataFrame):
@@ -394,6 +372,13 @@ notes:
     # next, see if betas are present of do we need to calculate them?
     test = raw.iloc[0:100]
     meta = detect_header_pattern(test, filepath, return_sample_column_names=True)
+    if meta['multiline_header'] and meta['multiline_header_rows'] > 0:
+        if verbose: print("Reloading raw data, excluding header.")
+        old_non_blank_col_count = len(raw.loc[:, ~raw.columns.str.contains('^Unnamed:')].columns) #~ before test counts non-blank columns
+        kwargs['skiprows'] = meta['multiline_header_rows']
+        raw = pd_load(filepath, **kwargs)
+        new_non_blank_col_count = len(raw.loc[:, ~raw.columns.str.contains('^Unnamed:')].columns)
+        if verbose: print(f"After ignoring multiline header: {old_non_blank_col_count} old columns are now {new_non_blank_col_count} new named columns.")
     if debug:
         print(f"file shape: {raw.shape}")
         concise = meta.copy()
@@ -438,13 +423,13 @@ notes:
         except:
             value_mean = 0
         if verbose and meta['columns_per_sample'] != 1 and beta_value_range:
-            print(f"Returning raw data. Structure appears to be {meta['columns_per_sample']} columns per sample; numbered samples: {numbered_samples}; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data. Appears to contain {len(out_df.columns)} samples. Structure appears to be {meta['columns_per_sample']} columns per sample; numbered samples: {numbered_samples}; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
         elif verbose and beta_value_range:
-            print(f"Returning raw data. Appears to be sample beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data. Appears to be sample fluorescence intensity values in columns (mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample fluorescence intensity values in columns (mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data of UNKNOWN type. Not beta values or fluorescence intensity values in columns. Mean probe value was {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data of UNKNOWN type. Appears to contain {len(out_df.columns)} samples. Not beta values or fluorescence intensity values in columns. Mean probe value was {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
         return out_df
 
     elif ((meta['column_pattern'] == 'sample_beta_numbered') or
@@ -471,13 +456,13 @@ notes:
         except:
             value_mean = 0
         if verbose and meta['columns_per_sample'] != 1 and beta_value_range:
-            print(f"Returning raw data. Structure appears to be {meta['columns_per_sample']} columns per sample; {len(out_df.columns)} numbered samples; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data. Appears to contain {len(out_df.columns)} samples. Structure appears to be {meta['columns_per_sample']} columns per sample; {len(out_df.columns)} numbered samples; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
         elif verbose and beta_value_range:
             print(f"Returning raw data. Appears to contain {len(out_df.columns)} numbered samples; beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data. Appears to be sample fluorescence intensity values in columns ({len(out_df.columns)} samples with mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample fluorescence intensity values in columns ({len(out_df.columns)} samples with mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data of UNKNOWN type. Not beta values or fluorescence intensity values in columns. {len(out_df.columns)} samples with a mean probe value of {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
+            print(f"Returning raw data of UNKNOWN type. Appears to contain {len(out_df.columns)} samples. Not beta values or fluorescence intensity values in columns. {len(out_df.columns)} samples with a mean probe value of {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
 
         return out_df
 
@@ -606,7 +591,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
     avg_sample_repeats = 1
     for sep in seps:
         try:
-            sample_numbers_list = [[part for part in column.split(sep) if re.match('\d+', part)][0] for column in sample_columns]
+            sample_numbers_list = [[part for part in column.split(sep) if re.match(r'\d+', part)][0] for column in sample_columns]
             if len(sample_numbers_list) > 0:
                 sorted_sample_numbers_list = sorted([int(j) for j in list(set(sample_numbers_list))])
                 sample_repeats = list(Counter([int(j) for j in list(sample_numbers_list)]).values())
@@ -627,11 +612,13 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
 
     # tests / data attributes: pval, multiline, probes, sample/nonsample columns
     if max(fraction_probelike) < 0.75:
-        print("WARNING: Unable to identify the column with probe names")
+        print(f"WARNING: Unable to identify the column with probe names ({max(fraction_probelike)})")
     multiline_rows = 0
+    header_rows = 0
     if 0.75 <= max(fraction_probelike) < 1.00:
         multiline_rows = int(round(100*max(fraction_probelike)))
-        print(f"multiline header detected with {multiline_rows} rows.")
+        header_rows = 100 - multiline_rows
+        print(f"Multiline header detected with {header_rows} rows.")
     multiline_header = True if multiline_rows > 0 else False
     all_sample_columns = all([('sample' in column.lower() or 'ID_REF' in column) for column in list(set(test.columns))])
     has_p_values = True if fraction_pvallike > 0 else False
@@ -726,7 +713,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
             'sample_columns_meth_unmeth_count': sample_columns_meth_unmeth_count,
             'all_sample_columns': all_sample_columns,
             'multiline_header': multiline_header,
-            'multiline_rows': multiline_rows,
+            'multiline_header_rows': header_rows,
             'column_pattern': column_pattern,
             'columns_per_sample': columns_per_sample,
             'sequential_numbers': sequential_numbers,
@@ -737,3 +724,43 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
             'sample_names': sample_columns,
             'sample_names_stems': sample_column_residuals, # unique parts of sample names
            }
+
+def pd_load(filepath, **kwargs):
+    """ helper function that reliably loads any GEO file, by testing for the separator that gives the most columns """
+    this = Path(filepath)
+
+    if this.suffix not in ('.xlsx', '.pkl'):
+        # first, check that we're getting the max cols
+        test_csv = pd.read_csv(this, nrows=100, skiprows=kwargs.get('skiprows',0))
+        test_t = pd.read_csv(this, sep='\t', nrows=100, skiprows=kwargs.get('skiprows',0))
+        test_space = pd.read_csv(this, sep=r',\s+', quoting=csv.QUOTE_ALL, engine='python', skiprows=kwargs.get('skiprows',0))
+
+        params = [
+            {'method':'auto', 'cols': test_csv.shape[1], 'kwargs': {}},
+            {'method':'tab', 'cols': test_t.shape[1], 'kwargs': {'sep':'\t'}},
+            {'method':'quoted', 'cols': test_space.shape[1], 'kwargs': {'sep':r',\s+', 'quoting':csv.QUOTE_ALL, 'engine': 'python'}},
+        ]
+        best_params = sorted([(parts['method'], parts['cols'], parts['kwargs']) for parts in params], key= lambda param_tuple: param_tuple[1], reverse=True)
+        kwargs.update(best_params[0][2])
+
+    if '.csv' in this.suffixes:
+        raw = pd.read_csv(this, **kwargs)
+    elif '.xlsx' in this.suffixes:
+        raw = pd.read_excel(this, **kwargs)
+    elif '.pkl' in this.suffixes:
+        raw = pd.read_pickle(this, **kwargs)
+        #return raw
+    elif '.txt' in this.suffixes:
+        try:
+            raw = pd.read_csv(this, **kwargs) # includes '\t' if testing worked best with tabs
+        except ParserError as e:
+            if debug: print(f"{e}: look at file and deleted few header rows first.")
+            return
+        if raw.shape[1] == 1: # pandas doesn't handle \r\n two char line terminators, but seems to handle windows default if unspecified.
+            raw = pd.read_csv(this, sep='\t', lineterminator='\r', **kwargs) # leaves \n in values of first column, but loads
+            # lineterminator='\r\n')
+            # or use codecs first to load and parse text file before dataframing...
+    else:
+        print(f'ERROR: this file type ({this.suffix}) is not supported')
+        return
+    return raw
