@@ -236,6 +236,9 @@ class ReportPDF:
             ]
 
     if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
+
+    if you pass in 'order' in kwargs, any page you omit will be omitted from the final report.
+    (pass in a custom table to override one of the built-in pages this way)
     """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
@@ -282,8 +285,11 @@ Pre-processing pipeline
             Age check
             SNP check
         """
-        self.order = ['beta_density_plot', 'detection_poobah', 'mds', 'auto_qc',
-         'M_vs_U', 'qc_signal_intensity', 'controls', 'probe_types']
+        if 'order' in self.__dict__:
+            self.order = self.__dict__['order']
+        else:
+            self.order = ['beta_density_plot', 'detection_poobah', 'mds', 'auto_qc',
+            'M_vs_U', 'qc_signal_intensity', 'controls', 'probe_types']
 
         self.tests = {
             'detection_poobah': self.__dict__.get('poobah',True),
@@ -350,7 +356,7 @@ Pre-processing pipeline
     def run_qc(self):
         # load all the data from self.path; make S3-compatible too.
         path = self.__dict__.get('path','')
-        if self.tests['detection_poobah'] is True:
+        if self.tests['detection_poobah'] is True and 'detection_poobah' in self.order:
             try:
                 poobah_df = pd.read_pickle(Path(path,'poobah_values.pkl')) # off by default, process with --export_poobah
             except FileNotFoundError:
@@ -444,7 +450,7 @@ Pre-processing pipeline
                         continue
                     else:
                         raise Exception(f"Could not process {part}; {e}")
-                        
+
             elif part in self.custom:
                 table = self.custom[part]
                 self.to_table(table['data'], col_names=table['col_names'],
