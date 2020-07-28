@@ -67,7 +67,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False, highlight_samples=None, figsize=(12,9), show_labels=None):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -97,6 +97,10 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         ymax (None): If defined, upper limit of plot will not exceed this value. But it y-range can be smaller if values are less than this range.
         full_range: (False) if True, x-axis will be auto-scaled, instead of fixed in the 0-to-1.0 range.
         return_fig: (False) if True, returns figure object instead of showing plot.
+
+        highlight_samples: a string or list of df col-names that, if provided, will highlight sample(s) in blue and bold in plot returned. all other samples in df will be grayed out. Useful for QC reports.
+        figsize: tuple of width, height, with 12,9 being default if ommitted.
+        show_labels: By default, sample names appear in a legend if there are <30 samples. Otherwise, ommitted. Use this to force legend on or off.
 
     Note:
         if the sample_ids in df.index are not unique, it will make them so for the purpose of plotting.
@@ -143,9 +147,10 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         # choice returns the positions as a list.
         probes = np.random.choice(df.shape[0], int(reduce*df.shape[0]))
 
-    fig, ax = plt.subplots(figsize=(12, 9))
+    fig, ax = plt.subplots(figsize=figsize)
 
-    show_labels = True if len(df.columns) <= 30 else False
+    if show_labels is None: # user-param-always overrides this.
+        show_labels = True if len(df.columns) <= 30 else False
     for col in df.columns: # samples
         if col != 'Name': # probe name
             if reduce:
@@ -155,14 +160,20 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             if len(values.shape) > 1:
                 raise ValueError("Your df probaby contains duplicate sample names.")
 
+            kde_kws = None # optional, conditional color highlighting for one or several samples in the DF, using the "highlight_samples" list passed in.
+            if highlight_samples not in (None,[]):
+                kde_kws={"color": "lightgray", "lw": 1}
+                if isinstance(highlight_samples, str) and col == highlight_samples:
+                    kde_kws.update({"color":"b", "lw":3})
+                if isinstance(highlight_samples, list) and col in highlight_samples:
+                    kde_kws.update({"color":"b", "lw":3})
+
+            kwargs = {"hist":False, "rug":False, "kde":True, "ax":ax, "axlabel":'beta'}
+            if kde_kws:
+                kwargs["kde_kws"] = kde_kws
             if show_labels:
-                sns.distplot(
-                    values, hist=False, rug=False, kde=True,
-                    label=col, ax=ax, axlabel='beta')
-            else:
-                sns.distplot(
-                    values, hist=False, rug=False, kde=True,
-                    ax=ax, axlabel='beta')
+                kwargs["label"] = col
+            sns.distplot(values, **kwargs)
 
     (obs_ymin, obs_ymax) = ax.get_ylim()
     if ymax is not None and obs_ymax > ymax:

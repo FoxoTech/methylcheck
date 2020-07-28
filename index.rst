@@ -19,6 +19,7 @@ methylcheck documentation
    docs/demo_using_matched_meta_data.ipynb
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
+   Release History <docs/release-history.md>
 
 
 Indices and tables
