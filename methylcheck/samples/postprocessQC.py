@@ -67,7 +67,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 
 
-def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False, highlight_samples=None, figsize=(12,9), show_labels=None):
+def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False, highlight_samples=None, figsize=(12,9), show_labels=None, filename='beta.png'):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
     Y-axis values is the count (of what? intensity? normalized?).
     X-axis values are beta values (0 to 1) for a single samples
@@ -92,8 +92,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             when working with datasets and you don't need publication quality "exact" plots,
             supply a float between 0 and 1 to sample the probe data for plotting.
             We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
-            the distribution. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
-            Using 0.1 will speed up plotting 10-fold.
+            the distribution much. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
+            Using 0.1 will speed up plotting 10-fold of large batches.
         ymax (None): If defined, upper limit of plot will not exceed this value. But it y-range can be smaller if values are less than this range.
         full_range: (False) if True, x-axis will be auto-scaled, instead of fixed in the 0-to-1.0 range.
         return_fig: (False) if True, returns figure object instead of showing plot.
@@ -125,6 +125,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if df.shape[0] < 27000:
         LOGGER.warning("Data does not appear to be full probe data")
     # 3rd check: missing probe values (common with EPIC+)
+    pre_probe_count = df.shape[0]
     missing_probes = sum(df.isna().sum())
     if missing_probes > 0 and silent:
         df = df.copy().dropna()
@@ -135,6 +136,9 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         LOGGER.warning(f"Your data contains {int(missing_probes/len(df.columns))} missing probe values per sample, ({missing_probes} overall).")
         LOGGER.info(df.isna().sum())
         df = df.copy().dropna()
+    if df.shape[0] < 2:
+        print(f"ERROR: Could not plot these samples because there are missing values for each probe in at least one sample in the batch: Started with {pre_probe_count} probes and ended with {df.shape[0]} probes shared after filtering.")
+        return
 
     if reduce != None and reduce < 1.0:
         if not isinstance(reduce, (int, float)):
@@ -153,7 +157,9 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         show_labels = True if len(df.columns) <= 30 else False
     for col in df.columns: # samples
         if col != 'Name': # probe name
-            if reduce:
+            if reduce == 1.0:
+                values = df[col].values
+            elif reduce != None and 0 < reduce < 1.0:
                 values = df[col].values[probes]
             else:
                 values = df[col].values
@@ -173,9 +179,17 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
                 kwargs["kde_kws"] = kde_kws
             if show_labels:
                 kwargs["label"] = col
+
+            if values.shape[0] < 2:
+                if verbose:
+                    print(f"Skipping blank sample {values}")
+                continue
             sns.distplot(values, **kwargs)
 
     (obs_ymin, obs_ymax) = ax.get_ylim()
+    #if verbose: #DEBUG for if plot is blank
+    #    print(values.shape, kwargs, obs_ymin, obs_ymax)
+
     if ymax is not None and obs_ymax > ymax:
         ax.set_ylim(0, ymax)
     if show_labels:
@@ -189,7 +203,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         plt.xlim(0,1.0)
     plt.xlabel('Beta values')
     if save:
-        plt.savefig('beta.png')
+        plt.savefig(filename)
     if return_fig:
         return fig
     if not silent:

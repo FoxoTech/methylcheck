@@ -120,6 +120,9 @@ TODO:
     # looking for multiple pickled files (beta/m)
     if format in ('beta_value', 'm_value'):
         total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
+        # or specify one file by name instead of a folder.
+        if total_parts == [] and Path(filepath).exists() and Path(filepath).suffix == '.pkl':
+            total_parts = [Path(filepath)]
     elif format == 'meth_df':
         # this needs to deal with batches too
         test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
