@@ -3,18 +3,19 @@ from pathlib import Path
 import numpy as np
 import re # for sesame filename extraction
 import pandas as pd
+from importlib import resources # py3.7+
 #app
 from .progress_bar import * # context tqdm
 
 import logging
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
+pkg_namespace = 'methylcheck.data_files'
 
 __all__ = ['load', 'load_both', 'container_to_pkl']
 
 
-## modified this from methylprep on 2020-02-20 to allow for data_containers to be returned as option
-def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, no_poobah=False, pval_cutoff=0.05):
+def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, no_poobah=False, pval_cutoff=0.05, no_filter=True):
     """When methylprep processes large datasets, you use the 'batch_size' option to keep memory and file size
     more manageable. Use the `load` helper function to quickly load and combine all of those parts into a single
     data frame of beta-values or m-values.
@@ -38,12 +39,6 @@ Arguments:
         If you choose 'meth_df' or 'noob_df' it will load the pickled meth and unmeth dataframes from the
         folder specified.
 
-    file_stem (string):
-        By default, methylprep process with batch_size creates a bunch of generically named files, such as
-        'beta_values_1.pkl', 'beta_values_2.pkl', 'beta_values_3.pkl', and so on. IF you rename these or provide
-        a custom name during processing, provide that name here.
-        (i.e. if your pickle file is called 'GSE150999_beta_values_X.pkl', then your file_stem is 'GSE150999_')
-
     column_names:
         if your csv files contain column names that differ from those expected, you can specify them as a list of strings
         by default it looks for ['noob_meth', 'noob_unmeth'] or ['meth', 'unmeth'] or ['beta_value'] or ['m_value']
@@ -58,6 +53,16 @@ Arguments:
     pval_cutoff:
         if applying poobah (pvalue probe detection based on poor signal to noise)
         this specifies the threashold for cutoff (0.05 by default)
+
+    no_filter: (default = True)
+        if False, removes probes that illumina, the manufacturer, claimed are sketchy in 2019 for a select list of newer EPIC Sentrix_IDs.
+        only affects 'beta_value' and 'm_value' output; no effect on meth/unmeth raw/NOOB intensity values returned.
+
+    file_stem (string):
+        Older versions (pre v1.3.0) of methylprep processed with batch_size created a bunch of generically named files, such as
+        'beta_values_1.pkl', 'beta_values_2.pkl', 'beta_values_3.pkl', and so on. IF you rename these or provide
+        a custom name during processing, provide that name here to load them all.
+        (i.e. if your pickle file is called 'GSE150999_beta_values_X.pkl', then your file_stem is 'GSE150999_')
 
     verbose:
         outputs more processing messages.
@@ -98,12 +103,26 @@ TODO:
     - BUG: custom fields cannot auto detect the -pval- column and this isn't supplied in kwargs
     - DONE: meth_df deal with batches of files
 
+NOTES:
+    - modified this from methylprep on 2020-02-20 to allow for data_containers to be returned as option
+    - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
     """
+    #1a: validate inputs
     formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
+    #1b: set meta flags
+    processed_csv = False # whether to use individual sample files, or beta pkl files.
+    total_parts = []
+    poobah_parts = []
+    #1c: import meta data
+    PROBE_FILE = 'illumina_sketchy_probes_996.npy'
+    with resources.path(pkg_namespace, PROBE_FILE) as probe_filepath:
+        sketchy_probes = np.load(probe_filepath)
+
+    #2a: return some simpler data formats, before trying betas/m_values and processed_csvs.
     if format == 'sesame':
-        return load_sesame(
+        df = load_sesame(
             filepath=filepath,
             format=format,
             file_stem=file_stem,
@@ -113,19 +132,11 @@ TODO:
             no_poobah=no_poobah,
             pval_cutoff=pval_cutoff
             )
-    processed_csv = False # whether to use individual sample files, or beta pkl files.
-    total_parts = []
+        return df
 
-    # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
-    # looking for multiple pickled files (beta/m)
-    if format in ('beta_value', 'm_value'):
-        total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl'))
-        # or specify one file by name instead of a folder.
-        if total_parts == [] and Path(filepath).exists() and Path(filepath).suffix == '.pkl':
-            total_parts = [Path(filepath)]
     elif format == 'meth_df':
-        # this needs to deal with batches too
-        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
+        # this needs to deal with batches too, for backwards (pre v1.3) compatability
+        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl*')])
         meth_dfs = []
         unmeth_dfs = []
         for part in test_parts:
@@ -137,11 +148,12 @@ TODO:
             tqdm.pandas()
             meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
             unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            print(meth_dfs.shape, unmeth_dfs.shape)
+            LOGGER.info(f"{meth_dfs.shape} {unmeth_dfs.shape}")
             return meth_dfs, unmeth_dfs
+
     elif format == 'noob_df':
-        # this needs to deal with batches too
-        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl')])
+        # this needs to deal with batches too, for backwards (pre v1.3) compatability
+        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl*')])
         meth_dfs = []
         unmeth_dfs = []
         for part in test_parts:
@@ -153,14 +165,24 @@ TODO:
             tqdm.pandas()
             meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
             unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            print(meth_dfs.shape, unmeth_dfs.shape)
+            LOGGER.info(f"{meth_dfs.shape}, {unmeth_dfs.shape}")
             return meth_dfs, unmeth_dfs
 
+    #2b: determine number of file parts
+    # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
+    # looking for multiple pickled files (beta/m)
+    if format in ('beta_value', 'm_value'):
+        # .pkl or .pkl.gz OK
+        total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl*'))
+        # or specify one file by name instead of a folder.
+        if total_parts == [] and Path(filepath).exists() and '.pkl' in Path(filepath).suffixes:
+            total_parts = [Path(filepath)]
+
+    #3: scan for *_processed.csv files in subdirectories and pull out beta values from them.
     if total_parts == []:
-        # part 2: scan for *_processed.csv files in subdirectories and pull out beta values from them.
-        total_parts = list(Path(filepath).rglob('*_R0[0-9]C0[0-9][_.]processed.csv'))
+        total_parts = list(Path(filepath).rglob('*_R0[0-9]C0[0-9][_.]processed.csv*')) # won't recognize 27k formatting, but will recognize .csv.gz
         if verbose and not silent:
-            print(len(total_parts),'files matched')
+            LOGGER.info(f"{len(total_parts)} files matched")
         if total_parts != []:
             sample_betas = []
             sample_names = []
@@ -217,7 +239,9 @@ TODO:
                         sample.rename_axis('IlmnID', inplace=True)
 
                 fname = str(Path(part).name)
-                if '_processed.csv' in fname:
+                if '_processed.csv.gz' in fname:
+                    sample_name = fname.replace('_processed.csv.gz','')
+                elif '_processed.csv' in fname:
                     sample_name = fname.replace('_processed.csv','')
                 else:
                     sample_name = ''
@@ -227,23 +251,27 @@ TODO:
                 if 'beta_value' in sample.columns and format == 'beta_value':
                     if no_poobah == False and 'beta_value' in sample.columns and 'poobah_pval' in sample.columns:
                         sample.loc[sample['poobah_pval'] >= pval_cutoff, 'beta_value'] = np.nan
+                    if no_filter == False and 'beta_value' in sample.columns:
+                        sample.loc[sample.index.isin(sketchy_probes), 'beta_value'] = np.nan
 
                     col = sample.loc[:, ['beta_value']]
                     col.rename(columns={'beta_value': sample_name}, inplace=True)
                     sample_names.append(sample_name)
                     sample_betas.append(col)
                     if verbose and not silent:
-                        print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+                        LOGGER.info(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
                 elif 'm_value' in sample.columns and format == 'm_value':
                     if no_poobah == False and 'm_value' in sample.columns and 'poobah_pval' in sample.columns:
                         sample.loc[sample['poobah_pval'] >= pval_cutoff, 'm_value'] = np.nan
+                    if no_filter == False and 'm_value' in sample.columns:
+                        sample.loc[sample.index.isin(sketchy_probes), 'm_value'] = np.nan
 
                     col = sample.loc[:, ['m_value']]
                     col.rename(columns={'m_value': sample_name}, inplace=True)
                     sample_names.append(sample_name)
                     sample_betas.append(col)
                     if verbose and not silent:
-                        print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+                        LOGGER.info(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
                 elif (column_names is not None and
                     len(column_names) == 1 and
                     column_names[0] in sample.columns and
@@ -253,6 +281,8 @@ TODO:
 
                     if no_poobah == False and 'poobah_pval' in sample.columns:
                         sample.loc[sample['poobah_pval'] >= pval_cutoff, col_name] = np.nan
+                    if no_filter == False:
+                        sample.loc[sample.index.isin(sketchy_probes), col_name] = np.nan
 
                     col_name = column_names[0]
                     col = sample.loc[:, [col_name]]
@@ -260,7 +290,7 @@ TODO:
                     sample_names.append(sample_name)
                     sample_betas.append(col)
                     if verbose and not silent:
-                        print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+                        LOGGER.info(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
                 elif format == 'meth':
                     # this returns a data_containers object with meth and unmeth values
                     # find a suitable pair of columns to load
@@ -287,7 +317,7 @@ TODO:
                     if verbose and not silent:
                         if meth.shape[0] != unmeth.shape[0]:
                             LOGGER.warning(f"{sample_name} probe counts don't match: {meth.shape}|{unmeth.shape}")
-                        print(f'{sample_name} --> {len(data_containers)}')
+                        LOGGER.info(f'{sample_name} --> {len(data_containers)}')
                 else:
                     raise Exception(f"unknown format: {format} (allowed options: {formats})")
 
@@ -299,22 +329,28 @@ TODO:
                 if not silent:
                     LOGGER.info('Produced a list of Sample objects (use obj._SampleDataContainer__data_frame to get values)...')
                 return data_containers
-            print('merging...')
+
+            LOGGER.info('merging...')
             df = pd.concat(sample_betas, axis='columns', join='inner').progress_apply(lambda x: x)
+            ### HERE -- save the pieces of the DF and it merges 8X faster
+            #npy = df.to_numpy()
+            #parts.append(npy)
+            #npy = np.concatenate(parts, axis=1) # 8x faster with npy vs pandas
+            #df = pd.DataFrame(data=npy, index=samples, columns=probes)
             return df
+
         elif not silent:
             LOGGER.warning(f"No pickled files of type ({format}) found in {filepath} (or sub-folders).")
         return # wrapped up _processed.csv and _calls.csv.gz version of load()
 
-    # does this apply only to batches of beta/m-val.pkl files???
+    #4: read file parts for betas/m_values pkl or processed_csv files
     start = time.process_time()
     parts = []
-    #for i in range(1,total_parts):
     probes = pd.DataFrame().index
     samples = pd.DataFrame().index
-    for file in tqdm(total_parts, total=len(total_parts), desc="Files"):
+    for file in tqdm(total_parts, total=len(total_parts), desc="Files", disable=silent):
         if verbose:
-            print(file)
+            LOGGER.info(file)
         if processed_csv:
             df = pd.read_csv(file, index_col='IlmnID')
         else:
@@ -323,17 +359,39 @@ TODO:
         # ensure probes are in rows.
         if df.shape[0] < df.shape[1]:
             df = df.transpose()
-        # getting probes: both files should have probes in rows.
+        # getting probes: both file types should have probes in rows.
         if len(probes) == 0:
             probes = df.index
             if verbose:
-                print(f'Probes: {len(probes)}')
+                LOGGER.info(f'Probes: {len(probes)}')
+
         if processed_csv:
+            # p-value filtering already applied in earlier step when CSVs were read and collated into dataframe
             if format == 'beta_value':
                 samples = samples.append(df['beta_value'])
             if format == 'm_value':
                 samples = samples.append(df['m_value'])
         else:
+            # apply p-value filtering ---- requires locating a second .pkl file
+            if no_poobah == False:
+                if Path(filepath).exists() and Path(filepath).suffix == '.pkl' and len(total_parts) == 1: # filepath is a file
+                    poobah_files = list([str(pfile) for pfile in Path(filepath).parent.rglob(f'poobah_values*.pkl')])
+                    if len(poobah_files) == 1:
+                        poobah_file = poobah_files[0]
+                        pval = pd.read_pickle(poobah_file)
+                        pval_mask = pval[pval < 0.05]
+                        df = df[pval.applymap(lambda x: (True if x < pval_cutoff else False))]
+                    else:
+                        if len(poobah_files) == 0:
+                            LOGGER.info("No poobah_values.pkl file found.")
+                        else:
+                            LOGGER.info(f'Confused about TOO MANY poobah files: {poobah_files} -- not applying pval filtering.')
+
+                elif len(total_parts) >= 1: # filepath is a folder with .pkl files
+                    poobah_files = list([str(pfile) for pfile in Path(filepath).rglob(f'poobah_values*.pkl')])
+                    # here I'd need to match each part to its poobah file
+                    LOGGER.info("P-value filtering for multi-volume batchs is not implemented. Use the --poobah option in methylprep.run_pipeline() instead.")
+
             samples = samples.append(df.columns)
         npy = df.to_numpy()
         parts.append(npy)
@@ -608,10 +666,10 @@ example:
         if type(files) is list:
             df.to_pickle(files[0]) # meth
             df2.to_pickle(files[1]) # unmeth
-            print(f"wrote {files[0]}, {files[1]}")
+            LOGGER.info(f"wrote {files[0]}, {files[1]}")
         else:
             df.to_pickle(filenames[output])
-            print(f"wrote {filenames[output]}")
+            LOGGER.info(f"wrote {filenames[output]}")
     if type(filenames[output]) is list:
         return df, df2
     else:
@@ -673,7 +731,7 @@ def load_sesame(filepath='.',
     # files are Sentrix_ID ... manifest code ... _calls.csv.gz
     total_parts = list(Path(filepath).rglob(SESAME_RGLOB_PATTERN))
     if verbose and not silent:
-        print(len(total_parts),'files matched')
+        LOGGER.info(f"{len(total_parts)} files matched")
     if total_parts != []:
         sample_betas = []
         sample_names = []
@@ -709,7 +767,7 @@ def load_sesame(filepath='.',
             sample_names.append(sample_name)
             sample_betas.append(col)
             if verbose and not silent:
-                print(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+                LOGGER.info(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
         if len(sample_betas) > 30:
             tqdm.pandas()
             df = pd.concat(sample_betas, axis='columns', join='inner').progress_apply(lambda x: x)
@@ -717,4 +775,4 @@ def load_sesame(filepath='.',
             df = pd.concat(sample_betas, axis='columns', join='inner')
         return df
     else:
-        print("No sesame files found.")
+        LOGGER.info("No sesame files found.")

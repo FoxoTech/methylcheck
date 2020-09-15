@@ -3,6 +3,8 @@
 from importlib import resources # py3.7+
 import numpy as np
 import pandas as pd
+# app
+import methylcheck
 
 import logging
 # whilst debugging only: this is on.
@@ -10,6 +12,12 @@ import logging
 LOGGER = logging.getLogger(__name__)
 #LOGGER.setLevel(logging.DEBUG)
 pkg_namespace = 'methylcheck.data_files'
+
+with resources.path(pkg_namespace, 'illumina_sketchy_probes_996.npy') as probe_filepath:
+    illumina_sketchy_probes = np.load(probe_filepath)
+# "If the first 8 numbers of Sentrix_ID (i.e. xxxxxxxx0001) are greater or equal to 20422033,
+# then the BeadChip originates from production batches using the new manufacturing process."
+new_manufacturing_cutoff_id = 20422033
 
 ## TODO for unit testing:
 ## no coverage of 27k stuff
@@ -137,8 +145,9 @@ from {2} samples. {3} probes remaining.""".format(
         filtered = filtered.transpose()
     return filtered
 
+
 def exclude_probes(array, probe_list):
-    """Exclude probes from a df of samples. Use list_problem_probes() to obtain a list of probes, then pass that in as a probe_list along with the dataframe of beta values (array)
+    """Exclude probes from a df of samples. Use list_problem_probes() to obtain a list of probes (or pass in the names of 'Criteria' from problem probes), then pass that in as a probe_list along with the dataframe of beta values (array)
 
 Resolves a problem whereby probe lists have basic names, but samples have additional meta data added.
 Example:
@@ -154,12 +163,24 @@ sample probe names
 This chops off anything after the first underscore, and compares with probe_list to see if percent match increases.
 It then drops probes from array that match probe_list, at least partially.
 
-ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index."""
-
+ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index.
+ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fetch the list for you.
+"""
     # 1 - check shape of array, to ensure probes are the index/values
     ARRAY = array.index
     if len(array.index) < len(array.columns):
         ARRAY = array.columns
+
+    # 2 - check if probe_list is a list of probes, or a string
+    if isinstance(probe_list,str):
+        array_type = methylcheck.detect_array(array)
+        probe_list = list_problem_probes(array_type.upper(), [probe_list])
+    elif isinstance(probe_list,list) and all([(isinstance(item,str) and item.startswith('cg')) for item in probe_list]):
+        # a list of probes
+        pass
+    elif isinstance(probe_list,list) and isinstance(probe_list[0],str) and len(probe_list) < 100:
+        array_type = methylcheck.detect_array(array)
+        probe_list = list_problem_probes(array_type.upper(), probe_list)
 
     pre_overlap = len(set(ARRAY) & set(probe_list))
 
@@ -187,7 +208,7 @@ def problem_probe_reasons(array, criteria=None):
         name for type of array used
         'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
         This shorthand names are also okay:
-        'EPIC','EPIC+','450k','27k'
+            {'EPIC','EPIC+','450k','27k','MOUSE'}
 
     criteria: list
         List of the publications to use when excluding probes.
@@ -223,7 +244,7 @@ def problem_probe_reasons(array, criteria=None):
         ]
     if criteria != None and set(criteria) - set(all_criteria) != set():
         unrecognized = set(criteria) - set(all_criteria)
-        raise ValueError(f"Unrecognized criteria: ({unrecognized})\n One these are allowed: {all_criteria}")
+        raise ValueError(f"Unrecognized criteria: ({unrecognized})\n One of these are allowed: {all_criteria}")
     translate = {
         'EPIC+': 'IlluminaHumanMethylationEPIC',
         'EPIC': 'IlluminaHumanMethylationEPIC',
@@ -277,7 +298,7 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         name for type of array used
         'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
         This shorthand names are also okay:
-        'EPIC','EPIC+','450k','27k'
+            {'EPIC','EPIC+','450k','27k','MOUSE'}
 
     criteria: list
         List of the publications to use when excluding probes.
@@ -290,6 +311,8 @@ def list_problem_probes(array, criteria=None, custom_list=None):
         If the array is EPIC the publications may include:
             'Zhou2016'
             'McCartney2016'
+        If array is EPIC or EPIC+, specifying 'illumina' will remove 998
+            probes the manufacturer has recommended be excluded.
         If no publication list is specified, probes from
         all publications will be added to the exclusion list.
         If more than one publication is specified, all probes
@@ -303,6 +326,7 @@ def list_problem_probes(array, criteria=None, custom_list=None):
             'CrossHybridization'
             'BaseColorChange'
             'RepeatSequenceElements'
+            'illumina'
         If no criteria list is specified, all critera will be
         excluded. If more than one criteria is specified,
         all probes meeting any of the listed criteria will be
@@ -345,7 +369,7 @@ Reason lists for epic:
     BaseColorChange (406)
         """
     all_criteria = ['Polymorphism', 'CrossHybridization',
-        'BaseColorChange', 'RepeatSequenceElements',
+        'BaseColorChange', 'RepeatSequenceElements', 'illumina',
         'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
         'Zhou2016', 'McCartney2016'
         ]
@@ -358,6 +382,7 @@ Reason lists for epic:
         'EPIC': 'IlluminaHumanMethylationEPIC',
         '450k': 'IlluminaHumanMethylation450k',
         '27k': 'IlluminaHumanMethylation27k',
+        'MOUSE': 'MOUSE',
          }
 
     probe_pubs_translate = {
@@ -376,8 +401,13 @@ Reason lists for epic:
     BaseColorChange, RepeatSequenceElements,
     Chen2013, Price2013, Zhou2016, Naeem2014,
     DacaRoszak2015, McCartney2016]"""
+
     if not custom_list:
         custom_list = []
+
+    if criteria and 'illumina' in criteria and array == 'IlluminaHumanMethylationEPIC':
+        custom_list.extend(illumina_sketchy_probes)
+
     if not criteria:
         probe_exclusion_list = list(set(probe_dataframe['Probe'].values))
         probe_exclusion_list = list(set(probe_exclusion_list + custom_list))

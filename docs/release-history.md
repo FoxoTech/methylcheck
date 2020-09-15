@@ -1,5 +1,13 @@
 # Release History
 
+## v0.6.2
+- minor fixes to load() and read_geo()
+- exclude_probes() accepts problem_probes criteria as alternate way to specify probes.
+    Exclude probes from a df of samples. Use list_problem_probes() to obtain a list of probes (or pass in the names of 'Criteria' from problem probes), then pass that in as a probe_list along with the dataframe of beta values (array)
+- load_processed now has a --no_filter=False option that will remove probes that failed p-value detection,
+    if passing in beta_values.pkl and poobah_values.pkl files.
+- load() now handles gzipped files the same way (so .pkl.gz or .csv.gz OK as file or folder inputs)
+
 ## v0.6.1
 - exposed more beta_density_plot parameters, so it can be used to make a QC plot (highlighting one
     or several samples within a larger batch, and graying out the others in the plot).

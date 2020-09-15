@@ -2,6 +2,7 @@
 from logging import NullHandler, getLogger
 # App
 from .cli import detect_array
+
 from .probes.filters import (
     exclude_sex_control_probes,
     list_problem_probes,

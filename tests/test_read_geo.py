@@ -13,6 +13,7 @@ class TestReadGeo():
         'GSE73745_test.txt',
         'GSE46573_test.txt',
         'GSE72354_test.csv',
+        'GSE72354_test.csv.gz',
         'GSE72120_test.txt',
         #'GSE133355_test.xlsx', # this one failed with the multiline header in sub-file. so I just truncated the original file
         'GSE133355_processed_test.xlsx', # multiline header here, and extra columns that are not sample betas.
@@ -31,6 +32,7 @@ class TestReadGeo():
         'GSE73745_test.txt': (200, 24),
         'GSE46573_test.txt': (200, 22),
         'GSE72354_test.csv': (200, 34),
+        'GSE72354_test.csv.gz': (200, 34),
         'GSE72120_test.txt': (200, 72),
         'GSE133355_processed_test.xlsx': (6735, 44),
         'GSE61653_test.txt': (200, 127),
@@ -45,7 +47,7 @@ class TestReadGeo():
     }
 
     def test_read_csv(self):
-        files = [file for file in self.unit_test_files if Path(TESTPATH,file).suffix == '.csv']
+        files = [file for file in self.unit_test_files if ('.csv' in Path(TESTPATH,file).suffixes)]
         for infile in files:
             df = methylcheck.read_geo(Path(TESTPATH,infile), verbose=False)
             if not hasattr(df,'shape'):

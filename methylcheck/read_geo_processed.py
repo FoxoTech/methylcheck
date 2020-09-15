@@ -22,9 +22,10 @@ except ImportError as error:
 '''
 
 def read_geo_v1(filepath, verbose=False, debug=False):
-    """Use to load preprocessed GEO data into methylcheck. Attempts to find the sample beta/M_values
+    """VERSION 1.0 DEPRECATED June 2020 for v3, called "read_geo"
+    Use to load preprocessed GEO data into methylcheck. Attempts to find the sample beta/M_values
     in the CSV/TXT/XLSX file and turn it into a clean dataframe, with probe ids in the index/rows.
-    VERSION 1.0 (deprecated June 2020 for v3, called "read_geo")
+
 
     - reads a downloaded file, either in csv, xlsx, pickle, txt
     - looks for /d_RxxCxx patterned headings and an probe index

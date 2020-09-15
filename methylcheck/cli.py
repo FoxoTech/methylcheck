@@ -27,6 +27,8 @@ def detect_array(df, returns='name', on_lambda=False):
         methylprep.files.manifests ARRAY_TYPE_MANIFEST_FILENAMES.
     on_lambda (True | False)
         looks for manifest files in /tmp instead of ~/.methylprep_manifest_files
+
+    returns one of: {27k, 450k, epic, epic+, mouse}
     """
 
     if returns == 'filepath':
