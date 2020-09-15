@@ -136,7 +136,8 @@ def _make_qc_df(meth,unmeth):
                left_on=mmed.index,
                right_on=umed.index,
                how='inner').set_index('key_0',drop=True)
-    del qc.index.name
+    #del qc.index.name
+    qc.index.name = None
     return qc
 
 

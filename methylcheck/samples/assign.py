@@ -69,9 +69,10 @@ options:
                 else:
                     kde_kws = {'linewidth':1}
 
-                sns.distplot(
-                    values, hist=False, rug=False, kde=True,
-                    ax=ax, axlabel='beta', color=this_color, kde_kws=kde_kws)
+                #sns.distplot(
+                #    values, hist=False, rug=False, kde=True,
+                #    ax=ax, axlabel='beta', color=this_color, kde_kws=kde_kws)
+                sns.kdeplot(values, ax=ax, label='beta', color=this_color, **kde_kws)
         (data_ymin,data_ymax) = ax.get_ylim()
         if data_ymax > ymax:
             ax.set_ylim(0,ymax)

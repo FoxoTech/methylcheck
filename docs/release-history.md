@@ -7,6 +7,7 @@
 - load_processed now has a --no_filter=False option that will remove probes that failed p-value detection,
     if passing in beta_values.pkl and poobah_values.pkl files.
 - load() now handles gzipped files the same way (so .pkl.gz or .csv.gz OK as file or folder inputs)
+- seaborn v0.10 --> v0.11 deprecrated the distplot() function that was used heavily. So now this employs kdeplot() in its place, with similar results.
 
 ## v0.6.1
 - exposed more beta_density_plot parameters, so it can be used to make a QC plot (highlighting one

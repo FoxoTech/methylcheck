@@ -53,7 +53,8 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
     data = df.copy(deep=True)
     data['mean'] = data.mean(numeric_only=True, axis=1)
     fig, ax = plt.subplots(figsize=(12, 9))
-    sns.distplot(data['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
+    #sns.distplot(data['mean'], hist=False, rug=False, ax=ax, axlabel='beta')
+    sns.kdeplot(data['mean'], ax=ax, label='beta')
     plt.title('Mean Beta Plot')
     plt.grid()
     plt.xlim(0,1.0)
@@ -124,7 +125,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     # 2nd check: incomplete probes
     if df.shape[0] < 27000:
         LOGGER.warning("Data does not appear to be full probe data")
-    # 3rd check: missing probe values (common with EPIC+)
+    # 3rd check: missing probe values (common with EPIC+ and pvalues)
     pre_probe_count = df.shape[0]
     missing_probes = sum(df.isna().sum())
     if missing_probes > 0 and silent:
@@ -156,7 +157,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if show_labels is None: # user-param-always overrides this.
         show_labels = True if len(df.columns) <= 30 else False
     for col in df.columns: # samples
-        if col != 'Name': # probe name
+        if col not in ('Name','ID_REF'): # probe name
             if reduce == 1.0:
                 values = df[col].values
             elif reduce != None and 0 < reduce < 1.0:
@@ -166,17 +167,20 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             if len(values.shape) > 1:
                 raise ValueError("Your df probaby contains duplicate sample names.")
 
+            # updated for seaborn v0.11 (kwargs differ from v0.10; used kde_kws["lw"] instead of "linewidth")
             kde_kws = None # optional, conditional color highlighting for one or several samples in the DF, using the "highlight_samples" list passed in.
             if highlight_samples not in (None,[]):
-                kde_kws={"color": "lightgray", "lw": 1}
+                kde_kws={"color": "lightgray", "linewidth": 1}
                 if isinstance(highlight_samples, str) and col == highlight_samples:
-                    kde_kws.update({"color":"b", "lw":3})
+                    kde_kws.update({"color":"b", "linewidth":3}) #"fill": True
                 if isinstance(highlight_samples, list) and col in highlight_samples:
-                    kde_kws.update({"color":"b", "lw":3})
+                    kde_kws.update({"color":"b", "linewidth":3}) #"fill":True
 
-            kwargs = {"hist":False, "rug":False, "kde":True, "ax":ax, "axlabel":'beta'}
+            #kwargs = {"hist":False, "rug":False, "kde":True, "ax":ax, "axlabel":'beta'} seaborn v.10
+            kwargs = {"ax": ax}
             if kde_kws:
-                kwargs["kde_kws"] = kde_kws
+                #kwargs["kde_kws"] = kde_kws seaborn v0.10
+                kwargs.update(kde_kws) # seaborn v0.11
             if show_labels:
                 kwargs["label"] = col
 
@@ -184,7 +188,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
                 if verbose:
                     print(f"Skipping blank sample {values}")
                 continue
-            sns.distplot(values, **kwargs)
+            #sns.distplot(values, **kwargs)
+            sns.kdeplot(values, **kwargs)
 
     (obs_ymin, obs_ymax) = ax.get_ylim()
     #if verbose: #DEBUG for if plot is blank
@@ -260,7 +265,8 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
         cumulative_sum = np.cumsum(hist_vals)
         if cumulative_sum[5] < cutoff:
             good_samples.append(subject_num)
-            sns.distplot(row, hist=False, norm_hist=False)
+            #sns.distplot(row, hist=False, norm_hist=False)
+            sns.kdeplot(row)
         else:
             outliers.append(subject_id) # drop uses ids, not numbers.
 
@@ -593,7 +599,12 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
 
 def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
     """Use this function to compare two dataframes, pre-vs-post filtering and removal of outliers.
+args:
+    the first argument (df1) is the "pre" dataframe of samples
+    the second argument (df2) is the "post" dataframe of samples
 
+kwargs:
+    verbose: additional output
     silent: suppresses figure, so no output unless save==True too."""
     if df1.shape[0] < df1.shape[1]:
         ## ensure probes in rows and samples in cols
@@ -614,8 +625,10 @@ def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
     data2['mean'] = data2.mean(numeric_only=True, axis=1)
 
     fig, ax = plt.subplots(figsize=(12, 9))
-    line1 = sns.distplot(data1['mean'], hist=False, rug=False, ax=ax, axlabel='beta', color='xkcd:blue')
-    line2 = sns.distplot(data2['mean'], hist=False, rug=False, color='xkcd:green')
+    #line1 = sns.distplot(data1['mean'], hist=False, rug=False, ax=ax, axlabel='beta', color='xkcd:blue')
+    #line2 = sns.distplot(data2['mean'], hist=False, rug=False, color='xkcd:green')
+    line1 = sns.kdeplot(data1['mean'], ax=ax, label='beta', color='xkcd:blue')
+    line2 = sns.kdeplot(data2['mean'], color='xkcd:green')
     plt.title('Mean Beta Plot (Compare pre (blue) vs post (green) filtering)')
     plt.grid()
     plt.xlabel('Mean Beta')

@@ -463,18 +463,18 @@ def drop_nan_probes(df, silent=False, verbose=False):
         pre_shape = df.shape
         df = df.dropna()
         note = "(probes,samples)"
-        if not silent:
-            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan}")
-            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
-        if verbose:
-            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan)))
+        if not silent and verbose and len(dfnan) < 200:
+            LOGGER.info(f"Dropped {len(dfnan)} probe(s) that are missing for this calculation: {dfnan}")
+            LOGGER.info(f"Retained {df.shape} {note} from the original {pre_shape} {note}.")
+        elif not silent and verbose and len(dfnan) >= 200:
+            LOGGER.info(f"Dropped {len(dfnan)} probes; retained {df.shape} {note} from the original {pre_shape} {note}.")
     elif len(dfnan.columns) > 0 and df.shape[1] > df.shape[0]:
         pre_shape = df.shape
         df = df.dropna(axis='columns')
         note = "(samples,probes)"
-        if not silent:
-            LOGGER.info(f"dropping probe(s) that are missing a value (for this calculation): {dfnan.columns}")
-            LOGGER.info(f"retained {df.shape} {note} from the original {pre_shape} {note}.")
-        if verbose:
-            print("We found {0} probe(s) were missing values and removed them from calculations.".format(len(dfnan.columns)))
+        if not silent and verbose and len(dfnan.columns) < 200:
+            LOGGER.info(f"Dropped {len(dfnan.columns)} probe(s) that are missing for this calculation: {dfnan.columns}")
+            LOGGER.info(f"Retained {df.shape} {note} from the original {pre_shape} {note}.")
+        elif not silent and verbose and len(dfnan.columns) >= 200:
+            LOGGER.info(f"Dropped {len(dfnan.columns)} probes; retained {df.shape} {note} from the original {pre_shape} {note}.")
     return df

@@ -390,7 +390,8 @@ NOTES:
                 elif len(total_parts) >= 1: # filepath is a folder with .pkl files
                     poobah_files = list([str(pfile) for pfile in Path(filepath).rglob(f'poobah_values*.pkl')])
                     # here I'd need to match each part to its poobah file
-                    LOGGER.info("P-value filtering for multi-volume batchs is not implemented. Use the --poobah option in methylprep.run_pipeline() instead.")
+                    if verbose:
+                        LOGGER.info("P-value filtering for multi-volume batchs is not implemented. Use the --poobah option in methylprep.run_pipeline() instead.")
 
             samples = samples.append(df.columns)
         npy = df.to_numpy()
