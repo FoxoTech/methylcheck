@@ -4,6 +4,7 @@ TESTPATH = 'tests'
 #app
 import methylcheck
 
+
 def test_list_problem_probes():
     """ confirm the number of probes matches expected counts for diff combinations """
     arrays = ['450k','EPIC']
@@ -101,3 +102,10 @@ def other():
         xhybridizing_sketchy_probes).intersection(basecolorchange_sketchy_probes).intersection(
         repeat_sketchy_probes))
     print('pxbr_intersection_sketchy_probes', len(pxbr_intersection_sketchy_probes))
+
+
+def test_exclude_sex_control_probes():
+    test_filepath = 'docs/example_data/GSE69852'
+    df = methylcheck.load(test_filepath)
+    array = '450k'
+    filtered = methylcheck.exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=False)

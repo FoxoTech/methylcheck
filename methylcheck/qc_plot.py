@@ -240,7 +240,8 @@ optional params:
         if the processed data contains both noob and uncorrected values, it will plot both in different colors
         the compare option will not work with using the 'meth' and 'unmeth' inputs, only with path or data_containers.
 
-this will draw a diagonal line on plots
+this will draw a diagonal line on plots.
+    the cutoff line is based on the X-Y scale of the plot, which depends on the range of intensity values in your data set.
 
 FIX:
     doesn't return both types of data if using compare and not plotting

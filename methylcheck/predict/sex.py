@@ -89,8 +89,9 @@ customize the import if your files were not prepared using methylprep (non-stand
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")
 
-    # get list of X any Y probes - using .methylprep_manifest_files (or MANIFEST_DIR_PATH_LAMBDA) and auto-detected array here
-    array_type = ArrayType(methylcheck.detect_array(meth, on_lambda=on_lambda))
+    if array_type == None:
+        # get list of X any Y probes - using .methylprep_manifest_files (or MANIFEST_DIR_PATH_LAMBDA) and auto-detected array here
+        array_type = ArrayType(methylcheck.detect_array(meth, on_lambda=on_lambda))
 
     if verbose:
         LOGGER.debug(array_type)

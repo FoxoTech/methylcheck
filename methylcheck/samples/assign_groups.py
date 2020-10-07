@@ -5,7 +5,9 @@ import matplotlib.pyplot as plt
 from collections import Counter
 import methylcheck
 
-## TODO: assign() and plot_assigned_groups() has no unit tests
+# dummy function for pytest to test assign()
+def get_input(text):
+    return input(text)
 
 def assign(df, two_pass=False):
     """Manually and interactively assign each sample to a group, based on beta-value distribution shape.
@@ -112,17 +114,17 @@ options:
         sample_plot_color_clusters(sub_sample_df, colormap=colormap, reduce=0.01)
         print(color_guide(user_defined_groups))
         while True:
-            g = input(f"Group ({predicted_group}): ")
+            g = get_input(f"Group ({predicted_group}): ")
             if g in (""," "):
                 g = predicted_group
             try:
                 g = int(g)
             except:
                 print('Only use numbers between -1 and 16!')
-                g = input(f"Group ({predicted_group}): ")
+                g = get_input(f"Group ({predicted_group}): ")
             if g not in colors:
                 print('Only use numbers between -1 and 16!')
-                g = input(f"Group ({predicted_group}): ")
+                g = get_input(f"Group ({predicted_group}): ")
             else:
                 break
         user_defined_groups[sample_id] = g
@@ -139,7 +141,7 @@ options:
         print(f"Group ({cluster}) {len(samples)} samples: {samples}")
         methylcheck.sample_plot(sub_sample_df)
         if two_pass:
-            yesno = input(f"Rework Group ({cluster}) (y/n)?")
+            yesno = get_input(f"Rework Group ({cluster}) (y/n)?")
             if yesno in ('y','Y','yes'):
                 past_samples = []
                 for sample_id in samples:
@@ -148,17 +150,17 @@ options:
                     sample_plot_color_clusters(sub_sample_df, colormap=colormap, reduce=0.01)
                     print(color_guide(user_defined_groups))
                     while True:
-                        g = input(f"Group ({cluster}): ")
+                        g = get_input(f"Group ({cluster}): ")
                         if g in (""," "):
                             g = cluster
                         try:
                             g = int(g)
                         except:
                             print('Only use numbers between -1 and 16!')
-                            g = input(f"Group ({cluster}): ")
+                            g = get_input(f"Group ({cluster}): ")
                         if g not in colors:
                             print('Only use numbers between -1 and 16!')
-                            g = input(f"Group ({cluster}): ")
+                            g = get_input(f"Group ({cluster}): ")
                         else:
                             break
                     user_defined_groups[sample_id] = g

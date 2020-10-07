@@ -605,6 +605,8 @@ Pre-processing pipeline
                 edges='open',
                 colLoc='right',
                 )
+            matplotlib_table.auto_set_font_size(False)
+            matplotlib_table.set_fontsize(12)
             if page == 0:
                 self.plt.title(add_title, y=1.1) #pad=20) # -- placement is off
             self.pdf.savefig(fig)

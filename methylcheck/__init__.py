@@ -15,7 +15,7 @@ from .samples.postprocessQC import (
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
     sample_plot,
     )
-from .samples.assign import assign, plot_assigned_groups
+from .samples.assign_groups import assign, plot_assigned_groups
 
 from .predict.sex import get_sex
 
