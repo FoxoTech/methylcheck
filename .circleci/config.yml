@@ -51,7 +51,7 @@ jobs:
             pipenv run coverage html
             pipenv run coveralls # -- pushes report to coveralls.io
       - run:
-          name: Optional: Uploading codacy code-quality
+          name: Optional upload codacy code-quality
           command: |
             # ECHO disabling this because matplotlib bug breaks this command, but not the pytest function just run.
             # pipenv run pytest tests --junitxml=htmlcov/junit.xml #--junit-xml=htmlcov/junit.xml # must rerun to collect test results
