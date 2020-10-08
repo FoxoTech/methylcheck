@@ -41,15 +41,19 @@ jobs:
             - "/usr/local/bin"
             - "/usr/local/lib/python3.7/site-packages"
       - run:
-          name: Running tests and test coverage
+          name: Running tests
           command: |
             pipenv install methylprep --skip-lock
             pipenv install coveralls --skip-lock
-            pipenv run coverage run setup.py test
-            pipenv run pytest tests --junit-xml=htmlcov/junit.xml # must rerun to collect test results
+            pipenv run pip show matplotlib
+            pipenv run coverage run setup.py pytest
             pipenv run coverage report
             pipenv run coverage html
             pipenv run coveralls # -- pushes report to coveralls.io
+      - run:
+          name: Saving test results and coverage
+          command: |
+            pipenv run pytest tests --junitxml=htmlcov/junit.xml #--junit-xml=htmlcov/junit.xml # must rerun to collect test results
       - store_test_results:
           path: htmlcov
       - store_artifacts:
