@@ -1,4 +1,3 @@
-from methylprep import run_pipeline
 from methylcheck import mean_beta_compare
 from scipy import stats
 from statsmodels.distributions.empirical_distribution import ECDF

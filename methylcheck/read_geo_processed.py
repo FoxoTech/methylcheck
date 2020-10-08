@@ -592,6 +592,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
     sample_count = 0
     sequential_numbers = None # starting from 1 to xx
     avg_sample_repeats = 1
+    failed_attempts = []
     for sep in seps:
         try:
             sample_numbers_list = [[part for part in column.split(sep) if re.match(r'\d+', part)][0] for column in sample_columns]
@@ -605,6 +606,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
                 sample_numbers_range = [min(sorted_sample_numbers_list), max(sorted_sample_numbers_list)]
                 break
         except Exception as e:
+            failed_attempts.append(e)
             continue
 
     # detect if some part of columns are named like sample_ids

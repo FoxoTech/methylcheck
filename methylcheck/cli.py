@@ -34,7 +34,7 @@ def detect_array(df, returns='name', on_lambda=False):
     if returns == 'filepath':
         # get manifest data from .methylprep_manifest_files
         try:
-            from methylprep.files.manifests import MANIFEST_DIR_PATH, MANIFEST_DIR_PATH_LAMBDA, ARRAY_TYPE_MANIFEST_FILENAMES, Manifest
+            from methylprep.files.manifests import MANIFEST_DIR_PATH, MANIFEST_DIR_PATH_LAMBDA, ARRAY_TYPE_MANIFEST_FILENAMES
             from methylprep.models.arrays import ArrayType
         except ImportError:
             raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
@@ -225,7 +225,7 @@ Also see methylcheck.list_problem_probes for more details.',
         beta_density_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
         wide_df = df.copy().transpose()
         cumulative_sum_beta_distribution(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
-        df_filtered = beta_mds_plot(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
+        beta_mds_plot(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
     else:
         if 'mean_beta_plot' in args.plot:
             mean_beta_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)

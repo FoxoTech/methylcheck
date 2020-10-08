@@ -760,12 +760,12 @@ def load_sesame(filepath='.',
             fname = str(Path(part).name)
             pattern = re.match(SESAME_FILENAME_REGEX, fname, re.I)
             if pattern and len(pattern.groups()) >= 1:
-                sample_name = pattern.groups(1)
+                sample_name = pattern.groups()[0]
             else:
                 sample_name = ''
 
             col = sample.loc[:, [beta_column]]
-            col.rename(columns={'beta_value': sample_name}, inplace=True)
+            col.rename(columns={beta_column: sample_name}, inplace=True)
             sample_names.append(sample_name)
             sample_betas.append(col)
             if verbose and not silent:
