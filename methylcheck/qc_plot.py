@@ -136,7 +136,8 @@ def _make_qc_df(meth,unmeth):
                left_on=mmed.index,
                right_on=umed.index,
                how='inner').set_index('key_0',drop=True)
-    del qc.index.name
+    #del qc.index.name
+    qc.index.name = None
     return qc
 
 
@@ -239,7 +240,8 @@ optional params:
         if the processed data contains both noob and uncorrected values, it will plot both in different colors
         the compare option will not work with using the 'meth' and 'unmeth' inputs, only with path or data_containers.
 
-this will draw a diagonal line on plots
+this will draw a diagonal line on plots.
+    the cutoff line is based on the X-Y scale of the plot, which depends on the range of intensity values in your data set.
 
 FIX:
     doesn't return both types of data if using compare and not plotting
@@ -543,7 +545,7 @@ options:
         return figs
 
 
-def _qc_plotter(stain_red, stain_green, color_dict={}, columns=None, ymax=None,
+def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None,
         title='', return_fig=False):
     """ draft generic plotting function for all the genome studio QC functions.
     used by plot_staining_controls()
@@ -553,7 +555,7 @@ options:
     required: stain_red and stain_green
         contains: red/green values in columns and probe characteristics in rows (transposed from control_probes.pkl format).
     color_dict
-        can be passed in: defines which color to make each value in the index.
+        {value: color-code} dictionary passed in to define which color to make each value in the index.
     ymax
         if defined, constrains the plot y-max values. Used to standardize view of each probe type within normal ranges.
         any probe values that fall outside this range generate warnings.
@@ -575,6 +577,8 @@ todo:
     title = title + ' ' if title != '' else title
     ax1.set_title(f'{title}Green')
     ax2.set_title(f'{title}Red')
+    if color_dict is None:
+        color_dict = {}
 
     # DEBUG: control probes contain '-99 in the Color column. Breaks plot.' But resolved by plot_controls() now.
     if '-99' in color_dict.values():

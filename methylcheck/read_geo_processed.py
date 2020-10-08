@@ -22,9 +22,10 @@ except ImportError as error:
 '''
 
 def read_geo_v1(filepath, verbose=False, debug=False):
-    """Use to load preprocessed GEO data into methylcheck. Attempts to find the sample beta/M_values
+    """VERSION 1.0 DEPRECATED June 2020 for v3, called "read_geo"
+    Use to load preprocessed GEO data into methylcheck. Attempts to find the sample beta/M_values
     in the CSV/TXT/XLSX file and turn it into a clean dataframe, with probe ids in the index/rows.
-    VERSION 1.0 (deprecated June 2020 for v3, called "read_geo")
+
 
     - reads a downloaded file, either in csv, xlsx, pickle, txt
     - looks for /d_RxxCxx patterned headings and an probe index
@@ -92,7 +93,7 @@ notes:
     probe_pattern = re.compile(r'(cg|rs|ch\.\d+\.|ch\.X\.|ch\.Y\.)\d+')
     samples = []
     for col in test.columns:
-        probes = [i for i in test[col] if type(i) == str and re.match(probe_pattern,i)] #re.match('cg\d+',i)]
+        probes = [i for i in test[col] if isinstance(i,str) and re.match(probe_pattern,i)] #re.match('cg\d+',i)]
         if len(probes) == len(test):
             index_name = col
             if verbose:
@@ -259,18 +260,20 @@ notes:
     """
 
     #1. load and read the file, regardless of type and CSV delimiter choice.
+    this = Path(filepath)
     kwargs = {'nrows':200} if test_only else {}
 
     raw = pd_load(filepath, **kwargs)
     if not isinstance(raw, pd.DataFrame):
-        print(type(raw),'aborting')
+        LOGGER.error(f"Did not detect a file: {type(raw)} aborting")
         return
-    if debug: print(f"{filepath} loaded.")
+    if debug: LOGGER.info(f"{filepath} loaded.")
 
     def calculate_beta_value(methylated_series, unmethylated_series, offset=100):
         """ borrowed from methylprep.processing.postprocess.py """
-        methylated = max(methylated_series, 0)
-        unmethylated = max(unmethylated_series, 0)
+        methylated = np.clip(methylated_series, 0, None)
+        unmethylated = np.clip(unmethylated_series, 0, None)
+
         total_intensity = methylated + unmethylated + offset
         intensity_ratio = methylated / total_intensity
         return intensity_ratio
@@ -290,7 +293,7 @@ notes:
 
         if not meta.get('sample_names') and not meta['sample_names'].get('meth'):
             # when "sample" not in columns.
-            print("ERROR: missing sample_names")
+            LOGGER.error("ERROR: missing sample_names")
             pass
         if meta['sample_numbers_range'] and meta['sample_numbers_range'][1] <= meta['total_samples']:
             # if non-sequential sample numbers, cannot rely on this range.
@@ -307,13 +310,12 @@ notes:
                 col_u = meta['sample_names']['unmeth'][sample_number]
                 #col_pval = meta['sample_columns']['pval']
             except Exception as e:
-                print('ERROR', e, meta['sample_names']['meth'][sample_number], list(meta['sample_names']['unmeth'].columns)[sample_number])
+                LOGGER.error(f"ERROR {e} {meta['sample_names']['meth'][sample_number]} {list(meta['sample_names']['unmeth'].columns)[sample_number]}")
                 continue
 
-            vectorized_beta_func = np.vectorize(calculate_beta_value)
             unmeth_series = raw[col_u]
             meth_series = raw[col_m]
-            betas = vectorized_beta_func(meth_series, unmeth_series)
+            betas = calculate_beta_value(meth_series, unmeth_series)
 
             # try to lookup and retain any unique part of column names here
             col_name = f"Sample_{sample_number + 1}"
@@ -324,7 +326,7 @@ notes:
                     if this_stem not in out_df.columns:
                         col_name = this_stem
                 except IndexError:
-                    if debug: print(f"ERROR: unable to assign Sample {sample_number} using original column stem.")
+                    if debug: LOGGER.error(f"ERROR: unable to assign Sample {sample_number} using original column stem.")
 
                 """ This code was trying to match samples up using regex/difflib but it was unreliable.
                 this_stem = [stem for stem in meta['sample_names_stems'] if stem in col_m]
@@ -337,7 +339,7 @@ notes:
                         elif best_match != []: # ensure unique in out_df, even if not a perfect transfer of labels.
                             col_name = f"{best_match[0]}_{sample_number}"
                         else:
-                            if debug: print(f"WARNING: multiple similar sample names detected but none were a close match: {col_m} : {this_stem}")
+                            if debug: LOGGER.info(f"WARNING: multiple similar sample names detected but none were a close match: {col_m} : {this_stem}")
                             col_name = f"Sample_{sample_number}"
                     elif len(this_stem) == 1 and this_stem[0] not in out_df.columns:
                         # only one match, and is unique.
@@ -355,7 +357,7 @@ notes:
                 out_df[col_name] = betas
                 sample_number += 1
             except Exception as e:
-                print('ERROR', col_name, len(betas), out_df.shape, e)
+                LOGGER.error(f"ERROR {col_name} {len(betas)} {out_df.shape} {e}")
         out_df = out_df.round(decimals)
 
         beta_value_range = True if all([all(out_df[col_name].between(0,1)) == True for col_name in out_df.columns]) else False
@@ -365,7 +367,7 @@ notes:
         except:
             value_mean = 0
         if verbose:
-            print(f"Returning {len(out_df.columns)} samples (mean: {value_mean}). Structure appears to be {meta['columns_per_sample']} columns per sample; raw data column pattern was '{meta['column_pattern']}'; probes in rows; and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning {len(out_df.columns)} samples (mean: {value_mean}). Structure appears to be {meta['columns_per_sample']} columns per sample; raw data column pattern was '{meta['column_pattern']}'; probes in rows; and {probe_name_msg} as the probe names.")
         return out_df
 
     #2. test file structure
@@ -380,7 +382,7 @@ notes:
         new_non_blank_col_count = len(raw.loc[:, ~raw.columns.str.contains('^Unnamed:')].columns)
         if verbose: print(f"After ignoring multiline header: {old_non_blank_col_count} old columns are now {new_non_blank_col_count} new named columns.")
     if debug:
-        print(f"file shape: {raw.shape}")
+        LOGGER.info(f"file shape: {raw.shape}")
         concise = meta.copy()
         concise.pop('sample_names')
         from pprint import pprint
@@ -423,13 +425,13 @@ notes:
         except:
             value_mean = 0
         if verbose and meta['columns_per_sample'] != 1 and beta_value_range:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} samples. Structure appears to be {meta['columns_per_sample']} columns per sample; numbered samples: {numbered_samples}; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Structure appears to be {meta['columns_per_sample']} columns per sample; numbered samples: {numbered_samples}; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
         elif verbose and beta_value_range:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Appears to be sample beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample fluorescence intensity values in columns (mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Appears to be sample fluorescence intensity values in columns (mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data of UNKNOWN type. Appears to contain {len(out_df.columns)} samples. Not beta values or fluorescence intensity values in columns. Mean probe value was {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data of UNKNOWN type. Not beta values or fluorescence intensity values in columns. Mean probe value was {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
         return out_df
 
     elif ((meta['column_pattern'] == 'sample_beta_numbered') or
@@ -447,7 +449,7 @@ notes:
         if rename_probe_column:
             out_df.index.name = 'IlmnID' # standard for methyl-suite, though ID_REF is common in GEO.
             probe_name_msg = f"{meta['probe_column_name']} --> IlmnID"
-        #if debug: print(f"DEBUG: out_df.columns: {out_df.columns} --- out_df.index {out_df.index.name} out_df.shape {out_df.shape}")
+        #if debug: LOGGER.info(f"DEBUG: out_df.columns: {out_df.columns} --- out_df.index {out_df.index.name} out_df.shape {out_df.shape}")
 
         beta_value_range = True if all([all(out_df[col_name].between(0,1)) == True for col_name in out_df.columns]) else False
         intensity_value_range = True if all([all(out_df[col_name].between(0,1000000)) == True for col_name in out_df.columns]) else False
@@ -456,18 +458,18 @@ notes:
         except:
             value_mean = 0
         if verbose and meta['columns_per_sample'] != 1 and beta_value_range:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} samples. Structure appears to be {meta['columns_per_sample']} columns per sample; {len(out_df.columns)} numbered samples; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Structure appears to be {meta['columns_per_sample']} columns per sample; {len(out_df.columns)} numbered samples; column_pattern: {column_pattern}; probes in rows; and {probe_name_msg} as the probe names.")
         elif verbose and beta_value_range:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} numbered samples; beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Appears to contain {len(out_df.columns)} numbered samples; beta values in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data. Appears to contain {len(out_df.columns)} sample fluorescence intensity values in columns ({len(out_df.columns)} samples with mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data. Appears to be sample fluorescence intensity values in columns ({len(out_df.columns)} samples with mean: {int(value_mean)}), probes in rows, and {probe_name_msg} as the probe names.")
         elif verbose and not beta_value_range and intensity_value_range and value_mean > 10:
-            print(f"Returning raw data of UNKNOWN type. Appears to contain {len(out_df.columns)} samples. Not beta values or fluorescence intensity values in columns. {len(out_df.columns)} samples with a mean probe value of {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
+            LOGGER.info(f"Returning raw data of UNKNOWN type. Not beta values or fluorescence intensity values in columns. {len(out_df.columns)} samples with a mean probe value of {value_mean}. Probes are in rows, and {probe_name_msg} as the probe names.")
 
         return out_df
 
     elif meta['column_pattern'] == 'beta_intensity_pval':
-        if verbose: print("returning raw data without processing. Column pattern was 'beta_intensity_pval'.")
+        if verbose: LOGGER.info("returning raw data without processing. Column pattern was 'beta_intensity_pval'.")
         return raw
     elif meta['column_pattern'] == 'beta_pval_a_b':
         if as_beta and meta['sample_names'] != None:
@@ -484,23 +486,23 @@ notes:
             except:
                 value_mean = 0
             if verbose:
-                print(f"Returning beta values for {len(out_df.columns)} samples in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
+                LOGGER.info(f"Returning beta values for {len(out_df.columns)} samples in columns (mean: {value_mean}), probes in rows, and {probe_name_msg} as the probe names.")
             return out_df
         else:
-            if verbose: print("returning raw data without processing. Column pattern was 'beta_pval_a_b'.")
+            if verbose: LOGGER.info("returning raw data without processing. Column pattern was 'beta_pval_a_b'.")
             return raw
 
     if meta['column_pattern'] == 'meth_unmeth':
-        print("*** column_pattern was 'meth_unmeth' this has litterally never happened before. ***")
+        LOGGER.info("*** column_pattern was 'meth_unmeth' this has litterally never happened before. ***")
     if meta['column_pattern'] in ('meth_unmeth','meth_unmeth_pval') and as_beta:
-        if debug: print("Converting meth and unmeth intensities to beta values.")
+        if debug: LOGGER.info("Converting meth and unmeth intensities to beta values.")
         return convert_meth_to_beta(raw, meta, rename_probe_column=rename_probe_column, verbose=verbose)
     if meta['column_pattern'] in ('meth_unmeth','meth_unmeth_pval') and not as_beta:
-        if verbose: print(f"Returning raw data without processing. Column pattern was {meta['column_pattern']}.")
+        if verbose: LOGGER.info(f"Returning raw data without processing. Column pattern was {meta['column_pattern']}.")
         return raw
 
     if meta['column_pattern'] is None:
-        if debug: print("Returning raw data without processing. No file header column pattern was detected.")
+        if debug: LOGGER.info("Returning raw data without processing. No file header column pattern was detected.")
         return raw
     raise Exception("Unable to identify file structure")
 
@@ -529,7 +531,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
         raise ValueError("this dataset has only one sample. it is likely that the columns were not parsed correctly.")
 
     seps = [' ', '_', '.', '-'] # for parsing columns. also try without any separators
-    index_names = ['IlmnID', 'ID_REF', 'illumina_id']
+    # index_names = ['IlmnID', 'ID_REF', 'illumina_id']
 
     # sample patterns
     sample_pattern = re.compile(r'\w?\d+_R\d{2}C\d{2}$') # $ ensures column ends with the regex part
@@ -590,6 +592,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
     sample_count = 0
     sequential_numbers = None # starting from 1 to xx
     avg_sample_repeats = 1
+    failed_attempts = []
     for sep in seps:
         try:
             sample_numbers_list = [[part for part in column.split(sep) if re.match(r'\d+', part)][0] for column in sample_columns]
@@ -603,6 +606,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
                 sample_numbers_range = [min(sorted_sample_numbers_list), max(sorted_sample_numbers_list)]
                 break
         except Exception as e:
+            failed_attempts.append(e)
             continue
 
     # detect if some part of columns are named like sample_ids
@@ -613,13 +617,13 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
 
     # tests / data attributes: pval, multiline, probes, sample/nonsample columns
     if max(fraction_probelike) < 0.75:
-        print(f"WARNING: Unable to identify the column with probe names ({max(fraction_probelike)})")
+        LOGGER.warning(f"WARNING: Unable to identify the column with probe names ({max(fraction_probelike)})")
     multiline_rows = 0
     header_rows = 0
     if 0.75 <= max(fraction_probelike) < 1.00:
         multiline_rows = int(round(100*max(fraction_probelike)))
         header_rows = 100 - multiline_rows
-        print(f"Multiline header detected with {header_rows} rows.")
+        LOGGER.info(f"Multiline header detected with {header_rows} rows.")
     multiline_header = True if multiline_rows > 0 else False
     all_sample_columns = all([('sample' in column.lower() or 'ID_REF' in column) for column in list(set(test.columns))])
     has_p_values = True if fraction_pvallike > 0 else False
@@ -634,7 +638,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
         columns_per_sample = 1
 
     if sample_numbers_list != [] and columns_per_sample != avg_sample_repeats:
-        print('WARNING: inconsistent columns per sample')
+        LOGGER.warning('WARNING: inconsistent columns per sample')
     if (sample_count > 0 and
         sample_numbers_list != [] and
         sample_columns_meth_unmeth_count == 0 and
@@ -701,7 +705,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
             if 0.2 <= fraction_beta <= 0.28:
                 sample_columns = [column for column in test.columns if re.search(betalike_pattern,column)]
             else:
-                print("WARNING: test columns for beta_pval_a_b don't look right.")
+                LOGGER.warning("WARNING: test columns for beta_pval_a_b don't look right.")
                 sample_columns = test.columns
     else:
         sample_columns = None

@@ -2,6 +2,7 @@
 from logging import NullHandler, getLogger
 # App
 from .cli import detect_array
+
 from .probes.filters import (
     exclude_sex_control_probes,
     list_problem_probes,
@@ -14,7 +15,7 @@ from .samples.postprocessQC import (
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
     sample_plot,
     )
-from .samples.assign import assign, plot_assigned_groups
+from .samples.assign_groups import assign, plot_assigned_groups
 
 from .predict.sex import get_sex
 
@@ -52,7 +53,7 @@ __all__ = [
     'load_both',
     'mean_beta_plot',
     'mean_beta_compare',
-    'read_geo'
+    'read_geo',
     'run_pipeline',
     'run_qc',
     'sample_plot',

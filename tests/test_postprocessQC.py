@@ -2,6 +2,7 @@
 import unittest
 import pandas as pd
 import sys
+import seaborn as sns
 #patching
 try:
     # python 3.4+ should use builtin unittest.mock not mock package
@@ -28,13 +29,6 @@ class TestPostProcessQC(unittest.TestCase):
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot_transposed(self, mock):
         methylcheck.mean_beta_plot(self.df.transpose(), verbose=False, save=False)
-
-    @patch("methylcheck.samples.postprocessQC.plt.show")
-    def test_beta_density_plot(self, mock):
-        methylcheck.beta_density_plot(self.df, verbose=False, save=False)
-    @patch("methylcheck.samples.postprocessQC.plt.show")
-    def test_beta_density_plot_transposed(self, mock):
-        methylcheck.beta_density_plot(self.df.transpose(), verbose=False, save=False)
 
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare(self, mock):
@@ -89,3 +83,29 @@ class TestPostProcessQC(unittest.TestCase):
     def test_exclude_probes_transpose(self):
         probe_list = methylcheck.list_problem_probes('450k', criteria=None, custom_list=None)
         df2 = methylcheck.exclude_probes(self.df.transpose(), probe_list)
+
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_beta_density_plot(self, mock):
+        methylcheck.beta_density_plot(self.df, verbose=False, save=False)
+
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_beta_density_plot_transposed(self, mock):
+        methylcheck.beta_density_plot(self.df.transpose(), verbose=False, save=False)
+
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_beta_density_plot_kwargs(self, mock):
+        tips = sns.load_dataset("tips") # ~250 rows, two numeric columns
+        methylcheck.beta_density_plot(tips[['total_bill','tip']])
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], show_labels=True, highlight_samples='total_bill')
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], show_labels=False, highlight_samples='tip')
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], silent=False, verbose=True)
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], silent=True, verbose=False)
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], reduce=1.0)
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], reduce=None)
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], reduce=0.5)
+        methylcheck.beta_density_plot(tips[['total_bill','tip']], plot_title='testing tips low ymax', ymax=0.05)
+        fig = methylcheck.beta_density_plot(tips[['total_bill','tip']], return_fig=True, full_range=True, show_labels=None, filename='test.png')
+        import matplotlib
+        if isinstance(fig, matplotlib.figure.Figure) == False:
+            raise AssertionError("return_fig=True: did not return a figure")
+        # NOT TESTED: save=True.

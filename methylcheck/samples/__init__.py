@@ -1,4 +1,4 @@
-from .assign import (
+from .assign_groups import (
     assign,
     plot_assigned_groups,
 )
