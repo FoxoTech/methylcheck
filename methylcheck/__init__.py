@@ -53,7 +53,7 @@ __all__ = [
     'load_both',
     'mean_beta_plot',
     'mean_beta_compare',
-    'read_geo'
+    'read_geo',
     'run_pipeline',
     'run_qc',
     'sample_plot',

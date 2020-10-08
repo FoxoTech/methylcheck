@@ -545,7 +545,7 @@ options:
         return figs
 
 
-def _qc_plotter(stain_red, stain_green, color_dict={}, columns=None, ymax=None,
+def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None,
         title='', return_fig=False):
     """ draft generic plotting function for all the genome studio QC functions.
     used by plot_staining_controls()
@@ -555,7 +555,7 @@ options:
     required: stain_red and stain_green
         contains: red/green values in columns and probe characteristics in rows (transposed from control_probes.pkl format).
     color_dict
-        can be passed in: defines which color to make each value in the index.
+        {value: color-code} dictionary passed in to define which color to make each value in the index.
     ymax
         if defined, constrains the plot y-max values. Used to standardize view of each probe type within normal ranges.
         any probe values that fall outside this range generate warnings.
@@ -577,6 +577,8 @@ todo:
     title = title + ' ' if title != '' else title
     ax1.set_title(f'{title}Green')
     ax2.set_title(f'{title}Red')
+    if color_dict is None:
+        color_dict = {}
 
     # DEBUG: control probes contain '-99 in the Color column. Breaks plot.' But resolved by plot_controls() now.
     if '-99' in color_dict.values():

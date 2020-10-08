@@ -40,8 +40,8 @@ def _import_probe_filter_list(array):
         filter_options = pd.read_csv(filepath)
     return filter_options
 
-
-def _import_probe_exclusion_list(array, type):
+# TODO: add mouse array support here
+def _import_probe_exclusion_list(array, _type):
     """Returns a list of probe_ids based on type of array and type of probes to be excluded (sex or control).
 
     |array | sex_linked | controls|
@@ -57,11 +57,11 @@ def _import_probe_exclusion_list(array, type):
     type -- [sex, control]"""
 
     if array in ('IlluminaHumanMethylation450k','450k'):
-        filename = '450k_{0}.npy'.format(type)
+        filename = '450k_{0}.npy'.format(_type)
     elif array in ('IlluminaHumanMethylationEPIC','EPIC'):
-        filename = 'EPIC_{0}.npy'.format(type)
+        filename = 'EPIC_{0}.npy'.format(_type)
     elif array in ('IlluminaHumanMethylationEPIC+','EPIC+'):
-        filename = 'EPIC+_{0}.npy'.format(type)
+        filename = 'EPIC+_{0}.npy'.format(_type)
     elif array =='27k':
         raise NotImplementedError("No probe lists available for 27k arrays.")
     else:

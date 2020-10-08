@@ -93,7 +93,7 @@ notes:
     probe_pattern = re.compile(r'(cg|rs|ch\.\d+\.|ch\.X\.|ch\.Y\.)\d+')
     samples = []
     for col in test.columns:
-        probes = [i for i in test[col] if type(i) == str and re.match(probe_pattern,i)] #re.match('cg\d+',i)]
+        probes = [i for i in test[col] if isinstance(i,str) and re.match(probe_pattern,i)] #re.match('cg\d+',i)]
         if len(probes) == len(test):
             index_name = col
             if verbose:
@@ -531,7 +531,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
         raise ValueError("this dataset has only one sample. it is likely that the columns were not parsed correctly.")
 
     seps = [' ', '_', '.', '-'] # for parsing columns. also try without any separators
-    index_names = ['IlmnID', 'ID_REF', 'illumina_id']
+    # index_names = ['IlmnID', 'ID_REF', 'illumina_id']
 
     # sample patterns
     sample_pattern = re.compile(r'\w?\d+_R\d{2}C\d{2}$') # $ ensures column ends with the regex part

@@ -15,6 +15,7 @@ pkg_namespace = 'methylcheck.data_files'
 __all__ = ['load', 'load_both', 'container_to_pkl']
 
 
+# TODO: fix Redefining built-in 'format' here
 def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, no_poobah=False, pval_cutoff=0.05, no_filter=True):
     """When methylprep processes large datasets, you use the 'batch_size' option to keep memory and file size
     more manageable. Use the `load` helper function to quickly load and combine all of those parts into a single
@@ -276,15 +277,15 @@ NOTES:
                     len(column_names) == 1 and
                     column_names[0] in sample.columns and
                     format in ('beta_value', 'm_value')):
+
                     # HERE: loading beta_value or m_value from csvs using a custom column_names option
                     # BUG::: cannot auto detect the -pval- column and isn't supplied in kwargs
-
+                    col_name = column_names[0]
                     if no_poobah == False and 'poobah_pval' in sample.columns:
                         sample.loc[sample['poobah_pval'] >= pval_cutoff, col_name] = np.nan
                     if no_filter == False:
                         sample.loc[sample.index.isin(sketchy_probes), col_name] = np.nan
 
-                    col_name = column_names[0]
                     col = sample.loc[:, [col_name]]
                     col.rename(columns={col_name: sample_name}, inplace=True)
                     sample_names.append(sample_name)
