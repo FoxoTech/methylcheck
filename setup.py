@@ -39,7 +39,7 @@ setup(
         'numpy',
         'pandas',
         'statsmodels',
-        'matplotlib<3.1.3',
+        'matplotlib>=3.3.0',
         'seaborn',
         'tqdm',
     ],
