@@ -208,10 +208,11 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
         plt.xlim(0,1.0)
     plt.xlabel('Beta values')
     if save:
-        plt.savefig(filename)
+        plt.savefig(filename, bbox_inches='tight')
     if return_fig:
         return fig
     if not silent:
+        #plt.tight_layout()
         plt.show()
     else:
         plt.clf()

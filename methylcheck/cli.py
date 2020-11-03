@@ -65,14 +65,14 @@ def detect_array(df, returns='name', on_lambda=False):
         return '27k' if returns == 'name' else (ArrayType('27k'), get_filename('27k'))
     elif 440000 <= col_count <= 490000: #485512
         return '450k' if returns == 'name' else (ArrayType('450k'), get_filename('450k'))
-    elif 869001 <= col_count <= 869335: # 52650 <= col_count <= 53000:
+    elif 868001 <= col_count <= 869335: # 52650 <= col_count <= 53000: actual: 868578
         return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
-    elif 860000 <= col_count <= 869000: #1050000 <= col_count <= 1053000: actual: 865860
+    elif 860000 <= col_count <= 868000: #1050000 <= col_count <= 1053000: actual: 865860
         return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
     elif 250000 <= col_count <= 270000: #actual count: 262812
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
-        raise ValueError('Unsupported Illumina array type. Your data file contains {0} rows for probes.'.format(col_count))
+        raise ValueError(f'Unsupported Illumina array type. Your data file contains {col_count} rows for probes.')
 
 
 def cli_parser():

@@ -1,5 +1,8 @@
 # Release History
 
+## v0.6.3
+- fixed bug in detect_array() where it labeled EPIC+ as EPIC
+
 ## v0.6.2
 - minor fixes to load() and read_geo()
 - exclude_probes() accepts problem_probes criteria as alternate way to specify probes.
