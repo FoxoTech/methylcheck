@@ -218,27 +218,27 @@ class ReportPDF:
         kwargs: filename, poobah_max_percent, pval_cutoff,
         title, author, subject, keywords, outpath, path
 
-    when using:
-        you must run report.pdf.close() after you run_qc().
+        when using:
+            you must run report.pdf.close() after you run_qc().
 
-    custom tables:
-        pass in arbitrary data using kwarg "custom_tables" as list with this structure:
-            'custom_tables': [
-                {
-                'title': "some title, optional",
-                'col_names': [list of strings],
-                'row_names': [list of strings, optional],
-                'data': [list of lists, with order matching col_names],
-                'order_after': [string name of the plot this should come after. It cannot appear first in list.]
-                },
-                {...second table here...}
-            ]
+        custom tables:
+            pass in arbitrary data using kwarg "custom_tables" as list with this structure:
+                'custom_tables': [
+                    {
+                    'title': "some title, optional",
+                    'col_names': [list of strings],
+                    'row_names': [list of strings, optional],
+                    'data': [list of lists, with order matching col_names],
+                    'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+                    },
+                    {...second table here...}
+                ]
 
-    if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
+        if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
 
-    if you pass in 'order' in kwargs, any page you omit will be omitted from the final report.
-    (pass in a custom table to override one of the built-in pages this way)
-    """
+        if you pass in 'order' in kwargs, any page you omit will be omitted from the final report.
+        (pass in a custom table to override one of the built-in pages this way)
+        """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False

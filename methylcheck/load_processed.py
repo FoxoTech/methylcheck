@@ -244,6 +244,10 @@ NOTES:
                     sample_name = fname.replace('_processed.csv.gz','')
                 elif '_processed.csv' in fname:
                     sample_name = fname.replace('_processed.csv','')
+                elif '.processed.csv.gz' in fname:
+                    sample_name = fname.replace('.processed.csv.gz','')
+                elif '.processed.csv' in fname:
+                    sample_name = fname.replace('.processed.csv','')
                 else:
                     sample_name = ''
                 # FUTURE TODO: if sample_sheet or meta_data supplied, fill in with proper sample_names here
