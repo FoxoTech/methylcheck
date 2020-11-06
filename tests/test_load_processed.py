@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import pytest
 from pathlib import Path
+import pandas as pd
 TESTPATH = 'tests'
 #app
 import methylcheck
@@ -8,6 +9,8 @@ import methylcheck
 
 class TestLoadProcessed():
     epic_df = Path(TESTPATH,'test_epic_filter.pkl')
+    test_450k = Path('docs/example_data/GSE69852')
+    test_alt_450k = Path('docs/example_data/GSE105018') # not used here
 
     def test_load_beta_pickle(self):
         df = methylcheck.load(self.epic_df)
@@ -82,3 +85,38 @@ class TestLoadProcessed():
             Path(WORKDIR, filename).unlink()
         if Path(WORKDIR).exists():
             Path(WORKDIR).rmdir()
+
+    def test_load_meth_df_from_pickle_450k(self):
+        dfs = methylcheck.load(self.test_450k, 'meth_df')
+        (meth,unmeth) = dfs
+        if meth.shape != (485512, 1) or unmeth.shape != (485512, 1):
+            raise AssertionError("wrong probe count or sample count returned")
+        if isinstance(meth,pd.DataFrame) is False or isinstance(unmeth,pd.DataFrame) is False:
+            raise AssertionError(f"error in DataFrames returned: ({meth.shape} vs (485512,1) | {unmeth.shape} vs (485512,1))")
+
+    def test_load_noob_df_from_pickle_450k(self):
+        dfs = methylcheck.load(self.test_450k, 'noob_df')
+        (meth,unmeth) = dfs
+        if meth.shape != (485512, 1) or unmeth.shape != (485512, 1):
+            raise AssertionError("wrong probe count or sample count returned")
+        if isinstance(meth,pd.DataFrame) is False or isinstance(unmeth,pd.DataFrame) is False:
+            raise AssertionError(f"error in DataFrames returned: ({meth.shape} vs (485512,1) | {unmeth.shape} vs (485512,1))")
+
+    def test_load_both_path_doesnt_exist(self):
+        try:
+            methylcheck.load_both(Path(self.test_450k,'blahblah'))
+        except FileNotFoundError as e:
+            return
+        raise ValueError("load_both didn't catch that the path didn't exist")
+
+    def test_load_both(self):
+        (df,meta) = methylcheck.load_both(self.test_450k)
+
+    def test_load_containers_and_container_to_pkl(self):
+        containers = methylcheck.load(self.test_450k, 'meth')
+        df = methylcheck.container_to_pkl(containers, 'betas', save=False)
+        df = methylcheck.container_to_pkl(containers, 'm_value', save=False)
+        meth,unmeth = methylcheck.container_to_pkl(containers, 'meth', save=False)
+        df = methylcheck.container_to_pkl(containers, 'copy_number', save=False)
+        # test data lacks a 'noob_meth' column; can't test this yet.
+        #meth,unmeth = methylcheck.container_to_pkl(containers, 'noob', save=False)

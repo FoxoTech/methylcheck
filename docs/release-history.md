@@ -1,5 +1,11 @@
 # Release History
 
+## v0.6.4
+- get_sex() function returns a dataframe that also includes percent of X and Y probes
+    that failed p-value-probe detection, as an indication of whether the predicted sex is reliable.
+- better unit test coverage of predictions, load, load_both, and container_to_pkl functions
+- fixed bug in load( 'meth_df')
+
 ## v0.6.3
 - fixed bug in detect_array() where it labeled EPIC+ as EPIC
 

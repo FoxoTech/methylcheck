@@ -6,8 +6,8 @@ def test_get_sex_from_path():
     output = methylcheck.get_sex(test_filepath, verbose=True, plot=False)
     print(output)
 
-def test_get_sex_from_path():
-    output = methylcheck.get_sex(test_filepath, array_type='EPIC', verbose=True, plot=False)
+def test_get_sex_from_path_array():
+    output = methylcheck.get_sex(test_filepath, array_type='epic', verbose=True, plot=False)
     print(output)
 
 def test_get_sex_from_data_containers():
