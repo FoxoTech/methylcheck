@@ -141,7 +141,7 @@ NOTES:
         meth_dfs = []
         unmeth_dfs = []
         for part in test_parts:
-            if 'meth_values' in part and 'noob' not in part:
+            if 'meth_values' in part and 'noob' not in part and 'unmeth_values' not in part:
                 meth_dfs.append( pd.read_pickle(part) )
             if 'unmeth_values' in part and 'noob' not in part:
                 unmeth_dfs.append( pd.read_pickle(part) )
