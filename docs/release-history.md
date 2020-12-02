@@ -1,5 +1,10 @@
 # Release History
 
+## v0.6.5
+- support for new version of mouse manifest
+- .load will work on control_probes.pkl and mouse_probes.pkl files (with alt structure: dictionary of dataframe)
+- .sample_plot uses "best" legend positioning now, because it was not fitting on screen with prev settings.
+
 ## v0.6.4
 - get_sex() function returns a dataframe that also includes percent of X and Y probes
     that failed p-value-probe detection, as an indication of whether the predicted sex is reliable.

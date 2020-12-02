@@ -198,7 +198,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if ymax is not None and obs_ymax > ymax:
         ax.set_ylim(0, ymax)
     if show_labels:
-        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.legend(loc='best') # bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
     #else:
     #    ax.get_legend().set_visible(False)
     #    print('suppressing legend')

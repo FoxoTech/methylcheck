@@ -112,7 +112,8 @@ NOTES:
     formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
-    #1b: set meta flags
+
+    #1c: set meta flags
     processed_csv = False # whether to use individual sample files, or beta pkl files.
     total_parts = []
     poobah_parts = []
@@ -360,6 +361,13 @@ NOTES:
             df = pd.read_csv(file, index_col='IlmnID')
         else:
             df = pd.read_pickle(file)
+
+        #check 2: see if single file with structure: list of dfs (mouse_probes.pkl and control_probes.pkl)
+        if len(total_parts) == 1 and isinstance(df,dict) and all([isinstance(sub_df,pd.DataFrame) for sub_df in df.values()]):
+            probes_per_sample = int(sum([sub_df.shape[0] for sub_df in df.values()])/len(df.values()))
+            if verbose: LOGGER.info(f"Reading a dictionary of dataframes with {len(df)} samples and {probes_per_sample} probes.")
+            if verbose: LOGGER.info("No futher merging or poobah filtering applied to this file.")
+            return df
 
         # ensure probes are in rows.
         if df.shape[0] < df.shape[1]:
