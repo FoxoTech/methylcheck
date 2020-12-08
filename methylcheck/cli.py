@@ -34,19 +34,12 @@ def detect_array(df, returns='name', on_lambda=False):
     if returns == 'filepath':
         # get manifest data from .methylprep_manifest_files
         try:
-            from methylprep.files.manifests import MANIFEST_DIR_PATH, MANIFEST_DIR_PATH_LAMBDA, ARRAY_TYPE_MANIFEST_FILENAMES
+            from methylprep.files.manifests import MANIFEST_DIR_PATH, MANIFEST_DIR_PATH_LAMBDA, ARRAY_TYPE_MANIFEST_FILENAMES, ARRAY_FILENAME
             from methylprep.models.arrays import ArrayType
         except ImportError:
             raise ImportError("this function requires `methylprep` be installed (to read manifest array files).")
 
         def get_filename(array_name):
-            ARRAY_FILENAME = {
-                '27k': 'hm27.hg19.manifest.csv.gz',
-                '450k': 'HumanMethylation450_15017482_v1-2.CoreColumns.csv.gz',
-                'epic': 'MethylationEPIC_v-1-0_B4.CoreColumns.csv.gz',
-                'epic+': 'CombinedManifestEPIC.manifest.CoreColumns.csv.gz',
-                'mouse': 'LEGX_B1_manifest_mouse_v1_min.csv.gz',
-            }
             if on_lambda:
                 man_path = Path(MANIFEST_DIR_PATH_LAMBDA).expanduser()
             else:
@@ -69,7 +62,7 @@ def detect_array(df, returns='name', on_lambda=False):
         return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 868000: # actual: 865860
         return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
-    elif 250000 <= col_count <= 270000: # actual: 262812
+    elif 220000 <= col_count <= 270000: # actual: 236685 C20, 262812 v2
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
         raise ValueError(f'Unsupported Illumina array type. Your data file contains {col_count} rows for probes.')
