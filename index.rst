@@ -12,7 +12,6 @@ methylcheck documentation
    Loading Data <docs/loading-data.ipynb>
    Quality Control <docs/quality-control-example.ipynb>
    Filtering Probes <docs/filtering_probes.ipynb>
-   Examples <docs/examples.md>
    API functions <docs/source/methylcheck>
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
@@ -21,6 +20,8 @@ methylcheck documentation
 
 Indices and tables
 ==================
+
+Examples <docs/examples.md>
 
 * :ref:`genindex`
 * :ref:`modindex`
