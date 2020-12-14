@@ -20,13 +20,13 @@ sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
 project = 'methylcheck'
-copyright = '2019, Life Epigenetics'
-author = 'Life Epigenetics'
+copyright = '2020, FOXO Bioscience'
+author = 'FOXO Bioscience'
 
 # The short X.Y version
-version = '0.2'
+version = '0.7'
 # The full version, including alpha/beta/rc tags
-release = '0.2'
+release = '0.7'
 
 
 # -- General configuration ---------------------------------------------------
@@ -50,7 +50,7 @@ extensions = [
 apidoc_module_dir = '.'
 apidoc_output_dir = '_sphinx_build'
 apidoc_excluded_paths = ['tests']
-apidoc_separate_modules = True
+apidoc_separate_modules = False
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_sphinx_templates']

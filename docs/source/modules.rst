@@ -38,33 +38,27 @@ methylcheck pipeline functions
 -----------------------------------------------
 
 .. automodule:: methylcheck.qc_report
-  :members:
-  :undoc-members:
-  :show-inheritance:
+    :members:
+    :undoc-members:
+    :show-inheritance:
 
 
 methylcheck.probes module
 -------------------------
 
 .. automodule:: methylcheck.probes
-   :members:
-   :undoc-members:
-   :show-inheritance:
+    :members:
 
 
 methylcheck.samples module
 --------------------------
 
 .. automodule:: methylcheck.samples
-  :members:
-  :undoc-members:
-  :show-inheritance:
+    :members:
 
 
 methylcheck.predict module
 --------------------------
 
 .. automodule:: methylcheck.predict
- :members:
- :undoc-members:
- :show-inheritance:
+    :members:

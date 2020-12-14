@@ -11,7 +11,7 @@ methylcheck documentation
 
    docs/demo-methylprep-to-methylcheck-example.ipynb
    API functions <docs/source/methylcheck>
-   Loading Data <docs/loading-data.ipynb>   
+   Loading Data <docs/loading-data.ipynb>
    Quality Control docs/quality-control-example.ipynb
    Filtering Probes docs/filtering_probes.ipynb
    Examples docs/examples.md
