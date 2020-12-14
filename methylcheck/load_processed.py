@@ -83,12 +83,14 @@ Use cases and format:
         or you have a bunch of m_values_1.pkl files in the path and want them merged and returned as one dataframe
     format = meth (data_containers)
         you have processed CSV files in the path specified and want a data_container returned
-    format = meth (dataframe)
+    format = meth_df (dataframe)
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
     format = sesame
         for reading csvs processed using R's sesame package. It has a different format (Probe_ID, ind_beta, ind_negs, ind_poob) per sample.
         Only those probes that pass the p-value cutoff will be included.
+    format = beta_csv
+        for reading processed.csv files from methylprep, and forcing it NOT to load from the pickled beta dataframe file, if present.
 
 Science on p-value cutoff:
     This function defaults to a p-value cutoff of 0.05, which is typical for scientific tests.
@@ -109,7 +111,7 @@ NOTES:
     - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
     """
     #1a: validate inputs
-    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
+    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame', 'beta_csv')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
 
@@ -200,7 +202,7 @@ NOTES:
                     # you get a 30% speed up if you only load the columns you need here
                     if column_names is not None:
                         columns = column_names
-                    elif format == 'beta_value':
+                    elif format in ('beta_value','beta_csv'):
                         columns = ['IlmnID', 'beta_value']
                     elif format == 'm_value':
                         columns = ['IlmnID', 'm_value']
@@ -254,7 +256,7 @@ NOTES:
                 # FUTURE TODO: if sample_sheet or meta_data supplied, fill in with proper sample_names here
                 # incorporate .load_both() here
 
-                if 'beta_value' in sample.columns and format == 'beta_value':
+                if 'beta_value' in sample.columns and format in ('beta_value','beta_csv'):
                     if no_poobah == False and 'beta_value' in sample.columns and 'poobah_pval' in sample.columns:
                         sample.loc[sample['poobah_pval'] >= pval_cutoff, 'beta_value'] = np.nan
                     if no_filter == False and 'beta_value' in sample.columns:
@@ -281,7 +283,7 @@ NOTES:
                 elif (column_names is not None and
                     len(column_names) == 1 and
                     column_names[0] in sample.columns and
-                    format in ('beta_value', 'm_value')):
+                    format in ('beta_value', 'm_value', 'beta_csv')):
 
                     # HERE: loading beta_value or m_value from csvs using a custom column_names option
                     # BUG::: cannot auto detect the -pval- column and isn't supplied in kwargs
@@ -380,7 +382,7 @@ NOTES:
 
         if processed_csv:
             # p-value filtering already applied in earlier step when CSVs were read and collated into dataframe
-            if format == 'beta_value':
+            if format in ('beta_value','beta_csv'):
                 samples = samples.append(df['beta_value'])
             if format == 'm_value':
                 samples = samples.append(df['m_value'])

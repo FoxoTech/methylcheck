@@ -4,6 +4,7 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 from pathlib import Path
 import logging
+
 #app
 import methylcheck
 from .progress_bar import *
@@ -24,6 +25,8 @@ def run_qc(path):
 
     output is all to screen, so best to use in a jupyter notebook.
     If you prefer output in a PDF, use ReportPDF instead.
+
+    Note: this will only look in the path folder; it doesn't do a recursive search for matching files.
     """
     try:
         beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
@@ -34,6 +37,10 @@ def run_qc(path):
         else:
             meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl'))
             unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl'))
+        if Path(path,'poobah_values.pkl').exists():
+            poobah = pd.read_pickle(Path(path,'poobah_values.pkl'))
+        else:
+            poobah = None
     except FileNotFoundError:
         if not Path(path).exists():
             raise FileNotFoundError("Invalid path")
@@ -41,13 +48,14 @@ def run_qc(path):
             raise FileNotFoundError("Path is not a directory.")
         raise FileNotFoundError("Files missing. run_qc() only works if you used `methylprep process --all` option to produce beta_values, control_probes, meth_values, and unmeth_values files.")
     # needs meth_df, unmeth_df, controls, and beta_df
-    plot_M_vs_U(meth=meth_df, unmeth=unmeth_df)
-    qc_signal_intensity(meth=meth_df, unmeth=unmeth_df)
+    # if passing in a path, it will auto-search for poobah. but if meth/unmeth passed in, you must explicitly tell it to look.
+    plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, poobah=poobah)
+    qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, poobah=poobah)
     plot_controls(controls, 'all')
     plot_beta_by_type(beta_df, 'all')
 
 
-def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None,
+def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None, poobah=None, palette=None,
     noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5, return_fig=False):
     """Suggests sample outliers based on methylated and unmethylated signal intensity.
 
@@ -67,6 +75,11 @@ input (one of these):
         meth = pd.read_pickle('meth_values.pkl')
         unmeth = pd.read_pickle('unmeth_values.pkl')
         THIS will run the fastest.
+    (meth and unmeth and poobah)
+        if poobah=None (default): Does nothing
+        if poobah=False: suppresses this color
+        if poobah=dataframe: color-codes samples according to percent probe failure range,
+            but only if you pass in meth and unmeth dataframes too, not data_containers object.
 
 optional params:
 ================
@@ -76,19 +89,29 @@ optional params:
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
     return_fig (False default), if True, and plot is True, returns a figure object instead of showing plot.
     compare: if the processed data contains both noob and uncorrected values, it will plot both in different colors
+    palette: if using poobah to color code, you can specify a Seaborn palette to use.
 
 this will draw a diagonal line on plots
 
 FIX:
     doesn't return both types of data if using compare and not plotting
     doesn't give good error message for compare
-
     """
     if not path and not data_containers and type(meth) is type(None) and type(unmeth) is type(None):
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
     if type(meth) is type(None) and type(unmeth) is type(None):
         meth, unmeth = _get_data(data_containers=data_containers, path=path, compare=False, noob=noob, verbose=verbose)
+    if (path is not None and not isinstance(poobah, pd.DataFrame)
+        and not isinstance(poobah, type(None))
+        and verbose and not silent):
+        if poobah in (False,None):
+            pass # unless poobah IS a dataframe below, nothing happens. None/False suppress this
+        else:
+            if 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
+                poobah = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
+            else:
+                LOGGER.info("Cannot load poobah_values.pkl file.")
 
     # Plotting
     medians = _make_qc_df(meth,unmeth)
@@ -112,13 +135,43 @@ FIX:
     # set up figure
     fig,ax = plt.subplots(figsize=(10,10))
     plt.grid()
-    plt.title('M versus U plot')
     plt.xlabel('Meth Median Intensity (log2)')
     plt.ylabel('Unmeth Median Intensity (log2)')
-    # bad values
-    plt.scatter(x='mMed',y='uMed',data=medians[medians.index.isin(bad_samples)],label='Bad Samples',c='red')
-    # good values
-    plt.scatter(x='mMed',y='uMed',data=medians[~medians.index.isin(bad_samples)],label="Good Samples",c='black')
+    if not isinstance(poobah, pd.DataFrame):
+        plt.title('M versus U plot')
+        # bad values
+        plt.scatter(x='mMed',y='uMed',data=medians[medians.index.isin(bad_samples)],label='Bad Samples',c='red')
+        # good values
+        plt.scatter(x='mMed',y='uMed',data=medians[~medians.index.isin(bad_samples)],label="Good Samples",c='black')
+    elif isinstance(poobah, pd.DataFrame):
+        plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        if poobah.isna().sum().sum() > 0:
+            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+        percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
+        percent_failures = percent_failures.rename('probe_failure_(%)')
+        # Series.where will replace the stuff that is False, so you have to negate it.
+        percent_failures_hues = percent_failures.where(~percent_failures.between(0,5), 0)
+        percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        #sizes = percent_failures_hues.copy()
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+        qc = pd.merge(left=medians,
+           right=percent_failures_hues,
+           left_on=medians.index,
+           right_on=percent_failures_hues.index,
+           how='inner')
+        hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
+        this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
+            palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+    else:
+        raise NotImplementedError("poobah color coding is not implemented with 'compare' option")
+
     plt.xlim([min_x,max_x])
     plt.ylim([min_y,max_y])
     # cutoff line
@@ -222,8 +275,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
     return meth, unmeth
 
 
-def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None,
-    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False):
+def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None, poobah=None,
+    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None):
     """plot methylated vs unmethylated probe intensities
 
 input (choose one of these):
@@ -231,17 +284,25 @@ input (choose one of these):
     PATH to csv files processed using methylprep
         these have "noob_meth" and "noob_unmeth" columns per sample file this function can use.
         if you want it to processed data uncorrected data.
+        (If there is a poobah_values.pkl file in this PATH, it will use the file to color code points)
 
     data_containers = run_pipeline(data_dir = 'somepath',
                                        save_uncorrected=True,
                                        sample_sheet_filepath='samplesheet.csv')
         you can also recreate the list of datacontainers using methylcheck.load(<filepath>,'meth')
 
+
     (meth and unmeth)
         if you chose `process --all` you can load the raw intensities like this, and pass them in:
         meth = pd.read_pickle('meth_values.pkl')
         unmeth = pd.read_pickle('unmeth_values.pkl')
         THIS will run the fastest.
+
+    poobah
+        filepath: You may supply the file path to the p-value detection dataframe. If supplied, it will color
+        code points on the plot.
+        False: set poobah to False to suppress this coloring.
+        None (default): if there is a poobah_values.pkl file in your path, it will use it.
 
 optional params:
     noob: use noob-corrected meth/unmeth values
@@ -260,17 +321,27 @@ FIX:
     doesn't give good error message for compare
 
     """
-    if type(data_containers_or_path) == type(Path()):
+    try:
+        if Path(data_containers_or_path).exists(): # if passing in a valid string, this should work.
+            path = Path(data_containers_or_path)
+        else:
+            path = None
+    except:
+        path = None # but fails if passing in a data_containers object
+
+    if type(data_containers_or_path) == type(Path()): #this only recognizes a Path object
         path = data_containers_or_path
         data_containers = None
     else:
         path = None
-        data_containers = data_containers_or_path
+        data_containers = data_containers_or_path # by process of exclusion, this must be an object
 
     if not path and not data_containers and type(meth) is None and type(unmeth) is None:
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
-    elif type(meth) is None and type(unmeth) is None:
+
+    # 2. load meth + unmeth from path
+    elif isinstance(meth,type(None)) and isinstance(unmeth,type(None)): #type(meth) is None and type(unmeth) is None:
         try:
             if compare:
                 meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare)
@@ -281,17 +352,70 @@ FIX:
             print("No processed data found.")
             return
 
+    # 2. load poobah_df if exists
+    if isinstance(poobah,pd.DataFrame):
+        poobah_df = poobah
+        poobah = True
+    else:
+        poobah_df = None
+        if poobah is not False and isinstance(path, Path) and 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
+            poobah_df = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
+            poobah=True
+        else:
+            if poobah_df is None: # didn't find a poobah file to load
+                LOGGER.warning("Did not find a poobah_values.pkl file; unable to color-code plot.")
+                poobah = False #user may have set this to True or None, but changing params to fit data.
+    if verbose and not silent and isinstance(poobah_df,pd.DataFrame):
+        LOGGER.info("Using poobah_values.pkl")
+
+    #palette options to pass in: "CMRmap" "flare" "twilight" "Blues"
+    hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
+
+    if poobah is not False and isinstance(poobah_df, pd.DataFrame) and not compare:
+        if poobah_df.isna().sum().sum() > 0:
+            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+        percent_failures = round(100*( poobah_df[poobah_df > 0.05].count() / poobah_df.count() ),1)
+        percent_failures = percent_failures.rename('probe_failure (%)')
+        meth_med = meth.median()
+        unmeth_med = unmeth.median()
+        # Series.where will replace the stuff that is False, so you have to negate it.
+        percent_failures_hues = percent_failures.where(~percent_failures.between(0,5), 0)
+        percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        #sizes = percent_failures_hues.copy()
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+        df = pd.concat([
+            meth_med.rename('meth'),
+            unmeth_med.rename('unmeth'),
+            percent_failures_hues],
+            #sizes.rename('size')],
+            axis=1)
+
     if plot:
         # plot it
         fig,ax = plt.subplots(figsize=(10,10))
         plt.grid()
-        this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
-        if compare:
+        if poobah and not compare:
+            this = sb.scatterplot(data=df, x="meth", y="unmeth", hue="probe_failure (%)",
+                palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+        elif not poobah and not compare:
+            this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
+        elif compare:
+            this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
             # combine both and reference each
             if not silent:
                 print(f'Blue: {"noob" if noob else "uncorrected"}')
             sb.scatterplot(x=_meth.median(),y=_unmeth.median(),s=75)
-        plt.title('M versus U plot')
+        if poobah:
+            plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        else:
+            plt.title('M versus U plot')
         plt.xlabel('Median Methylated Intensity')
         plt.ylabel('Median Unmethylated Intensity')
 
@@ -567,7 +691,7 @@ options:
         bci_red = bci_red.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.T
         bci_green = bci_green.T
-        fig = _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, xticks=xplot, title='Bisulfite Conversion', return_fig=return_fig)
+        fig = _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, xticks=plotx, title='Bisulfite Conversion', return_fig=return_fig)
         if fig:
             figs.append(fig)
 

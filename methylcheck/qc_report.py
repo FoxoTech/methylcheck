@@ -2,6 +2,7 @@ import pandas as pd
 from pathlib import Path
 from io import StringIO
 import re
+import sys
 import logging
 import math
 LOGGER = logging.getLogger(__name__)
@@ -135,15 +136,30 @@ returns:
 
     # apply some filters
     if kwargs.get('exclude_all'):
-        df = methylcheck.exclude_sex_control_probes(df, array_type, verbose=kwargs.get('verbose'))
-        sketchy_probe_list = methylcheck.list_problem_probes(array_type)
-        df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        try:
+            df = methylcheck.exclude_sex_control_probes(df, array_type, verbose=kwargs.get('verbose'))
+            sketchy_probe_list = methylcheck.list_problem_probes(array_type)
+            df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        except ValueError:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if "probe list" in str(exc_value) or "probe exclusion lists" in str(exc_value):
+                # keep df the same instead of filtering.
+                LOGGER.info(exc_value)
+            else:
+                raise Exception(exc_value)
     elif kwargs.get('exclude'):
         # could be a list or a string
         if type(kwargs['exclude']) is not list:
             kwargs['exclude'] = [kwargs['exclude']]
-        sketchy_probe_list = methylcheck.list_problem_probes(array_type, criteria=kwargs['exclude'])
-        df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        try:
+            sketchy_probe_list = methylcheck.list_problem_probes(array_type, criteria=kwargs['exclude'])
+            df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if "probe list" in str(exc_value) or "probe exclusion lists" in str(exc_value):
+                LOGGER.info(exc_value)
+            else:
+                raise Exception(exc_value)
 
     # apply some more filters
     if kwargs.get('exclude_sex') and kwargs.get('exclude_control'):
