@@ -38,6 +38,17 @@ API Reference
    methylcheck.get_sex
    methylcheck.assign
 
+
+Loading Data
+------------
+
+.. automodule:: methylcheck.load_processed
+    :members:
+
+.. automodule:: methylcheck.read_geo_processed
+    :members:
+
+
 QC pipeline functions
 ---------------------
 
@@ -60,11 +71,17 @@ plotting functions
 .. automodule:: methylcheck.samples
     :members:
 
+.. automodule:: methylcheck.qc_plot
+    :members:
+
 
 sex prediction
 --------------
 
 .. automodule:: methylcheck.predict
+    :members:
+
+.. automodule:: methylcheck.p_value_probe_detection
     :members:
 
 ``ReportPDF`` Report Builder class

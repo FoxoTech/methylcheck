@@ -17,17 +17,17 @@ __all__ = ['load', 'load_both', 'container_to_pkl']
 
 # TODO: fix Redefining built-in 'format' here
 def load(filepath='.', format='beta_value', file_stem='', verbose=False, silent=False, column_names=None, no_poobah=False, pval_cutoff=0.05, no_filter=True):
-    """When methylprep processes large datasets, you use the 'batch_size' option to keep memory and file size
-    more manageable. Use the `load` helper function to quickly load and combine all of those parts into a single
-    data frame of beta-values or m-values.
+    """Methylsuite's all-purpose data loading function.
 
-    Doing this with pandas is about 8 times slower than using numpy in the intermediate step.
+When methylprep processes large datasets, you use the 'batch_size' option to keep memory and file size
+more manageable. Use the `load` helper function to quickly load and combine all of those parts into a single
+data frame of beta-values or m-values.
 
-    If no arguments are supplied, it will load all files in current directory that have a 'beta_values_X.pkl' pattern.
+Doing this with pandas is about 8 times slower than using numpy in the intermediate step.
+
+If no arguments are supplied, it will load all files in current directory that have a 'beta_values_X.pkl' pattern.
 
 Arguments:
-==========
-
     filepath:
         Where to look for all the pickle files of processed data.
 
@@ -59,7 +59,7 @@ Arguments:
         if False, removes probes that illumina, the manufacturer, claimed are sketchy in 2019 for a select list of newer EPIC Sentrix_IDs.
         only affects 'beta_value' and 'm_value' output; no effect on meth/unmeth raw/NOOB intensity values returned.
 
-    file_stem (string):
+    file_stem: (string)
         Older versions (pre v1.3.0) of methylprep processed with batch_size created a bunch of generically named files, such as
         'beta_values_1.pkl', 'beta_values_2.pkl', 'beta_values_3.pkl', and so on. IF you rename these or provide
         a custom name during processing, provide that name here to load them all.
@@ -72,43 +72,42 @@ Arguments:
         suppresses all processing messages, even warnings.
 
 Use cases and format:
-=====================
-
-    format = beta_value
+    format = beta_value:
         you have beta_values.pkl file in the path specified and want a dataframe returned
         or you have a bunch of beta_values_1.pkl files in the path and want them merged and returned as one dataframe
         (when using 'batch_size' option in methylprep.run_pipeline() you'll get multiple files saved)
-    format = m_value
+    format = m_value:
         you have m_values.pkl file in the path specified and want a dataframe returned
         or you have a bunch of m_values_1.pkl files in the path and want them merged and returned as one dataframe
-    format = meth (data_containers)
+    format = meth: (data_containers)
         you have processed CSV files in the path specified and want a data_container returned
-    format = meth_df (dataframe)
+    format = meth_df: (dataframe)
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
-    format = sesame
+    format = sesame:
         for reading csvs processed using R's sesame package. It has a different format (Probe_ID, ind_beta, ind_negs, ind_poob) per sample.
         Only those probes that pass the p-value cutoff will be included.
-    format = beta_csv
+    format = beta_csv:
         for reading processed.csv files from methylprep, and forcing it NOT to load from the pickled beta dataframe file, if present.
 
-Science on p-value cutoff:
-    This function defaults to a p-value cutoff of 0.05, which is typical for scientific tests.
-    There is currently no consensus on what percent of a sample's probes can fail. For example,
-    if a sample has 860,000 probes and 5% of them fail, should you reject the whole sample from the batch?
-    For large batch industrial scale testing, the authors assign some limit, like 5%, 10%, 20%, 30%, etc as a cutoff. And methylcheck's run_qc() function defaults to 10 percent.
-    But the academics we spoke to don't automatically throw out any samples. Because it depends.
-    Cancer samples have lots of anueploidy (an abnormal number of chromosomes in a haploid set) and lost chromosomes, so one would expect no signal for these CpG sites.
-    So those researchers wouldn't throw out samples unless most of the sample fails.
-    People are working on deriving a calibration curve from public GEO data as a guide, and give a frame of reference, but none exist yet. And public data rarely includes failed samples.
+.. note::
+   Science on p-value cutoff:
+        This function defaults to a p-value cutoff of 0.05, which is typical for scientific tests.
+        There is currently no consensus on what percent of a sample's probes can fail. For example,
+        if a sample has 860,000 probes and 5% of them fail, should you reject the whole sample from the batch?
+        For large batch industrial scale testing, the authors assign some limit, like 5%, 10%, 20%, 30%, etc as a cutoff. And methylcheck's run_qc() function defaults to 10 percent.
+        But the academics we spoke to don't automatically throw out any samples. Because it depends.
+        Cancer samples have lots of anueploidy (an abnormal number of chromosomes in a haploid set) and lost chromosomes, so one would expect no signal for these CpG sites.
+        So those researchers wouldn't throw out samples unless most of the sample fails.
+        People are working on deriving a calibration curve from public GEO data as a guide, and give a frame of reference, but none exist yet. And public data rarely includes failed samples.
 
-TODO:
+.. todo::
     - BUG: custom fields cannot auto detect the -pval- column and this isn't supplied in kwargs
     - DONE: meth_df deal with batches of files
 
-NOTES:
-    - modified this from methylprep on 2020-02-20 to allow for data_containers to be returned as option
-    - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
+.. note::
+   - modified this from methylprep on 2020-02-20 to allow for data_containers to be returned as option
+   - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
     """
     #1a: validate inputs
     formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame', 'beta_csv')
