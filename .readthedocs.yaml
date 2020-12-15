@@ -3,7 +3,7 @@ version: 2
 sphinx:
   configuration: conf.py
 
-formats: all
+formats: []
 
 python:
   version: 3.7
@@ -11,4 +11,5 @@ python:
     - method: pip
       path: .
       extra_requirements:
-        - docs
+        - dev
+    - requirements: requirements.txt
