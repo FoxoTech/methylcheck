@@ -1,7 +1,12 @@
-methylcheck package
-===================
+.. _modules:
+
+API Reference
+=============
 
 .. autosummary::
+   :toctree: _autosummary
+   :recursive:
+
    methylcheck.cli
    methylcheck.run_pipeline
    methylcheck.run_qc
@@ -34,8 +39,8 @@ methylcheck package
    methylcheck.get_sex
    methylcheck.assign
 
-methylcheck pipeline functions
-------------------------------
+QC pipeline functions
+---------------------
 
 .. automodule:: methylcheck.qc_report
     :members:
@@ -43,22 +48,28 @@ methylcheck pipeline functions
     :show-inheritance:
 
 
-methylcheck.probes module
--------------------------
+filtering probes
+----------------
 
 .. automodule:: methylcheck.probes
     :members:
 
 
-methylcheck.samples module
---------------------------
+plotting functions
+------------------
 
 .. automodule:: methylcheck.samples
     :members:
 
 
-methylcheck.predict module
---------------------------
+sex prediction
+--------------
 
 .. automodule:: methylcheck.predict
+    :members:
+
+`ReportPDF` Report Builder class
+--------------------------------
+
+.. automodule:: methylcheck.qc_report.ReportPDF
     :members:

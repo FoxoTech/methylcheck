@@ -1,9 +1,10 @@
 # Release History
 
 ## v0.7.0
+- Illumina Mouse Array Support
+- Complete rewrite of documentation
 - qc_signal_intensity and plot_M_vs_U have additional options, including superimposing poobah (percent probe failures
     per sample) on the plot coloring.
-- support for new version of Illumina mouse manifest
 - .load will work on control_probes.pkl and mouse_probes.pkl files (with alt structure: dictionary of dataframe)
 - .sample_plot uses "best" legend positioning now, because it was not fitting on screen with prev settings.
 
