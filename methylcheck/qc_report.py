@@ -15,18 +15,27 @@ __all__ = ['run_pipeline', 'run_qc']
 
 def run_pipeline(df, **kwargs):
     """Run a variety of probe and sample filters in tandem, then plot results
-    by specifying all of your options at once, instead of running every part of methylcheck
-    in piacemeal fashion.
 
-    this is analogous to using the methylcheck CLI, but for notebooks/scripts
+by specifying all of your options at once, instead of running every part of methylcheck
+in piacemeal fashion.
 
+this is analogous to using the methylcheck CLI, but for notebooks/scripts
+
+---------
 required:
-    df -- data as a dataframe of beta values, sample names in columns and probes in rows
+---------
 
-options:
-    verbose (True/False):
+    df: (required)
+        - data as a DataFrame of beta values
+        - sample names in columns and probes in rows
+
+-----------
+parameters:
+-----------
+
+    verbose: (True/False)
         default: False -- shows extra info about processing if True
-    silent (True/False):
+    silent: (True/False)
         default: False -- suppresses all warnings/info
 
     exclude_sex:
@@ -35,40 +44,45 @@ options:
         filters out illumina control probes
     exclude_all:
         filters out the most probes (sex-linked, control, and all sketchy-listed probes from papers)
-    exclude (list of strings, shorthand references to papers with sketchy probes to exclude):
+    exclude: (list of strings, shorthand references to papers with sketchy probes to exclude)
 
         If the array is 450K the publications may include:
-            'Chen2013'
+            ``'Chen2013'
             'Price2013'
             'Zhou2016'
             'Naeem2014'
-            'DacaRoszak2015'
+            'DacaRoszak2015'``
         If the array is EPIC the publications may include:
-            'Zhou2016'
-            'McCartney2016'
+            ``'Zhou2016'
+            'McCartney2016'``
         or these reasons:
-            'Polymorphism'
+            ``'Polymorphism'
             'CrossHybridization'
             'BaseColorChange'
-            'RepeatSequenceElements'
-        or use 'exclude_all' to do maximum filtering, including these papers
+            'RepeatSequenceElements'``
+        or use ``'exclude_all'``:
+            to do maximum filtering, including all of these papers' lists.
 
-    plot (list of strings):
+    plot: (list of strings)
         ['mean_beta_plot', 'beta_density_plot', 'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all']
         if 'all', then all of these plots will be generated. if omitted, no plots are created.
-    save_plots (True|False):
+    save_plots: (True|False)
         default: False
-
     export (True|False):
         default: False -- will export the filtered df as a pkl file if True
-
+-----
 note:
-    this pipeline cannot also apply the array-level methylcheck.run_qc() function
-    because that relies on additional probe information that may not be present. Everything
-    in this pipeline applies to a dataframe of beta or m-values for a set of samples.
+-----
 
+this pipeline cannot also apply the array-level methylcheck.run_qc() function
+because that relies on additional probe information that may not be present. Everything
+in this pipeline applies to a dataframe of beta or m-values for a set of samples.
+
+--------
 returns:
-    a filtered dataframe object
+--------
+
+a filtered dataframe object
     """
     # verify kwargs are expected strings
     param_list ={
