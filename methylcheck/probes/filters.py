@@ -296,66 +296,75 @@ def problem_probe_reasons(array, criteria=None):
 
 def list_problem_probes(array, criteria=None, custom_list=None):
     """Function to create a list of probes to exclude from downstream processes.
-    By default, all probes that have been noted in the literature to have
-    polymorphisms, cross-hybridization, repeat sequence elements and base color
-    changes are included in the DEFAULT exclusion list.
 
-    - You can customize the exclusion list by passing in either publication shortnames or criteria into the function.
-    - you can combine pubs and reasons into the same list of exclusion criteria.
-    - if a publication doesn't match your array type, it will raise an error and tell you.
+By default, all probes that have been noted in the literature to have
+polymorphisms, cross-hybridization, repeat sequence elements and base color
+changes are included in the DEFAULT exclusion list.
 
-    Including any of these labels in pubs (publications) or criteria (described below)
-    will result in these probes NOT being included in the final exclusion list.
+- You can customize the exclusion list by passing in either publication shortnames or criteria into the function.
+- you can combine pubs and reasons into the same list of exclusion criteria.
+- if a publication doesn't match your array type, it will raise an error and tell you.
 
-    User also has ability to add custom list of probes to include in final returned list.
+Including any of these labels in pubs (publications) or criteria (described below)
+will result in these probes NOT being included in the final exclusion list.
 
-    Parameters
-    ----------
-    array: string
+User also has ability to add custom list of probes to include in final returned list.
+
+Parameters
+----------
+
+    ``array``: string
         name for type of array used
         'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
         This shorthand names are also okay:
-            {'EPIC','EPIC+','450k','27k','MOUSE'}
+            ``{'EPIC','EPIC+','450k','27k','MOUSE'}``
 
-    criteria: list
+    ``criteria``: list
         List of the publications to use when excluding probes.
         If the array is 450K the publications may include:
-            'Chen2013'
-            'Price2013'
-            'Zhou2016'
-            'Naeem2014'
-            'DacaRoszak2015'
+        ```'Chen2013'
+        'Price2013'
+        'Zhou2016'
+        'Naeem2014'
+        'DacaRoszak2015'```
+
         If the array is EPIC the publications may include:
-            'Zhou2016'
-            'McCartney2016'
+        ```'Zhou2016'
+        'McCartney2016'```
+
         If array is EPIC or EPIC+, specifying 'illumina' will remove 998
-            probes the manufacturer has recommended be excluded.
+        probes the manufacturer has recommended be excluded.
+
         If no publication list is specified, probes from
         all publications will be added to the exclusion list.
         If more than one publication is specified, all probes
         from all publications in the list will be added to the
         exclusion list.
 
-    criteria: lists
+    ``criteria``: lists
         List of the criteria to use when excluding probes.
         List may contain the following exculsion criteria:
+
+        ```
             'Polymorphism'
             'CrossHybridization'
             'BaseColorChange'
             'RepeatSequenceElements'
             'illumina'
+        ```
+
         If no criteria list is specified, all critera will be
         excluded. If more than one criteria is specified,
         all probes meeting any of the listed criteria will be
         added to the exclusion list.
 
-    custom_list: list, default None
+    ``custom_list``: list, default None
         User-provided list of probes to be excluded.
         These probe names have to match the probe names in your data exactly.
 
+Returns
+-------
 
-    Return
-    -------
     probe_exclusion_list: list
         List containing probe identifiers to be excluded
     or probe_exclusion_dataframe: dataframe
@@ -366,6 +375,8 @@ If you apply maximum filtering (default, no criteria supplied):
     450k arrays will have 341057 probes removed
 
 Reason lists for 450k:
+
+```
     Daca-Roszak_etal_2015 (96427)
     Chen_etal_2013 (445389)
     Naeem_etal_2014 (146590)
@@ -376,14 +387,18 @@ Reason lists for 450k:
     CrossHybridization (211330)
     BaseColorChange (359)
     RepeatSequenceElements (149205)
+```
 
 Reason lists for epic:
+
+```
     McCartney_etal_2016 (384537)
     Zhou_etal_2016 (293870)
 
     CrossHybridization (173793)
     Polymorphism (504208)
     BaseColorChange (406)
+```    
         """
     all_criteria = ['Polymorphism', 'CrossHybridization',
         'BaseColorChange', 'RepeatSequenceElements', 'illumina',

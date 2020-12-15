@@ -250,18 +250,18 @@ kwargs:
 custom tables:
 --------------
 
-pass in arbitrary data using kwarg *"custom_tables"* as list with this structure:
+pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
 
 ```python
-'custom_tables': [
+custom_tables=[
     {
     'title': "some title, optional",
-    'col_names': [list of strings],
-    'row_names': [list of strings, optional],
-    'data': [list of lists, with order matching col_names],
-    'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+    'col_names': ["<list of strings>"],
+    'row_names': ["<list of strings, optional>"],
+    'data': ["<list of lists, with order matching col_names>"],
+    'order_after': ["string name of the plot this should come after. It cannot appear first in list."]
     },
-    {...second table here...}
+    {"<...second table here...>"}
 ]
 ```
 

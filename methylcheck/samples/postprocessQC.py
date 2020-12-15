@@ -75,8 +75,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
 
     Input (df):
         - a dataframe with probes in rows and sample_ids in columns.
-        - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
-        as this will return a matrix of beta-values for a batch of samples (by default).
+        - to get this formatted import, use ``methylprep.consolidate_values_for_sheet()``, as this will return a matrix of beta-values for a batch of samples (by default).
 
     Returns:
         None
@@ -95,12 +94,17 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
             We recommend 0.1, which plots 10% of the 450k or 860k probes, and doesn't distort
             the distribution much. Values below 0.001 (860 probes out of 860k) will show some sampling distortion.
             Using 0.1 will speed up plotting 10-fold of large batches.
-        ymax (None): If defined, upper limit of plot will not exceed this value. But it y-range can be smaller if values are less than this range.
-        full_range: (False) if True, x-axis will be auto-scaled, instead of fixed in the 0-to-1.0 range.
-        return_fig: (False) if True, returns figure object instead of showing plot.
+        ymax (None):
+            If defined, upper limit of plot will not exceed this value. But it y-range can be smaller if values are less than this range.
+        full_range: (False)
+            if True, x-axis will be auto-scaled, instead of fixed in the 0-to-1.0 range.
+        return_fig: (False)
+            if True, returns figure object instead of showing plot.
 
-        highlight_samples: a string or list of df col-names that, if provided, will highlight sample(s) in blue and bold in plot returned. all other samples in df will be grayed out. Useful for QC reports.
-        figsize: tuple of width, height, with 12,9 being default if ommitted.
+        highlight_samples:
+            a string or list of df col-names that, if provided, will highlight sample(s) in blue and bold in plot returned. all other samples in df will be grayed out. Useful for QC reports.
+        figsize:
+            tuple of width, height, with 12,9 being default if ommitted.
         show_labels: By default, sample names appear in a legend if there are <30 samples. Otherwise, ommitted. Use this to force legend on or off.
 
     Note:
@@ -221,8 +225,8 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
 
 
 def sample_plot(df, **kwargs):
-    """ more intuitive alias of beta_density_plot(), since not all values are beta distributions.
-    this changes the default to show a reduced, faster version of probe data, sampling 10% of probes present for10-fold faster processing time."""
+    """A more intuitive alias of ``beta_density_plot()``, since not all values are beta distributions.
+    Note: This changes the ``beta_density_plot()` defaults to show a reduced, faster version of probe data, sampling 10% of probes present for10-fold faster processing time."""
     if 'reduce' in kwargs and kwargs.get('reduce') is None:
         reduce = None
     else:
@@ -288,25 +292,19 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
 
 
 def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick'):
-    """
-    1 needs to read the manifest file for the array, or at least a list of probe names to exclude/include.
-        manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
-        probe_names_no_sex_probes = manifest_file.loc[manifest_file['CHR'].apply(lambda x: x not in ['X', 'Y', np.nan]), 'IlmnID'].values
-        probe_names_sex_probes = manifest_file.loc[manifest_file['CHR'].apply(lambda x: x in ['X', 'Y']), 'IlmnID'].values
+    """Performs multidimensional scaling on a dataframe of samples
 
-    df_no_sex_probes = df[probe_names_no_sex_probes]
-    df_no_sex_probes.head()
+Arguments
+---------
 
-    Arguments
-    ---------
-    df
+    ``df``:
         dataframe of beta values for a batch of samples (rows are probes; cols are samples)
-    filter_stdev
+    ``filter_stdev``:
         a value (unit: standard deviations) between 0 and 3 (typically) that represents
         the fraction of samples to include, based on the standard deviation of this batch of samples.
         So using the default value of 1.5 means that all samples whose MDS-transformed beta sort_values
         are within +/- 1.5 standard deviations of the average beta are retained in the data returned.
-    multi_params
+    ``multi_params``:
         is a dict, passed into this function from a multi-compare-MDS wrapper function, containing:
         {return_plot_obj=True,
         fig=None,
@@ -315,33 +313,50 @@ def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False,
         xy_lim=None,
         color_num=0,
         PSF=1.2 -- plot scale factor (margin beyond points to display)}
-    plot_removed
+    ``plot_removed``:
         if True, displays a plot of samples' beta-distributions that were removed by MDS filtering.
         ignored if silent=True.
-    nafill ('quick' | 'impute')
+    ``nafill``: ('quick' | 'impute')
         by default, most samples will contain missing values where probes failed the signal-noise detection
         in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
         with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
 
-    Options
-    --------
-    silent
-        if running from command line in an automated process, you can run in `silent` mode to suppress any user interaction.
-        In this case, whatever `filter_stdev` you assign is the final value, and a file will be processed with that param.
-        Silent also suppresses plots (images) from being generated. only files are returned.
+Options
+--------
 
-    returns
-    -------
-        returns a filtered dataframe.
-        if `return_plot_obj` is True, it returns the plot, for making overlays in methylize.
+    ``verbose``:
+        If True, provides additional messages
 
-    requires
-    --------
-        pandas, numpy, pyplot, sklearn.manifold.MDS
+    ``silent``:
+        - if running from command line in an automated process, you can run in `silent` mode to suppress any user interaction.
+        - In this case, whatever `filter_stdev` you assign is the final value, and a file will be processed with that param.
+        - Silent also suppresses plots (images) from being generated. only files are returned.
 
-    notes
-    -----
-        this will remove probes from ALL samples in batch from consideration if any samples contain NaN (missing values) for that probe."""
+returns
+-------
+
+    Returns a filtered dataframe. If ``return_plot_obj`` is True, it returns the plot, for making overlays in ``methylize``.
+
+requires
+--------
+
+    pandas, numpy, pyplot, sklearn.manifold.MDS
+
+notes
+-----
+
+    this will remove probes from ALL samples in batch from consideration if any samples contain NaN (missing values) for that probe.
+
+.. todo::
+
+    - Reads the manifest file for the array, or at least a list of probe names to exclude/include.
+    - manifest_file = pd.read_csv('/Users/nrigby/GitHub/stp-prelim-analysis/working_data/CombinedManifestEPIC.manifest.CoreColumns.csv')[['IlmnID', 'CHR']]
+    - probe_names_no_sex_probes = manifest_file.loc[manifest_file['CHR'].apply(lambda x: x not in ['X', 'Y', np.nan]), 'IlmnID'].values
+    - probe_names_sex_probes = manifest_file.loc[manifest_file['CHR'].apply(lambda x: x in ['X', 'Y']), 'IlmnID'].values
+    df_no_sex_probes = df[probe_names_no_sex_probes]
+    df_no_sex_probes.head()
+
+    """
     # before running this, you'd typically exclude probes.
     if verbose:
         logging.basicConfig(level=logging.INFO)
@@ -646,7 +661,7 @@ def combine_mds(*args, **kwargs):
     """To combine (or segment) datasets for multidimensional scaling analysis
 
 --------------
- how it works:
+how it works:
 --------------
 
 Use this function on multiple dataframes to combine datasets, or to visualize
@@ -660,16 +675,17 @@ possible outlier samples (and exclude them).
     - exclude outlier samples based on a composite cutoff box (the average bounds of the component data sets)
     - calculate the percent of data excluded from the group
 
-    -------
-    inputs:
-    -------
+-------
+inputs:
+-------
 
-    - ``*args``: pass in any number of pandas dataframes, and it will combine them into one mds plot.
-    - alternatively, you may pass in a list of filepaths as strings, and it will attempt to load these files as pickles.
+    - ``*args``:
+        - pass in any number of pandas dataframes, and it will combine them into one mds plot.
+        - alternatively, you may pass in a list of filepaths as strings, and it will attempt to load these files as pickles.
         but they must be pickles of pandas dataframes containing beta values or m-values
 
-    optional keyword arguments:
-    ---------------------------
+optional keyword arguments:
+---------------------------
 
     - ``silent``: (default False)
         (automated processing mode)
@@ -680,15 +696,15 @@ possible outlier samples (and exclude them).
     - ``verbose``: (default False)
         if True, prints extra debug information to screen or logger.
 
-    analysis parameters:
-    --------------------
+analysis parameters:
+--------------------
 
     - filter_stdev:
         how broadly should you retain samples? units are standard deviations, defaults to 1.5 STDEV.
         if you increase this number, fewer outlier samples will be removed.
 
-    returns:
-    --------
+returns:
+--------
 
     - returns a dataframe of transformed samples
 
