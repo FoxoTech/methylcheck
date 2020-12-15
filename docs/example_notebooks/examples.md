@@ -15,3 +15,4 @@ Examples from older versions (pre version 0.7):
 - [Older Example of Processing Samples](demo-methylprep-to-methylcheck-example.ipynb)
 - [Older Example of Plots](postprocessQC_example.ipynb)
 - [Raw QC Example](rawQC_example.ipynb)
+- [Another QC example](another-methylcheck-qc-example.ipynb)
