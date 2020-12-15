@@ -1,3 +1,5 @@
+.. _examples::
+
 # Examples of methylcheck used for quality control (QC), control probe analysis, sample outlier filtering, and sex-checks
 
 - [Filtering and Quality Control (QC)](methylprep_methylcheck_example.ipynb)

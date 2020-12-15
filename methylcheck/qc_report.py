@@ -21,14 +21,12 @@ in piacemeal fashion.
 
 this is analogous to using the methylcheck CLI, but for notebooks/scripts
 
-    required:
-    ---------
+required:
     df: (required)
         - data as a DataFrame of beta values
         - sample names in columns and probes in rows
 
-    parameters:
-    -----------
+parameters:
     verbose: (True/False)
         default: False -- shows extra info about processing if True
     silent: (True/False)
@@ -67,14 +65,12 @@ this is analogous to using the methylcheck CLI, but for notebooks/scripts
     export (True|False):
         default: False -- will export the filtered df as a pkl file if True
 
-    note:
-    -----
+note:
     this pipeline cannot also apply the array-level methylcheck.run_qc() function
     because that relies on additional probe information that may not be present. Everything
     in this pipeline applies to a dataframe of beta or m-values for a set of samples.
 
-    returns:
-    --------
+returns:
     a filtered dataframe object
     """
     # verify kwargs are expected strings
@@ -208,7 +204,7 @@ this is analogous to using the methylcheck CLI, but for notebooks/scripts
 
 
 def detection_poobah(poobah_df, pval_cutoff):
-    """ given a dataframe of p-values with sample_ids in columns and probes in index,
+    """Given a dataframe of p-values with sample_ids in columns and probes in index,
     calculates the percent failed probes per sample. Part of QC report."""
     out = {}
     for sample_id in poobah_df.columns:

@@ -5,7 +5,6 @@ API Reference
 
 .. autosummary::
    :toctree: _autosummary
-   :recursive:
 
    methylcheck.cli
    methylcheck.run_pipeline
