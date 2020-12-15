@@ -21,18 +21,14 @@ in piacemeal fashion.
 
 this is analogous to using the methylcheck CLI, but for notebooks/scripts
 
----------
-required:
----------
-
+    required:
+    ---------
     df: (required)
         - data as a DataFrame of beta values
         - sample names in columns and probes in rows
 
------------
-parameters:
------------
-
+    parameters:
+    -----------
     verbose: (True/False)
         default: False -- shows extra info about processing if True
     silent: (True/False)
@@ -70,19 +66,16 @@ parameters:
         default: False
     export (True|False):
         default: False -- will export the filtered df as a pkl file if True
------
-note:
------
 
-this pipeline cannot also apply the array-level methylcheck.run_qc() function
-because that relies on additional probe information that may not be present. Everything
-in this pipeline applies to a dataframe of beta or m-values for a set of samples.
+    note:
+    -----
+    this pipeline cannot also apply the array-level methylcheck.run_qc() function
+    because that relies on additional probe information that may not be present. Everything
+    in this pipeline applies to a dataframe of beta or m-values for a set of samples.
 
---------
-returns:
---------
-
-a filtered dataframe object
+    returns:
+    --------
+    a filtered dataframe object
     """
     # verify kwargs are expected strings
     param_list ={
