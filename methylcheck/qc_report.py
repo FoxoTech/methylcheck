@@ -233,26 +233,26 @@ kwargs:
 -------
 
 - processing params
-  * filename
-  * poobah_max_percent
-  * pval_cutoff
-  * outpath
-  * path
+  - filename
+  - poobah_max_percent
+  - pval_cutoff
+  - outpath
+  - path
 - front page text
-  * title
-  * author
-  * subject
-  * keywords
+  - title
+  - author
+  - subject
+  - keywords
 - if 'debug=True' is in kwargs,
-  * then it will return a report without any parts that failed.
+  - then it will return a report without any parts that failed.
 
 --------------
 custom tables:
 --------------
 
-pass in arbitrary data using kwarg "custom_tables" as list with this structure:
+pass in arbitrary data using kwarg *"custom_tables"* as list with this structure:
 
-```
+```python
 'custom_tables': [
     {
     'title': "some title, optional",
@@ -270,18 +270,18 @@ Pre-processing pipeline:
 ------------------------
 
     Probe-level (w/explanations of suggested exclusions)
-        Links to recommended probe exclusion lists/files/papers
-        Background subtraction and normalization (‘noob’)
-        Detection p-value (‘neg’ vs ‘oob’)
-        Dye-bias correction (from SeSAMe)
+        - Links to recommended probe exclusion lists/files/papers
+        - Background subtraction and normalization ('noob')
+        - Detection p-value ('neg' vs 'oob')
+        - Dye-bias correction (from SeSAMe)
     Sample-level (w/explanations of suggested exclusions)
         Detection p-value (% failed probes)
-            custom detection (% failed, of those in a user-defined-list supplied to function)
+        - custom detection (% failed, of those in a user-defined-list supplied to function)
         MDS
         Suggested for customer to do on their own
-            Sex check
-            Age check
-            SNP check
+        - Sex check
+        - Age check
+        - SNP check
     """
     # larger font
     # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16

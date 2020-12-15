@@ -643,13 +643,16 @@ kwargs:
 
 
 def combine_mds(*args, **kwargs):
-    """
-    combine (or segment) datasets how it works
-    ------------------------------------------
-    Use this function on multiple dataframes to combine datasets, or to visualize
-    parts of the same dataset in separate colors. It is a wrapper of `methylcheck.beta_mds_plot()` and applies
-    multidimensional scaling to cluster similar samples based on patterns in probe values, as well as identify
-    possible outlier samples (and exclude them).
+    """To combine (or segment) datasets for multidimensional scaling analysis
+
+--------------
+ how it works:
+--------------
+
+Use this function on multiple dataframes to combine datasets, or to visualize
+parts of the same dataset in separate colors. It is a wrapper of `methylcheck.beta_mds_plot()` and applies
+multidimensional scaling to cluster similar samples based on patterns in probe values, as well as identify
+possible outlier samples (and exclude them).
 
     - combine datasets,
     - run MDS,
@@ -657,35 +660,43 @@ def combine_mds(*args, **kwargs):
     - exclude outlier samples based on a composite cutoff box (the average bounds of the component data sets)
     - calculate the percent of data excluded from the group
 
-    inputs
-    ------
-        - *args: pass in any number of pandas dataframes, and it will combine them into one mds plot.
-        - alternatively, you may pass in a list of filepaths as strings, and it will attempt to load these files as pickles.
+    -------
+    inputs:
+    -------
+
+    - ``*args``: pass in any number of pandas dataframes, and it will combine them into one mds plot.
+    - alternatively, you may pass in a list of filepaths as strings, and it will attempt to load these files as pickles.
         but they must be pickles of pandas dataframes containing beta values or m-values
 
-    optional keyword arguments
-    --------------------------
-    - silent: (default False)
+    optional keyword arguments:
+    ---------------------------
+
+    - ``silent``: (default False)
         (automated processing mode)
         if True, suppresses most information and avoids prompting user for anything.
         silent mode processes data but doesn't show the plot.
-    - save: (default False)
+    - ``save``: (default False)
         if True, saves the plot png to disk.
-    - verbose: (default False)
+    - ``verbose``: (default False)
         if True, prints extra debug information to screen or logger.
 
-    analysis parameters
-    -------------------
-    - filter_stdev (how broadly should you retain samples? units are standard deviations, defaulting to 1.5 STDEV.)
-    if you increase this number, fewer outlier samples will be removed.
+    analysis parameters:
+    --------------------
 
-    returns
-    ------
-        - TODO: one dataframe of the retained samples, cutoff box is avg of datasets
-        ~~nothing returned (currently)~~
-        - TODO: each dataset's results as a transformed file
-        - default: list of samples retained or excluded
-        - option: a list of pyplot subplot objects
+    - filter_stdev:
+        how broadly should you retain samples? units are standard deviations, defaults to 1.5 STDEV.
+        if you increase this number, fewer outlier samples will be removed.
+
+    returns:
+    --------
+
+    - returns a dataframe of transformed samples
+
+.. todo::
+    - TODO: one dataframe of the retained samples, cutoff box is avg of datasets
+    - TODO: each dataset's results as a transformed file
+    - default: list of samples retained or excluded
+    - option: a list of pyplot subplot objects
     """
     # kwargs
     save = kwargs.get('save', False)
