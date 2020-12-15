@@ -5,9 +5,8 @@ methylcheck documentation
 .. mdinclude:: README.md
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 3
    :caption: Contents:
-   :name: Help Files
 
    Loading Data <docs/loading-data.ipynb>
    Quality Control <docs/quality-control-example.ipynb>
@@ -17,12 +16,10 @@ methylcheck documentation
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
    Release History <docs/release-history.md>
 
-   .. include:: Examples <docs/examples.md>
+   .. mdinclude:: Examples <docs/examples.md>
 
 Indices and tables
 ==================
-
-
 
 * :ref:`genindex`
 * :ref:`modindex`
