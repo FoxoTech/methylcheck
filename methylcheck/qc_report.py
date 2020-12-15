@@ -212,13 +212,84 @@ def detection_poobah(poobah_df, pval_cutoff):
     return out
 
 class ReportPDF:
-    """ this will call a batch of plotting functions and compile a PDF with annotation and save file to disk """
-    # large font
+    """ReportPDF allows you to build custom QC reports.
+
+-------
+To use:
+-------
+
+- First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
+- Next, run ```myReport.run_qc()`` to fill it in.
+- Third, you must run ``myReport.close()`` after ``run_qc()`` to save the file to disk.
+- You can supply kwargs to specify which QC plots to include
+  - and supply a list of chart names to control the order of objects in the report.
+  - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
+  - You may pass in a custom table to override one of the built-in pages.
+- include 'path' with the path to your processed pickle files.
+- include an optional 'outpath' for where to save the pdf report.
+
+-------
+kwargs:
+-------
+
+- processing params
+  * filename
+  * poobah_max_percent
+  * pval_cutoff
+  * outpath
+  * path
+- front page text
+  * title
+  * author
+  * subject
+  * keywords
+- if 'debug=True' is in kwargs,
+  * then it will return a report without any parts that failed.
+
+--------------
+custom tables:
+--------------
+
+pass in arbitrary data using kwarg "custom_tables" as list with this structure:
+
+```
+'custom_tables': [
+    {
+    'title': "some title, optional",
+    'col_names': [list of strings],
+    'row_names': [list of strings, optional],
+    'data': [list of lists, with order matching col_names],
+    'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+    },
+    {...second table here...}
+]
+```
+
+------------------------
+Pre-processing pipeline:
+------------------------
+
+    Probe-level (w/explanations of suggested exclusions)
+        Links to recommended probe exclusion lists/files/papers
+        Background subtraction and normalization (‘noob’)
+        Detection p-value (‘neg’ vs ‘oob’)
+        Dye-bias correction (from SeSAMe)
+    Sample-level (w/explanations of suggested exclusions)
+        Detection p-value (% failed probes)
+            custom detection (% failed, of those in a user-defined-list supplied to function)
+        MDS
+        Suggested for customer to do on their own
+            Sex check
+            Age check
+            SNP check
+    """
+    # larger font
     # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
-    #MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
-    #MAXLINES = 26
-    #FONTSIZE = 16
-    #ORIGIN = (0.1, 0.1) # achored on page in lower left
+    # MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
+    # MAXLINES = 26
+    # FONTSIZE = 16
+    # ORIGIN = (0.1, 0.1) # achored on page in lower left
+    #
     # normal font -- for 12pt font: use 100 x 44 lines
     MAXWIDTH = 100
     MAXLINES = 44
@@ -226,35 +297,6 @@ class ReportPDF:
     ORIGIN = (0.1, 0.05) # achored on page in lower left
 
     def __init__(self, **kwargs):
-        """ supply kwargs to specify which QC plots to include
-        and order (list) for the order.
-        include 'path' with path to processed pickled files.
-        include optional 'outpath' for where to save the pdf report.
-
-        kwargs: filename, poobah_max_percent, pval_cutoff,
-        title, author, subject, keywords, outpath, path
-
-        when using:
-            you must run report.pdf.close() after you run_qc().
-
-        custom tables:
-            pass in arbitrary data using kwarg "custom_tables" as list with this structure:
-                'custom_tables': [
-                    {
-                    'title': "some title, optional",
-                    'col_names': [list of strings],
-                    'row_names': [list of strings, optional],
-                    'data': [list of lists, with order matching col_names],
-                    'order_after': [string name of the plot this should come after. It cannot appear first in list.]
-                    },
-                    {...second table here...}
-                ]
-
-        if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
-
-        if you pass in 'order' in kwargs, any page you omit will be omitted from the final report.
-        (pass in a custom table to override one of the built-in pages this way)
-        """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False
@@ -284,22 +326,6 @@ class ReportPDF:
         d['CreationDate'] = datetime.datetime.today()
         d['ModDate'] = datetime.datetime.today()
 
-        """
-Pre-processing pipeline
-    Probe-level (w/explanations of suggested exclusions)
-        Links to recommended probe exclusion lists/files/papers
-        Background subtraction and normalization (‘noob’)
-        Detection p-value (‘neg’ vs ‘oob’)
-        Dye-bias correction (from SeSAMe)
-    Sample-level (w/explanations of suggested exclusions)
-        Detection p-value (% failed probes)
-            custom detection (% failed, of those in a user-defined-list supplied to function)
-        MDS
-        Suggested for customer to do on their own
-            Sex check
-            Age check
-            SNP check
-        """
         if 'order' in self.__dict__:
             self.order = self.__dict__['order']
         else:

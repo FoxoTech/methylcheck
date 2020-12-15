@@ -68,8 +68,8 @@ sex prediction
 .. automodule:: methylcheck.predict
     :members:
 
-`ReportPDF` Report Builder class
---------------------------------
+``ReportPDF`` Report Builder class
+----------------------------------
 
 .. automodule:: methylcheck.qc_report.ReportPDF
     :members:
