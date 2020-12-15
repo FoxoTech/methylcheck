@@ -16,7 +16,8 @@ methylcheck documentation
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
    Release History <docs/release-history.md>
-   Examples <docs/examples.md>
+
+   .. include:: Examples <docs/examples.md>
 
 Indices and tables
 ==================
