@@ -35,7 +35,7 @@ methylcheck package
    methylcheck.assign
 
 methylcheck pipeline functions
------------------------------------------------
+------------------------------
 
 .. automodule:: methylcheck.qc_report
     :members:
