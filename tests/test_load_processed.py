@@ -45,6 +45,7 @@ class TestLoadProcessed():
         if df_test.shape != (864869, 1):
             raise AssertionError()
 
+
     def test_filter_epic_with_450k_criteria(self):
         df = methylcheck.load(Path(TESTPATH,'test_epic_filter.pkl'))
         try:

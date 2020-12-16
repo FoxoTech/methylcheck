@@ -67,6 +67,7 @@ class TestProcessedSample():
             print('\n'.join(diffs))
 
     def test_plot_mouse_betas_from_pickle(self):
+        """ tests SAVE too """
         mu = methylcheck.load(Path(PATH,'mouse_probes.pkl'), verbose=False, silent=True)
         df0 = list(mu.values())[0]
         df = df0[['beta_value']]
@@ -75,10 +76,15 @@ class TestProcessedSample():
         methylcheck.sample_plot(df, silent=True)
         methylcheck.mean_beta_plot(df, silent=True)
         methylcheck.cumulative_sum_beta_distribution(df, silent=True)
-        methylcheck.beta_mds_plot(df, silent=True)
+        methylcheck.beta_mds_plot(df, silent=True, save=False)
         methylcheck.mean_beta_compare(df,df,silent=True)
         df = df0[['cm_value']]
         methylcheck.beta_density_plot(df, silent=True)
         df = df0[['m_value']]
         methylcheck.beta_density_plot(df, silent=True)
         Path('./beta.png').unlink()
+        # Path('./beta_mds_n=*.png').unlink() -- causes error if this function doesn't create the file to remove
+        methylcheck.beta_mds_plot(df, silent=True, save=True)
+        for saved_png in Path('.').rglob('./beta_mds_n=*.png'):
+            print(saved_png)
+            saved_png.unlink()

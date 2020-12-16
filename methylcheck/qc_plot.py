@@ -4,6 +4,7 @@ import seaborn as sb
 import matplotlib.pyplot as plt
 from pathlib import Path
 import logging
+
 #app
 import methylcheck
 from .progress_bar import *
@@ -14,28 +15,47 @@ __all__ = ['run_qc', 'plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 
 
 def run_qc(path):
     """Generates all QC plots for a dataset in the path provided.
-    This only works if batch_size option was NOT used during processing
-    and `process --all` was used to create control probes and raw values for QC.
+    if `process --all` was used to create control probes and raw values for QC,
+    because it uses four output files:
+
+    - beta_values.pkl
+    - control_probes.pkl
+    - meth_values.pkl or noob_meth_values.pkl
+    - unmeth_values.pkl or noob_unmeth_values.pkl
+
+    output is all to screen, so best to use in a jupyter notebook.
+    If you prefer output in a PDF, use ReportPDF instead.
+
+    Note: this will only look in the path folder; it doesn't do a recursive search for matching files.
     """
     try:
         beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
         controls = pd.read_pickle(Path(path,'control_probes.pkl'))
-        meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
-        unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+        if Path(path,'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists():
+            meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
+            unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+        else:
+            meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl'))
+            unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl'))
+        if Path(path,'poobah_values.pkl').exists():
+            poobah = pd.read_pickle(Path(path,'poobah_values.pkl'))
+        else:
+            poobah = None
     except FileNotFoundError:
         if not Path(path).exists():
             raise FileNotFoundError("Invalid path")
-        elif Path(path).is_dir():
+        elif not Path(path).is_dir():
             raise FileNotFoundError("Path is not a directory.")
-        raise FileNotFoundError("Files missing. run_qc() only works if you used `methylprep process --all` option.")
+        raise FileNotFoundError("Files missing. run_qc() only works if you used `methylprep process --all` option to produce beta_values, control_probes, meth_values, and unmeth_values files.")
     # needs meth_df, unmeth_df, controls, and beta_df
-    plot_M_vs_U(meth=meth_df, unmeth=unmeth_df)
-    qc_signal_intensity(meth=meth_df, unmeth=unmeth_df)
+    # if passing in a path, it will auto-search for poobah. but if meth/unmeth passed in, you must explicitly tell it to look.
+    plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, poobah=poobah)
+    qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, poobah=poobah)
     plot_controls(controls, 'all')
     plot_beta_by_type(beta_df, 'all')
 
 
-def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None,
+def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None, poobah=None, palette=None,
     noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5, return_fig=False):
     """Suggests sample outliers based on methylated and unmethylated signal intensity.
 
@@ -55,6 +75,11 @@ input (one of these):
         meth = pd.read_pickle('meth_values.pkl')
         unmeth = pd.read_pickle('unmeth_values.pkl')
         THIS will run the fastest.
+    (meth and unmeth and poobah)
+        if poobah=None (default): Does nothing
+        if poobah=False: suppresses this color
+        if poobah=dataframe: color-codes samples according to percent probe failure range,
+            but only if you pass in meth and unmeth dataframes too, not data_containers object.
 
 optional params:
 ================
@@ -64,19 +89,29 @@ optional params:
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
     return_fig (False default), if True, and plot is True, returns a figure object instead of showing plot.
     compare: if the processed data contains both noob and uncorrected values, it will plot both in different colors
+    palette: if using poobah to color code, you can specify a Seaborn palette to use.
 
 this will draw a diagonal line on plots
 
 FIX:
     doesn't return both types of data if using compare and not plotting
     doesn't give good error message for compare
-
     """
     if not path and not data_containers and type(meth) is type(None) and type(unmeth) is type(None):
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
     if type(meth) is type(None) and type(unmeth) is type(None):
         meth, unmeth = _get_data(data_containers=data_containers, path=path, compare=False, noob=noob, verbose=verbose)
+    if (path is not None and not isinstance(poobah, pd.DataFrame)
+        and not isinstance(poobah, type(None))
+        and verbose and not silent):
+        if poobah in (False,None):
+            pass # unless poobah IS a dataframe below, nothing happens. None/False suppress this
+        else:
+            if 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
+                poobah = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
+            else:
+                LOGGER.info("Cannot load poobah_values.pkl file.")
 
     # Plotting
     medians = _make_qc_df(meth,unmeth)
@@ -100,13 +135,43 @@ FIX:
     # set up figure
     fig,ax = plt.subplots(figsize=(10,10))
     plt.grid()
-    plt.title('M versus U plot')
     plt.xlabel('Meth Median Intensity (log2)')
     plt.ylabel('Unmeth Median Intensity (log2)')
-    # bad values
-    plt.scatter(x='mMed',y='uMed',data=medians[medians.index.isin(bad_samples)],label='Bad Samples',c='red')
-    # good values
-    plt.scatter(x='mMed',y='uMed',data=medians[~medians.index.isin(bad_samples)],label="Good Samples",c='black')
+    if not isinstance(poobah, pd.DataFrame):
+        plt.title('M versus U plot')
+        # bad values
+        plt.scatter(x='mMed',y='uMed',data=medians[medians.index.isin(bad_samples)],label='Bad Samples',c='red')
+        # good values
+        plt.scatter(x='mMed',y='uMed',data=medians[~medians.index.isin(bad_samples)],label="Good Samples",c='black')
+    elif isinstance(poobah, pd.DataFrame):
+        plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        if poobah.isna().sum().sum() > 0:
+            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+        percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
+        percent_failures = percent_failures.rename('probe_failure_(%)')
+        # Series.where will replace the stuff that is False, so you have to negate it.
+        percent_failures_hues = percent_failures.where(~percent_failures.between(0,5), 0)
+        percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        #sizes = percent_failures_hues.copy()
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+        qc = pd.merge(left=medians,
+           right=percent_failures_hues,
+           left_on=medians.index,
+           right_on=percent_failures_hues.index,
+           how='inner')
+        hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
+        this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
+            palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+    else:
+        raise NotImplementedError("poobah color coding is not implemented with 'compare' option")
+
     plt.xlim([min_x,max_x])
     plt.ylim([min_y,max_y])
     # cutoff line
@@ -210,8 +275,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
     return meth, unmeth
 
 
-def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None,
-    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False):
+def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None, poobah=None,
+    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None):
     """plot methylated vs unmethylated probe intensities
 
 input (choose one of these):
@@ -219,17 +284,25 @@ input (choose one of these):
     PATH to csv files processed using methylprep
         these have "noob_meth" and "noob_unmeth" columns per sample file this function can use.
         if you want it to processed data uncorrected data.
+        (If there is a poobah_values.pkl file in this PATH, it will use the file to color code points)
 
     data_containers = run_pipeline(data_dir = 'somepath',
                                        save_uncorrected=True,
                                        sample_sheet_filepath='samplesheet.csv')
         you can also recreate the list of datacontainers using methylcheck.load(<filepath>,'meth')
 
+
     (meth and unmeth)
         if you chose `process --all` you can load the raw intensities like this, and pass them in:
         meth = pd.read_pickle('meth_values.pkl')
         unmeth = pd.read_pickle('unmeth_values.pkl')
         THIS will run the fastest.
+
+    poobah
+        filepath: You may supply the file path to the p-value detection dataframe. If supplied, it will color
+        code points on the plot.
+        False: set poobah to False to suppress this coloring.
+        None (default): if there is a poobah_values.pkl file in your path, it will use it.
 
 optional params:
     noob: use noob-corrected meth/unmeth values
@@ -248,17 +321,27 @@ FIX:
     doesn't give good error message for compare
 
     """
-    if type(data_containers_or_path) == type(Path()):
+    try:
+        if Path(data_containers_or_path).exists(): # if passing in a valid string, this should work.
+            path = Path(data_containers_or_path)
+        else:
+            path = None
+    except:
+        path = None # but fails if passing in a data_containers object
+
+    if type(data_containers_or_path) == type(Path()): #this only recognizes a Path object
         path = data_containers_or_path
         data_containers = None
     else:
         path = None
-        data_containers = data_containers_or_path
+        data_containers = data_containers_or_path # by process of exclusion, this must be an object
 
     if not path and not data_containers and type(meth) is None and type(unmeth) is None:
         print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
-    elif type(meth) is None and type(unmeth) is None:
+
+    # 2. load meth + unmeth from path
+    elif isinstance(meth,type(None)) and isinstance(unmeth,type(None)): #type(meth) is None and type(unmeth) is None:
         try:
             if compare:
                 meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare)
@@ -269,17 +352,70 @@ FIX:
             print("No processed data found.")
             return
 
+    # 2. load poobah_df if exists
+    if isinstance(poobah,pd.DataFrame):
+        poobah_df = poobah
+        poobah = True
+    else:
+        poobah_df = None
+        if poobah is not False and isinstance(path, Path) and 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
+            poobah_df = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
+            poobah=True
+        else:
+            if poobah_df is None: # didn't find a poobah file to load
+                LOGGER.warning("Did not find a poobah_values.pkl file; unable to color-code plot.")
+                poobah = False #user may have set this to True or None, but changing params to fit data.
+    if verbose and not silent and isinstance(poobah_df,pd.DataFrame):
+        LOGGER.info("Using poobah_values.pkl")
+
+    #palette options to pass in: "CMRmap" "flare" "twilight" "Blues"
+    hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
+
+    if poobah is not False and isinstance(poobah_df, pd.DataFrame) and not compare:
+        if poobah_df.isna().sum().sum() > 0:
+            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+        percent_failures = round(100*( poobah_df[poobah_df > 0.05].count() / poobah_df.count() ),1)
+        percent_failures = percent_failures.rename('probe_failure (%)')
+        meth_med = meth.median()
+        unmeth_med = unmeth.median()
+        # Series.where will replace the stuff that is False, so you have to negate it.
+        percent_failures_hues = percent_failures.where(~percent_failures.between(0,5), 0)
+        percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        #sizes = percent_failures_hues.copy()
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+        df = pd.concat([
+            meth_med.rename('meth'),
+            unmeth_med.rename('unmeth'),
+            percent_failures_hues],
+            #sizes.rename('size')],
+            axis=1)
+
     if plot:
         # plot it
         fig,ax = plt.subplots(figsize=(10,10))
         plt.grid()
-        this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
-        if compare:
+        if poobah and not compare:
+            this = sb.scatterplot(data=df, x="meth", y="unmeth", hue="probe_failure (%)",
+                palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+        elif not poobah and not compare:
+            this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
+        elif compare:
+            this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
             # combine both and reference each
             if not silent:
                 print(f'Blue: {"noob" if noob else "uncorrected"}')
             sb.scatterplot(x=_meth.median(),y=_unmeth.median(),s=75)
-        plt.title('M versus U plot')
+        if poobah:
+            plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        else:
+            plt.title('M versus U plot')
         plt.xlabel('Median Methylated Intensity')
         plt.ylabel('Median Unmethylated Intensity')
 
@@ -310,28 +446,31 @@ Plot the overall density distribution of beta values and the density distributio
 options:
     return_fig: (default False) if True, returns a list of figure objects instead of showing plots.
     """
-    probe_types = ('I', 'II', 'IR', 'IG', 'all') # 'SnpI', 'Control' are in manifest, but not in the processed data
-    if probe_type not in probe_types:
-        raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot")
+    mouse_probe_types = ['cg','ch']
+    probe_types = ['I', 'II', 'IR', 'IG', 'all'] # 'SnpI', 'Control' are in manifest, but not in the processed data
+    if probe_type not in probe_types + mouse_probe_types:
+        raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot or, if mouse array, one of these ({mouse_probe_types}) or 'all'.")
 
     # orient
     if beta_df.shape[1] > beta_df.shape[0]:
         beta_df = beta_df.transpose() # probes should be in rows.
     array_type, man_filepath = methylcheck.detect_array(beta_df, returns='filepath', on_lambda=on_lambda)
+    # note that 'array_type' can look like string 'mouse' but only str(array_type) will match the string 'mouse'
+
     if Path.exists(man_filepath):
         try:
-            from methylprep.files import Manifest
+            from methylprep import Manifest, ArrayType
         except ImportError:
             raise ImportError("this required methylprep")
 
-        manifest = Manifest(array_type, man_filepath, on_lambda=on_lambda)
+        manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
     else:
         raise FileNotFoundError("manifest file not found.")
 
-    # II, I, SnpI, SnpII, IR, IG, Control
     # merge reference col, filter probes, them remove ref col(s)
     orig_shape = beta_df.shape
-    mapper = manifest._Manifest__data_frame.loc[:, ['probe_type','Color_Channel']]
+    # II, I, IR, IG, Control
+    mapper = manifest.data_frame.loc[:, ['probe_type','Color_Channel']]
     beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
 
     figs = []
@@ -371,6 +510,37 @@ options:
         else:
             print(f'Found {subset.shape[0]} type I Green (IG) probes.')
             methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent)
+    if str(array_type) != 'mouse':
+        if return_fig:
+            return figs
+        return
+
+    ############ MOUSE ONLY ################
+    # TODO: control probe types #
+    # 'probe_type' are I, II, IR, IG and Probe_Type (mouse only) are 'cg','ch' | 'mu','rp','rs' are on control or mouse probes
+    mapper = manifest.data_frame.loc[:, ['Probe_Type']]
+    beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
+
+    if probe_type in ('cg','ch'):
+        subset = beta_df[beta_df['Probe_Type'] == probe_type]
+        subset = subset.drop('probe_type', axis='columns')
+        subset = subset.drop('Color_Channel', axis='columns')
+        subset = subset.drop('Probe_Type', axis='columns')
+        if return_fig:
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', return_fig=True, silent=silent) )
+        else:
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', silent=silent)
+    if probe_type == 'all':
+        for mouse_probe_type in mouse_probe_types:
+            subset = beta_df[beta_df['Probe_Type'] == mouse_probe_type]
+            subset = subset.drop('probe_type', axis='columns')
+            subset = subset.drop('Color_Channel', axis='columns')
+            subset = subset.drop('Probe_Type', axis='columns')
+            if return_fig:
+                figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', return_fig=True, silent=silent) )
+            else:
+                methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', silent=silent)
+
     if return_fig:
         return figs
 
@@ -392,6 +562,8 @@ options:
 
     return_fig (False)
         if True, returns a list of matplotlib.pyplot figure objects INSTEAD of showing then. Used in QC ReportPDF.
+
+    if there are more than 30 samples, plots will not have sample names on x-axis.
     """
     subset_options = {'staining', 'negative', 'hybridization', 'extension', 'bisulfite', 'non-polymorphic', 'target-removal', 'specificity', 'all'}
     if subset not in subset_options:
@@ -415,6 +587,8 @@ options:
         print("No data.")
         return
 
+    mouse = True if list(control.values())[0].shape[0] == 473 else False # vs 694 controls for epic.
+    plotx = 'show' if len(list(control.keys())) <= 30 else None
     # Create empty dataframes for red and green negative controls
     control_R = pd.DataFrame(list(control.values())[0][['Control_Type','Color','Extended_Type']])
     control_G = pd.DataFrame(list(control.values())[0][['Control_Type','Color','Extended_Type']])
@@ -432,17 +606,27 @@ options:
         stain_red = control_R[control_R['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         stain_green = control_G[control_G['Control_Type']=='STAINING'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(stain_green.Extended_Type, stain_green.Color))
+        color_dict.update({k: (v if v != '-99' else 'gold') for k,v in color_dict.items()})
         stain_green = stain_green.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.drop(columns=['Color']).set_index('Extended_Type')
         stain_red = stain_red.T
         stain_green = stain_green.T
-        fig = _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining', return_fig=return_fig)
-        if fig:
-            figs.append(fig)
+        if stain_red.shape[1] == 0 or stain_green.shape[1] == 0:
+            LOGGER.info("No staining probes found")
+        else:
+            fig = _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining', return_fig=return_fig)
+            if fig:
+                figs.append(fig)
 
     if subset in ('negative','all'):
-        neg_red = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
-        neg_green= control_G[control_G['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+        if mouse:
+            # mouse manifest defines control probes in TWO columns, just to be annoying.
+            neg_red   = control_R[(control_R['Control_Type'] == 'NEGATIVE') & (control_R['Extended_Type'].str.startswith('neg_'))].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+            neg_green = control_G[(control_G['Control_Type'] == 'NEGATIVE') & (control_G['Extended_Type'].str.startswith('neg_'))].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+            neg_mouse_probe_names = list(neg_red.Extended_Type.values)
+        else:
+            neg_red   = control_R[control_R['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+            neg_green = control_G[control_G['Control_Type']=='NEGATIVE'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(neg_green.Extended_Type, neg_green.Color))
         color_dict.update({k: (v if v != '-99' else 'Black') for k,v in color_dict.items()})
         neg_green = neg_green.drop(columns=['Color']).set_index('Extended_Type')
@@ -461,10 +645,13 @@ options:
                                              'Negative 6','Negative 7','Negative 8','Negative 119','Negative 10',
                                              'Negative 484','Negative 12','Negative 13','Negative 144','Negative 151',
                                              'Negative 166']
-        dynamic_controls = [c for c in list_of_negative_controls_to_plot if c in neg_red.columns and c in neg_green.columns]
+        probes_to_plot = list_of_negative_controls_to_plot
+        if mouse:
+            probes_to_plot = neg_mouse_probe_names[:36] # plot the first 36
+        dynamic_controls = [c for c in probes_to_plot if c in neg_red.columns and c in neg_green.columns]
         dynamic_ymax = max([max(neg_red[dynamic_controls].max(axis=0)), max(neg_green[dynamic_controls].max(axis=0))])
         dynamic_ymax = dynamic_ymax + int(0.1*dynamic_ymax)
-        fig = _qc_plotter(neg_red, neg_green, color_dict, columns=list_of_negative_controls_to_plot, ymax=dynamic_ymax, title='Negative', return_fig=return_fig)
+        fig = _qc_plotter(neg_red, neg_green, color_dict, columns=probes_to_plot, ymax=dynamic_ymax, xticks=plotx, title='Negative', return_fig=return_fig)
         if fig:
             figs.append(fig)
 
@@ -476,7 +663,7 @@ options:
         hyb_red = hyb_red.drop(columns=['Color']).set_index('Extended_Type')
         hyb_red = hyb_red.T
         hyb_green = hyb_green.T
-        fig = _qc_plotter(hyb_red, hyb_green, color_dict, ymax=35000, title='Hybridization', return_fig=return_fig)
+        fig = _qc_plotter(hyb_red, hyb_green, color_dict, ymax=35000, xticks=plotx, title='Hybridization', return_fig=return_fig)
         if fig:
             figs.append(fig)
 
@@ -488,19 +675,23 @@ options:
         ext_red = ext_red.drop(columns=['Color']).set_index('Extended_Type')
         ext_red = ext_red.T
         ext_green = ext_green.T
-        fig = _qc_plotter(ext_red, ext_green, color_dict, ymax=50000, title='Extension', return_fig=return_fig)
-        if fig:
-            figs.append(fig)
+        if ext_red.shape[1] == 0 or ext_green.shape[1] == 0:
+            LOGGER.info("No extension probes found")
+        else:
+            fig = _qc_plotter(ext_red, ext_green, color_dict, ymax=50000, xticks=plotx, title='Extension', return_fig=return_fig)
+            if fig:
+                figs.append(fig)
 
     if subset in ('bisulfite','all'):
-        bci_red   = control_R[control_R['Control_Type']=='BISULFITE CONVERSION I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
-        bci_green = control_G[control_G['Control_Type']=='BISULFITE CONVERSION I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+        bci_red   = control_R[control_R['Control_Type'].isin(['BISULFITE CONVERSION I','BISULFITE CONVERSION II'])].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+        bci_green = control_G[control_G['Control_Type'].isin(['BISULFITE CONVERSION I','BISULFITE CONVERSION II'])].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(bci_green.Extended_Type, bci_green.Color))
+        color_dict.update({k: (v if v != 'Both' else 'seagreen') for k,v in color_dict.items()}) # mouse has Both; others don't
         bci_green = bci_green.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.drop(columns=['Color']).set_index('Extended_Type')
         bci_red = bci_red.T
         bci_green = bci_green.T
-        fig = _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, title='Bisulfite Conversion', return_fig=return_fig)
+        fig = _qc_plotter(bci_red, bci_green, color_dict, ymax=30000, xticks=plotx, title='Bisulfite Conversion', return_fig=return_fig)
         if fig:
             figs.append(fig)
 
@@ -513,9 +704,12 @@ options:
         np_red = np_red.drop(columns=['Color']).set_index('Extended_Type')
         np_red = np_red.T
         np_green = np_green.T
-        fig = _qc_plotter(np_red, np_green, color_dict, ymax=30000, title='Non-polymorphic', return_fig=return_fig)
-        if fig:
-            figs.append(fig)
+        if np_red.shape[1] == 0 or np_green.shape[1] == 0:
+            LOGGER.info("No non-polymorphic probes found")
+        else:
+            fig = _qc_plotter(np_red, np_green, color_dict, ymax=30000, xticks=plotx, title='Non-polymorphic', return_fig=return_fig)
+            if fig:
+                figs.append(fig)
 
     if subset in ('target-removal','all'):
         tar_red = control_R[control_R['Control_Type']=='TARGET REMOVAL'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
@@ -525,19 +719,22 @@ options:
         tar_red = tar_red.drop(columns=['Color']).set_index('Extended_Type')
         tar_red = tar_red.T
         tar_green = tar_green.T
-        fig = _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, title='Target Removal', return_fig=return_fig)
-        if fig:
-            figs.append(fig)
+        if tar_red.shape[1] == 0 or tar_green.shape[1] == 0:
+            LOGGER.info("No target-removal probes found")
+        else:
+            fig = _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, title='Target Removal', return_fig=return_fig)
+            if fig:
+                figs.append(fig)
 
     if subset in ('specificity','all'):
-        spec_red = control_R[control_R['Control_Type']=='SPECIFICITY I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
-        spec_green = control_G[control_G['Control_Type']=='SPECIFICITY I'].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+        spec_red = control_R[control_R['Control_Type'].isin(['SPECIFICITY I','SPECIFICITY II'])].copy().drop(columns=['Control_Type']).reset_index(drop=True)
+        spec_green = control_G[control_G['Control_Type'].isin(['SPECIFICITY I','SPECIFICITY II'])].copy().drop(columns=['Control_Type']).reset_index(drop=True)
         color_dict  = dict(zip(spec_green.Extended_Type, spec_green.Color))
         spec_green = spec_green.drop(columns=['Color']).set_index('Extended_Type')
         spec_red = spec_red.drop(columns=['Color']).set_index('Extended_Type')
         spec_red = spec_red.T
         spec_green = spec_green.T
-        fig = _qc_plotter(spec_red, spec_green, color_dict, ymax=30000, title='Specificity (Type I)', return_fig=return_fig)
+        fig = _qc_plotter(spec_red, spec_green, color_dict, ymax=30000, xticks=plotx, title='Specificity (Type I)', return_fig=return_fig)
         if fig:
             figs.append(fig)
 
@@ -545,7 +742,7 @@ options:
         return figs
 
 
-def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None,
+def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None, xticks='show',
         title='', return_fig=False):
     """ draft generic plotting function for all the genome studio QC functions.
     used by plot_staining_controls()
@@ -617,7 +814,10 @@ todo:
     if ymax != None:
         ax1.set_ylim([0,ymax])
         ax2.set_ylim([0,ymax])
-
+    if xticks != 'show':
+        #plt.xticks([]) # hide
+        ax1.get_xaxis().set_visible(False)
+        ax2.get_xaxis().set_visible(False)
     if return_fig:
         return fig
     plt.show()

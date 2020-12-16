@@ -10,3 +10,4 @@ m2r
 nbsphinx
 sphinx
 ipykernel
+joblib

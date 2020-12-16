@@ -1,15 +1,13 @@
 methylcheck is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
 [![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/FOXOBioScience/methylcheck.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/FOXOBioScience/methylcheck) [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methQC) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FOXOBioScience/methylcheck&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/FOXOBioScience/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/FOXOBioScience/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white)
+[![Coverage Status](https://coveralls.io/repos/github/FOXOBioScience/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/FOXOBioScience/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white) <img src="https://raw.githubusercontent.com/FOXOBioScience/methylcheck/feature/mouse/docs/python3.6.png" height="50">
 
 ![methylprep snapshots](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
-![methylprep snapshots](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
+## Methylcheck Package
 
-## methylcheck Package
-
-This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first download processed data from the NIH GEO database or process a set of `idat` files with `methylprep`. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
+This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first process a set of `idat` files with the associated `methylprep` package or download processed data from the NIH GEO database. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
 
 ![methylprep functions](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_functions.png)
 
@@ -27,8 +25,9 @@ Load your data in a Jupyter Notebook like this:
 ```python
 mydata = pandas.read_pickle('beta_values.pkl')
 ```
+For `pandas` you must specify the file name.
 
-If you processed a large batch of samples using the `batch_size` option in `methylprep process`, there's a convenience function in `methylcheck` (methylcheck.load) that will load and combine a bunch of output files in the same folder:
+If you used `methylprep process` with the `--all` option, there's a convenience function in `methylcheck` (methylcheck.load) to open methylation files in a variety of formats.
 
 ```python
 import methycheck
@@ -37,7 +36,29 @@ df = methylcheck.load('<path to folder with methylprep output>')
 df,meta = methylcheck.load_both('<path to folder with methylprep output>')
 ```
 
-This conveniently loads a dataframe of all meta data associated with the samples, if you are using public GEO data. Some analysis functions require specifying which samples are part of a treatment group (vs control) and the `meta` dataframe object can be used for this.
+#### meta data
+`.load_both()` also conveniently loads a dataframe of all meta data associated with the samples. If you are using public GEO data, it will load that collection's meta data. Some analysis functions require specifying which samples are part of a treatment group (vs control) and the `meta` dataframe object can be used for this.
+
+#### csv
+If you point to a folder with processed CSVs, this will load and combine these output files and return a dataframe:
+
+ ```python
+ import methycheck
+ df = methylcheck.load('docs/example_data/GSE29852/9247377093/')
+ ```
+
+#### raw data
+You can also use `.load()` to read processed files in these formats:
+```
+('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
+```
+Specify these using the `format=...` parameter.
+
+#### sesame
+It will also load methylation data files processed using `R`'s `sesame` package:
+```
+df = methylcheck.load(<filename>, format='sesame')
+```
 
 For more, check out our [examples of loading data into `methylcheck`](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/docs/demo_qc_functions.html)
 
@@ -75,14 +96,21 @@ Refer to the Jupyter notebooks on readthedocs for examples of filtering probes f
 
 ## Quality Control (QC) reports
 
-The simplest way to generate a battery of plots about your data is to run this function in a Jupyter notebook:
+#### run_qc()
+The simplest way to generate a set of plots about the quality of your probes/array is to run this function in a Jupyter notebook:
 
 ```python
 import methylcheck
 methylcheck.run_qc('<path to your methylprep processed files>')
 ```
 
-There is also a `methylcheck.qc_report.ReportPDF` class that allows you to build your own QC report and save it to PDF.
+`run_qc()` is adapted from Illumina's Genome Studio QC functions.
+
+#### run_pipeline()
+A second, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, multi-dimensional scaling, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` automatically removes probes that fail the poobah p-value detection limit test by default; `run_pipeline()` examines where samples with lots of unreliable probes should be disregarded entirely.
+
+### ReportPDF
+There is also a `methylcheck.qc_report.ReportPDF` class that allows you to build your own QC report and save it to PDF. This is most useful if you process multiple batches of data and want to create a standardized, easy-to-read PDF report about the quality of samples in each batch.
 
 ## Other functions
 

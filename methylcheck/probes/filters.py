@@ -26,21 +26,21 @@ new_manufacturing_cutoff_id = 20422033
 def _import_probe_filter_list(array):
     """Function to identify array type and import the
     appropriate probe exclusion dataframe"""
-    if array == 'IlluminaHumanMethylation450k':
+    if array in ('IlluminaHumanMethylation450k', '450k', '450K'):
         filename = '450k_polymorphic_crossRxtve_probes.csv.gz'
-    elif array == 'IlluminaHumanMethylationEPIC':
+    elif array in ('IlluminaHumanMethylationEPIC', 'EPIC', 'EPIC+', 'epic', 'epic+'):
         filename = 'EPIC_polymorphic_crossRxtve_probes.csv.gz'
-    elif array == 'IlluminaHumanMethylation27k':
+    elif array in ('IlluminaHumanMethylation27k','27k'):
         raise ValueError("27K has no problem probe lists available")
+    elif array in ('mouse', 'MOUSE', 'IlluminaMouse'):
+        raise ValueError("No probe exclusion lists available for mouse arrays at this time.")
     else:
-        raise ValueError(
-            f"Did not recognize array type {array}. Please specify 'IlluminaHumanMethylation450k' or 'IlluminaHumanMethylationEPIC'.")
+        raise ValueError(f"Did not recognize array type {array}. Please specify 'IlluminaHumanMethylation450k' or 'IlluminaHumanMethylationEPIC'.")
         return
     with resources.path(pkg_namespace, filename) as filepath:
         filter_options = pd.read_csv(filepath)
     return filter_options
 
-# TODO: add mouse array support here
 def _import_probe_exclusion_list(array, _type):
     """Returns a list of probe_ids based on type of array and type of probes to be excluded (sex or control).
 
@@ -58,15 +58,18 @@ def _import_probe_exclusion_list(array, _type):
 
     if array in ('IlluminaHumanMethylation450k','450k'):
         filename = '450k_{0}.npy'.format(_type)
-    elif array in ('IlluminaHumanMethylationEPIC','EPIC'):
+    elif array in ('IlluminaHumanMethylationEPIC','EPIC','epic'):
         filename = 'EPIC_{0}.npy'.format(_type)
-    elif array in ('IlluminaHumanMethylationEPIC+','EPIC+'):
+    elif array in ('IlluminaHumanMethylationEPIC+','EPIC+','epic+'):
         filename = 'EPIC+_{0}.npy'.format(_type)
-    elif array =='27k':
+    elif array in ('27k','27K'):
         raise NotImplementedError("No probe lists available for 27k arrays.")
+    elif array in ('MOUSE','mouse'):
+        LOGGER.info("No probe exclusion lists available for mouse arrays at this time.")
+        return []
     else:
         raise ValueError("""Did not recognize array type. Please specify one of
-            'IlluminaHumanMethylation450k', 'IlluminaHumanMethylationEPIC', '450k', 'EPIC', 'EPIC+', '27k'.""")
+            'IlluminaHumanMethylation450k', 'IlluminaHumanMethylationEPIC', '450k', 'EPIC', 'EPIC+', '27k', 'mouse'.""")
     with resources.path(pkg_namespace, filename) as filepath:
         probe_list = np.load(filepath, allow_pickle=True)
     return probe_list
@@ -79,7 +82,7 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
     ----------
     df: dataframe of beta values or m-values.
     array: type of array used.
-        {'27k', '450k', 'EPIC'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC',}
+        {'27k', '450k', 'EPIC', 'MOUSE'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC', 'mouse'}
 
     Optional Arguments
     ------------------
@@ -103,6 +106,7 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
         'IlluminaHumanMethylationEPIC':'EPIC',
         'IlluminaHumanMethylation450k':'450k',
         'IlluminaHumanMethylation27k':'27k',
+        'MOUSE':'mouse',
          }
     if array in translate:
         array = translate[array]
@@ -146,8 +150,8 @@ from {2} samples. {3} probes remaining.""".format(
     return filtered
 
 
-def exclude_probes(array, probe_list):
-    """Exclude probes from a df of samples. Use list_problem_probes() to obtain a list of probes (or pass in the names of 'Criteria' from problem probes), then pass that in as a probe_list along with the dataframe of beta values (array)
+def exclude_probes(df, probe_list):
+    """Exclude probes from a dataframe of sample beta values. Use list_problem_probes() to obtain a list of probes (or pass in the names of 'Criteria' from problem probes), then pass that in as a probe_list along with the dataframe of beta values (array)
 
 Resolves a problem whereby probe lists have basic names, but samples have additional meta data added.
 Example:
@@ -167,20 +171,29 @@ ADDED: checking whether array.index is string or int type. Regardless, this shou
 ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fetch the list for you.
 """
     # 1 - check shape of array, to ensure probes are the index/values
-    ARRAY = array.index
-    if len(array.index) < len(array.columns):
-        ARRAY = array.columns
+    ARRAY = df.index
+    if len(df.index) < len(df.columns):
+        ARRAY = df.columns
 
+    # copied from list_problem_probes()
+    all_criteria = ['Polymorphism', 'CrossHybridization',
+        'BaseColorChange', 'RepeatSequenceElements', 'illumina',
+        'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
+        'Zhou2016', 'McCartney2016'
+        ]
     # 2 - check if probe_list is a list of probes, or a string
     if isinstance(probe_list,str):
-        array_type = methylcheck.detect_array(array)
+        array_type = methylcheck.detect_array(df)
         probe_list = list_problem_probes(array_type.upper(), [probe_list])
-    elif isinstance(probe_list,list) and all([(isinstance(item,str) and item.startswith('cg')) for item in probe_list]):
+    elif isinstance(probe_list, list) and set(probe_list).issubset(set(all_criteria)):
+        array_type = methylcheck.detect_array(df)
+        probe_list = list_problem_probes(array_type.upper(), probe_list)
+    elif isinstance(probe_list,list) and all([isinstance(item,str) for item in probe_list]):
         # a list of probes
         pass
-    elif isinstance(probe_list,list) and isinstance(probe_list[0],str) and len(probe_list) < 100:
-        array_type = methylcheck.detect_array(array)
-        probe_list = list_problem_probes(array_type.upper(), probe_list)
+
+    #OLD elif isinstance(probe_list,list) and isinstance(probe_list[0],str) and len(probe_list) < 100:
+    #    # detecting names of lists, like 'Zuul2106'; is a short list but not correct
 
     pre_overlap = len(set(ARRAY) & set(probe_list))
 
@@ -189,26 +202,28 @@ ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fe
     post_overlap = len(set(array_probes) & set(probe_list))
 
     if pre_overlap != post_overlap:
-        print("matching probes: {0} vs {1} after name fix, yielding {2} probes.".format(pre_overlap, post_overlap, len(array)-post_overlap))
+        print("matching probes: {0} vs {1} after name fix, yielding {2} probes.".format(pre_overlap, post_overlap, len(df)-post_overlap))
     else:
-        print("Of {0} probes, {1} matched, yielding {2} probes after filtering.".format(len(array), post_overlap, len(array)-post_overlap))
+        print("Of {0} probes, {1} matched, yielding {2} probes after filtering.".format(len(df), post_overlap, len(df)-post_overlap))
     if post_overlap >= pre_overlap:
         # match which probes to drop from array.
         array_probes_lookup = {str(probe).split('_')[0]: probe for probe in list(ARRAY)}
         # get a list of unmodified array_probe_names to drop, based on matching the overlapping list with the modified probe names.
         exclude = [array_probes_lookup[probe] for probe in (set(array_probes) & set(probe_list))]
-        return array.drop(exclude, errors='ignore')
+        return df.drop(exclude, errors='ignore')
     print("Nothing removed.")
-    return array
+    return df
 
 
 def problem_probe_reasons(array, criteria=None):
-    """
+    """Returns a dataframe of methylation data with probes excluded based on recommendations from the literature.
+    Mouse and 27k arrays are not supported.
+
     array: string
         name for type of array used
         'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
         This shorthand names are also okay:
-            {'EPIC','EPIC+','450k','27k','MOUSE'}
+            {'EPIC','EPIC+','450k','27k','MOUSE', 'mouse', 'epic', '450k'}
 
     criteria: list
         List of the publications to use when excluding probes.
@@ -250,7 +265,9 @@ def problem_probe_reasons(array, criteria=None):
         'EPIC': 'IlluminaHumanMethylationEPIC',
         '450k': 'IlluminaHumanMethylation450k',
         '27k': 'IlluminaHumanMethylation27k',
+        'MOUSE':'mouse',
          }
+    translate.update({k.lower():v for k,v in translate.items()})
     probe_pubs_translate = {
         'Price2013': 'Price_etal_2013',
         'Chen2013': 'Chen_etal_2013',
@@ -279,95 +296,103 @@ def problem_probe_reasons(array, criteria=None):
 
 def list_problem_probes(array, criteria=None, custom_list=None):
     """Function to create a list of probes to exclude from downstream processes.
-    By default, all probes that have been noted in the literature to have
-    polymorphisms, cross-hybridization, repeat sequence elements and base color
-    changes are included in the DEFAULT exclusion list.
 
-    - You can customize the exclusion list by passing in either publication shortnames or criteria into the function.
-    - you can combine pubs and reasons into the same list of exclusion criteria.
-    - if a publication doesn't match your array type, it will raise an error and tell you.
+By default, all probes that have been noted in the literature to have
+polymorphisms, cross-hybridization, repeat sequence elements and base color
+changes are included in the DEFAULT exclusion list.
 
-    Including any of these labels in pubs (publications) or criteria (described below)
-    will result in these probes NOT being included in the final exclusion list.
+- You can customize the exclusion list by passing in either publication shortnames or criteria into the function.
+- you can combine pubs and reasons into the same list of exclusion criteria.
+- if a publication doesn't match your array type, it will raise an error and tell you.
 
-    User also has ability to add custom list of probes to include in final returned list.
+Including any of these labels in pubs (publications) or criteria (described below)
+will result in these probes NOT being included in the final exclusion list.
 
-    Parameters
-    ----------
-    array: string
+User also has ability to add custom list of probes to include in final returned list.
+
+----------
+Parameters
+----------
+
+    ``array``: string
         name for type of array used
         'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylation450k'
         This shorthand names are also okay:
-            {'EPIC','EPIC+','450k','27k','MOUSE'}
+            ``{'EPIC','EPIC+','450k','27k','MOUSE'}``
 
-    criteria: list
+    ``criteria``: list
         List of the publications to use when excluding probes.
         If the array is 450K the publications may include:
-            'Chen2013'
-            'Price2013'
-            'Zhou2016'
-            'Naeem2014'
-            'DacaRoszak2015'
+        ``'Chen2013'
+        'Price2013'
+        'Zhou2016'
+        'Naeem2014'
+        'DacaRoszak2015'``
+
         If the array is EPIC the publications may include:
-            'Zhou2016'
-            'McCartney2016'
-        If array is EPIC or EPIC+, specifying 'illumina' will remove 998
-            probes the manufacturer has recommended be excluded.
+        ``'Zhou2016'
+        'McCartney2016'``
+
+        If array is EPIC or EPIC+, specifying ``'illumina'`` will remove 998
+        probes the manufacturer has recommended be excluded. The defects only affected a small number of EPIC arrays produced.
+
         If no publication list is specified, probes from
         all publications will be added to the exclusion list.
         If more than one publication is specified, all probes
         from all publications in the list will be added to the
         exclusion list.
 
-    criteria: lists
+    ``criteria``: lists
         List of the criteria to use when excluding probes.
         List may contain the following exculsion criteria:
-            'Polymorphism'
+        ``'Polymorphism'
             'CrossHybridization'
             'BaseColorChange'
             'RepeatSequenceElements'
-            'illumina'
+            'illumina'``
+
         If no criteria list is specified, all critera will be
         excluded. If more than one criteria is specified,
         all probes meeting any of the listed criteria will be
         added to the exclusion list.
 
-    custom_list: list, default None
+    ``custom_list``: list, default None
         User-provided list of probes to be excluded.
         These probe names have to match the probe names in your data exactly.
 
+-------
+Returns
+-------
 
-    Return
-    -------
-    probe_exclusion_list: list
-        List containing probe identifiers to be excluded
-    or probe_exclusion_dataframe: dataframe
-        DataFrame containing probe names as index and reason | paper_reference as columns
+probe_exclusion_list: list
+    List containing probe identifiers to be excluded
+or probe_exclusion_dataframe: dataframe
+    DataFrame containing probe names as index and reason | paper_reference as columns
 
-If you apply maximum filtering (default, no criteria supplied):
+If you supply no criteria (default), then maximum filtering occurs:
     EPIC will have 389050 probes removed
     450k arrays will have 341057 probes removed
 
-Reason lists for 450k:
-    Daca-Roszak_etal_2015 (96427)
-    Chen_etal_2013 (445389)
-    Naeem_etal_2014 (146590)
-    Price_etal_2013 (284476)
-    Zhou_etal_2016 (184302)
+Reason lists for 450k and probes removed:
 
-    Polymorphism (796290)
-    CrossHybridization (211330)
-    BaseColorChange (359)
-    RepeatSequenceElements (149205)
+- Daca-Roszak_etal_2015 (96427)
+- Chen_etal_2013 (445389)
+- Naeem_etal_2014 (146590)
+- Price_etal_2013 (284476)
+- Zhou_etal_2016 (184302)
+- Polymorphism (796290)
+- CrossHybridization (211330)
+- BaseColorChange (359)
+- RepeatSequenceElements (149205)
 
-Reason lists for epic:
-    McCartney_etal_2016 (384537)
-    Zhou_etal_2016 (293870)
+Reason lists for epic and probes removed:
 
-    CrossHybridization (173793)
-    Polymorphism (504208)
-    BaseColorChange (406)
-        """
+- McCartney_etal_2016 (384537)
+- Zhou_etal_2016 (293870)
+- CrossHybridization (173793)
+- Polymorphism (504208)
+- BaseColorChange (406)
+    """
     all_criteria = ['Polymorphism', 'CrossHybridization',
         'BaseColorChange', 'RepeatSequenceElements', 'illumina',
         'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',

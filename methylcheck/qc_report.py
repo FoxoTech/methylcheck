@@ -2,6 +2,7 @@ import pandas as pd
 from pathlib import Path
 from io import StringIO
 import re
+import sys
 import logging
 import math
 LOGGER = logging.getLogger(__name__)
@@ -14,18 +15,21 @@ __all__ = ['run_pipeline', 'run_qc']
 
 def run_pipeline(df, **kwargs):
     """Run a variety of probe and sample filters in tandem, then plot results
-    by specifying all of your options at once, instead of running every part of methylcheck
-    in piacemeal fashion.
 
-    this is analogous to using the methylcheck CLI, but for notebooks/scripts
+by specifying all of your options at once, instead of running every part of methylcheck
+in piacemeal fashion.
+
+this is analogous to using the methylcheck CLI, but for notebooks/scripts
 
 required:
-    df -- data as a dataframe of beta values, sample names in columns and probes in rows
+    df: (required)
+        - data as a DataFrame of beta values
+        - sample names in columns and probes in rows
 
-options:
-    verbose (True/False):
+parameters:
+    verbose: (True/False)
         default: False -- shows extra info about processing if True
-    silent (True/False):
+    silent: (True/False)
         default: False -- suppresses all warnings/info
 
     exclude_sex:
@@ -34,30 +38,30 @@ options:
         filters out illumina control probes
     exclude_all:
         filters out the most probes (sex-linked, control, and all sketchy-listed probes from papers)
-    exclude (list of strings, shorthand references to papers with sketchy probes to exclude):
+    exclude: (list of strings, shorthand references to papers with sketchy probes to exclude)
 
         If the array is 450K the publications may include:
-            'Chen2013'
+            ``'Chen2013'
             'Price2013'
             'Zhou2016'
             'Naeem2014'
-            'DacaRoszak2015'
+            'DacaRoszak2015'``
         If the array is EPIC the publications may include:
-            'Zhou2016'
-            'McCartney2016'
+            ``'Zhou2016'
+            'McCartney2016'``
         or these reasons:
-            'Polymorphism'
+            ``'Polymorphism'
             'CrossHybridization'
             'BaseColorChange'
-            'RepeatSequenceElements'
-        or use 'exclude_all' to do maximum filtering, including these papers
+            'RepeatSequenceElements'``
+        or use ``'exclude_all'``:
+            to do maximum filtering, including all of these papers' lists.
 
-    plot (list of strings):
+    plot: (list of strings)
         ['mean_beta_plot', 'beta_density_plot', 'cumulative_sum_beta_distribution', 'beta_mds_plot', 'all']
         if 'all', then all of these plots will be generated. if omitted, no plots are created.
-    save_plots (True|False):
+    save_plots: (True|False)
         default: False
-
     export (True|False):
         default: False -- will export the filtered df as a pkl file if True
 
@@ -135,15 +139,30 @@ returns:
 
     # apply some filters
     if kwargs.get('exclude_all'):
-        df = methylcheck.exclude_sex_control_probes(df, array_type, verbose=kwargs.get('verbose'))
-        sketchy_probe_list = methylcheck.list_problem_probes(array_type)
-        df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        try:
+            df = methylcheck.exclude_sex_control_probes(df, array_type, verbose=kwargs.get('verbose'))
+            sketchy_probe_list = methylcheck.list_problem_probes(array_type)
+            df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        except ValueError:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if "probe list" in str(exc_value) or "probe exclusion lists" in str(exc_value):
+                # keep df the same instead of filtering.
+                LOGGER.info(exc_value)
+            else:
+                raise Exception(exc_value)
     elif kwargs.get('exclude'):
         # could be a list or a string
         if type(kwargs['exclude']) is not list:
             kwargs['exclude'] = [kwargs['exclude']]
-        sketchy_probe_list = methylcheck.list_problem_probes(array_type, criteria=kwargs['exclude'])
-        df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        try:
+            sketchy_probe_list = methylcheck.list_problem_probes(array_type, criteria=kwargs['exclude'])
+            df = methylcheck.exclude_probes(df, sketchy_probe_list)
+        except:
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            if "probe list" in str(exc_value) or "probe exclusion lists" in str(exc_value):
+                LOGGER.info(exc_value)
+            else:
+                raise Exception(exc_value)
 
     # apply some more filters
     if kwargs.get('exclude_sex') and kwargs.get('exclude_control'):
@@ -185,7 +204,7 @@ returns:
 
 
 def detection_poobah(poobah_df, pval_cutoff):
-    """ given a dataframe of p-values with sample_ids in columns and probes in index,
+    """Given a dataframe of p-values with sample_ids in columns and probes in index,
     calculates the percent failed probes per sample. Part of QC report."""
     out = {}
     for sample_id in poobah_df.columns:
@@ -196,13 +215,84 @@ def detection_poobah(poobah_df, pval_cutoff):
     return out
 
 class ReportPDF:
-    """ this will call a batch of plotting functions and compile a PDF with annotation and save file to disk """
-    # large font
+    """ReportPDF allows you to build custom QC reports.
+
+-------
+To use:
+-------
+
+- First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
+- Next, run ```myReport.run_qc()`` to fill it in.
+- Third, you must run ``myReport.close()`` after ``run_qc()`` to save the file to disk.
+- You can supply kwargs to specify which QC plots to include
+  - and supply a list of chart names to control the order of objects in the report.
+  - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
+  - You may pass in a custom table to override one of the built-in pages.
+- include 'path' with the path to your processed pickle files.
+- include an optional 'outpath' for where to save the pdf report.
+
+-------
+kwargs:
+-------
+
+- processing params
+  - filename
+  - poobah_max_percent
+  - pval_cutoff
+  - outpath
+  - path
+- front page text
+  - title
+  - author
+  - subject
+  - keywords
+- if 'debug=True' is in kwargs,
+  - then it will return a report without any parts that failed.
+
+--------------
+custom tables:
+--------------
+
+pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
+
+```python
+custom_tables=[
+    {
+    'title': "some title, optional",
+    'col_names': ["<list of strings>"],
+    'row_names': ["<list of strings, optional>"],
+    'data': ["<list of lists, with order matching col_names>"],
+    'order_after': ["string name of the plot this should come after. It cannot appear first in list."]
+    },
+    {"<...second table here...>"}
+]
+```
+
+------------------------
+Pre-processing pipeline:
+------------------------
+
+    Probe-level (w/explanations of suggested exclusions)
+        - Links to recommended probe exclusion lists/files/papers
+        - Background subtraction and normalization ('noob')
+        - Detection p-value ('neg' vs 'oob')
+        - Dye-bias correction (from SeSAMe)
+    Sample-level (w/explanations of suggested exclusions)
+        Detection p-value (% failed probes)
+        - custom detection (% failed, of those in a user-defined-list supplied to function)
+        MDS
+        Suggested for customer to do on their own
+        - Sex check
+        - Age check
+        - SNP check
+    """
+    # larger font
     # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
-    #MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
-    #MAXLINES = 26
-    #FONTSIZE = 16
-    #ORIGIN = (0.1, 0.1) # achored on page in lower left
+    # MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
+    # MAXLINES = 26
+    # FONTSIZE = 16
+    # ORIGIN = (0.1, 0.1) # achored on page in lower left
+    #
     # normal font -- for 12pt font: use 100 x 44 lines
     MAXWIDTH = 100
     MAXLINES = 44
@@ -210,35 +300,6 @@ class ReportPDF:
     ORIGIN = (0.1, 0.05) # achored on page in lower left
 
     def __init__(self, **kwargs):
-        """ supply kwargs to specify which QC plots to include
-        and order (list) for the order.
-        include 'path' with path to processed pickled files.
-        include optional 'outpath' for where to save the pdf report.
-
-        kwargs: filename, poobah_max_percent, pval_cutoff,
-        title, author, subject, keywords, outpath, path
-
-        when using:
-            you must run report.pdf.close() after you run_qc().
-
-        custom tables:
-            pass in arbitrary data using kwarg "custom_tables" as list with this structure:
-                'custom_tables': [
-                    {
-                    'title': "some title, optional",
-                    'col_names': [list of strings],
-                    'row_names': [list of strings, optional],
-                    'data': [list of lists, with order matching col_names],
-                    'order_after': [string name of the plot this should come after. It cannot appear first in list.]
-                    },
-                    {...second table here...}
-                ]
-
-        if 'debug=True' is in kwargs, then it will return a report without any parts that failed.
-
-        if you pass in 'order' in kwargs, any page you omit will be omitted from the final report.
-        (pass in a custom table to override one of the built-in pages this way)
-        """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False
@@ -268,22 +329,6 @@ class ReportPDF:
         d['CreationDate'] = datetime.datetime.today()
         d['ModDate'] = datetime.datetime.today()
 
-        """
-Pre-processing pipeline
-    Probe-level (w/explanations of suggested exclusions)
-        Links to recommended probe exclusion lists/files/papers
-        Background subtraction and normalization (‘noob’)
-        Detection p-value (‘neg’ vs ‘oob’)
-        Dye-bias correction (from SeSAMe)
-    Sample-level (w/explanations of suggested exclusions)
-        Detection p-value (% failed probes)
-            custom detection (% failed, of those in a user-defined-list supplied to function)
-        MDS
-        Suggested for customer to do on their own
-            Sex check
-            Age check
-            SNP check
-        """
         if 'order' in self.__dict__:
             self.order = self.__dict__['order']
         else:
