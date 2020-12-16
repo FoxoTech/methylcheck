@@ -8,6 +8,7 @@ Examples:
 - [QC and outlier detection with Multidimensional Scaling (MDS)](interactive-mds-filtering.ipynb)
 - [Reading GEO processed data](demo_read_geo_processed.ipynb)
 - [Merging meta data into beta values DataFrame](demo_using_matched_meta_data.ipynb)
+- [Methylcheck QC from command line interface (CLI)](methylcheck-cli.ipynb)
 
 Examples from older versions (pre version 0.7):
 
@@ -16,3 +17,5 @@ Examples from older versions (pre version 0.7):
 - [Older Example of Plots](postprocessQC_example.ipynb)
 - [Raw QC Example](rawQC_example.ipynb)
 - [Another QC example](another-methylcheck-qc-example.ipynb)
+- [How p-value probe detection (poobah) works](pval.ipynb)
+  How pOOBAH was adapted from `minfi` and `sesame`
