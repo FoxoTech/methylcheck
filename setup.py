@@ -15,7 +15,7 @@ setup(
         "Funding": "https://FOXOBioScience.com/"
     },
     classifiers=[
-        'Development Status :: 4 - Beta',
+        'Development Status :: 5 - Production/Stable',
         'Environment :: Console',
         'License :: OSI Approved :: MIT License',
         'Programming Language :: Python :: 3.7',
@@ -43,7 +43,7 @@ setup(
         'seaborn',
         'tqdm',
         'joblib', # used by MDS only
-        'sklearn', # used by MDS only        
+        'sklearn', # used by MDS only
     ],
     extras_require={
         'dev': [

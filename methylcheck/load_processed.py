@@ -31,7 +31,7 @@ Arguments:
     filepath:
         Where to look for all the pickle files of processed data.
 
-    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df')
+    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'sesame')
         This also allows processed.csv file data to be loaded.
         If you need meth and unmeth values, choose 'meth' and
         it will return a data_containers object with the 'meth' and 'unmeth' values,

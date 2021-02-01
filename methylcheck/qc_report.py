@@ -655,3 +655,4 @@ Pre-processing pipeline:
                 self.plt.title(add_title, y=1.1) #pad=20) # -- placement is off
             self.pdf.savefig(fig)
             self.plt.close()
+    
