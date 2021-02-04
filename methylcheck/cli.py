@@ -1,5 +1,6 @@
 # Lib
 import argparse
+from argparse import RawTextHelpFormatter
 import logging
 from pathlib import Path
 import sys
@@ -8,6 +9,9 @@ import pandas as pd
 # App
 from .probes.filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
 from .samples.postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, beta_mds_plot
+from .reports import controls_report
+
+LOGGER = logging.getLogger(__name__)
 
 class DefaultParser(argparse.ArgumentParser):
     def error(self, message):
@@ -68,35 +72,86 @@ def detect_array(df, returns='name', on_lambda=False):
         raise ValueError(f'Unsupported Illumina array type. Your data file contains {col_count} rows for probes.')
 
 
-def cli_parser():
+def build_parser():
     parser = DefaultParser(
         prog='methylcheck',
-        description="""Transformation and visualization tool for methylation data from Illumina IDAT files.
+        description="""Visualization and quality control functions for methylation, using Illumina IDAT files processed with methylprep or sesame.
 
-        Usage: python -m methylcheck -d <datafile> --verbose [commands]
+Usage
+-----
+To run the full battery of tests:
+    `python -m methylcheck qc -d <data_file> -p all --exclude_all`
+or for a standard QC REPORT
+    `python -m methylcheck controls -d <data_dir>`
 
-        Convenience command, to run the full battery of tests: ptype methylcheck -d <data> -p all --exclude_all
+Commands
+--------
+qc
+    - exclude_sex -- remove sex-chromosome-linked probes from a batch of samples.
+    - exclude_control -- remove Illumina control probes  from a batch of samples.
+    - exclude_probes -- remove less reliable probes, based on lists of problem probes from literature.
+    look at the function help for details on how you fine tune the exclusion list.
+    - plot -- various kinds of plots to reveal sample quality.
+    - array_type -- QC requires the type of array.
+    - verbose
 
-        Commands
-        --------
-
-        exclude_sex -- remove sex-chromosome-linked probes from a batch of samples.
-
-        exclude_control -- remove Illumina control probes  from a batch of samples.
-
-        exclude_probes -- remove less reliable probes, based on lists of problem probes from literature.
-        look at the function help for details on how you fine tune the exclusion list.
-
-        plot -- various kinds of plots to reveal sample quality.
-
-        array_type -- QC requires the type of array.""",
+controls
+    - data_dir -- folder where control_probes.pkl and other methylprep outputs are found. [required]
+    - outfilepath=None
+        optional: specify a different folder to save XLSX file output
+    - bg_offset=3000
+        Illumina's defaults add 3000 to control probe intensities. You can adjust that here.
+    - colorblind=False
+        Set to True if you'd prefer an alternative color-coding to the
+        red/yellow/green traffic light for pass/fail in XLSX file.
+    - cutoff_adjust=1.0
+        A value of 1.0 will mirror Illumina's recommended pass/fail thresholds. Setting it higher
+        results in tests that are MORE conservative. For example, setting it to 2 or 3
+        will increase the criteria 2X or 3X, respectively. Fractional values are OK.
+        """,
+        formatter_class=RawTextHelpFormatter,
     )
 
+    #parser.add_argument(
+    #    '-v', '--verbose',
+    #    help='Provide more detailed processing messages.',
+    #    action='store_true',
+    #    default=False,
+    #)
+
     parser.add_argument(
-        '-v', '--verbose',
-        help='Provide more detailed processing messages.',
+        '-d', '--debug',
+        help='Provide VERY detailed processing messages.',
         action='store_true',
         default=False,
+    )
+
+    subparsers = parser.add_subparsers(dest='command', required=True)
+    #subparsers.required = True # this is a python3.4-3.7 bug; cannot specify in the call above.
+
+    qc_parser = subparsers.add_parser('qc', help="Run methylcheck's QC pipline")
+    qc_parser.set_defaults(func=cli_qc)
+
+    controls_parser = subparsers.add_parser('controls', help='Generate an XLSX QC report similar to Illumina Bead Array Controls Reporter')
+    controls_parser.set_defaults(func=cli_controls_report)
+
+    #-- when this has subparsers, use -- args = parser.parse_known_args(sys.argv[1:])
+    parsed_args, func_args = parser.parse_known_args(sys.argv[1:])
+    if parsed_args.debug:
+        logging.basicConfig(level=logging.DEBUG)
+    elif 'verbose' in func_args:
+        logging.basicConfig(level=logging.INFO)
+    else:
+        logging.basicConfig(level=logging.WARNING)
+
+    parsed_args.func(func_args)
+    return parser
+
+
+def cli_qc(cmd_args):
+    parser = DefaultParser(
+        prog='methylcheck qc',
+        description='Run the QC pipeline on files in a given beta values file.',
     )
 
     parser.add_argument(
@@ -105,6 +160,13 @@ def cli_parser():
         type=Path,
         help="""path to a file containing sample matrix of beta or m_values. \
 You can create this output from `methylprep` using the --betas flag.""",
+    )
+
+    parser.add_argument(
+        '-v', '--verbose',
+        help='Provide more detailed processing messages.',
+        action='store_true',
+        default=False,
     )
 
     parser.add_argument(
@@ -169,12 +231,7 @@ Also see methylcheck.list_problem_probes for more details.',
 
     #### run_pipeline happens here ###
     #set logging/verbose
-    args = parser.parse_args(sys.argv[1:])
-    #-- when this has subparsers, use -- args = parser.parse_known_args(sys.argv[1:])
-    if args.verbose:
-        logging.basicConfig(level=logging.INFO)
-    else:
-        logging.basicConfig(level=logging.WARNING)
+    args = parser.parse_args(cmd_args) #sys.argv[1:])
 
     # load the data file
     if not Path(args.data_file).is_file():
@@ -230,4 +287,55 @@ Also see methylcheck.list_problem_probes for more details.',
         if 'beta_mds_plot' in args.plot:
             df_filtered = beta_mds_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
             # also has silent and filter_stdev params to pass in.
-    return parser
+
+def cli_controls_report(cmd_args):
+    parser = DefaultParser(
+        prog='methylcheck qc',
+        description='Run the QC pipeline on files in a given folder.',
+    )
+
+    parser.add_argument(
+        '-d', '--data_dir',
+        required=True,
+        type=Path,
+        help="""Path where input files are located.""",
+    )
+
+    parser.add_argument(
+        '-o', '--out_dir',
+        required=False,
+        type=Path,
+        help="""Path where output files will be saved.""",
+    )
+    parser.add_argument(
+        '--bg_offset',
+        help='Adjust the baseline background offset value. Default is 3000.',
+        type=int,
+        default=3000,
+    )
+
+    parser.add_argument(
+        '--colorblind',
+        help='Use an alternate color palette in output XLSX file.',
+        action='store_true',
+        default=False,
+    )
+
+    parser.add_argument(
+        '--cutoff_adjust',
+        help='Adjust the pass/fail cutoff. 1.0 uses the standard limits. 2.0 will increase minimum acceptable ratio (more conservative / lower tolerance)',
+        type=float,
+        default=1.0,
+    )
+
+    args = parser.parse_args(cmd_args) #sys.argv[1:])
+    return controls_report(
+        filepath=args.data_dir,
+        outfilepath=args.out_dir,
+        bg_offset=args.bg_offset,
+        colorblind=args.colorblind,
+        cutoff_adjust=args.cutoff_adjust)
+
+
+def cli_app():
+    build_parser()
