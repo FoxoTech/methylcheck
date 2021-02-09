@@ -328,13 +328,37 @@ def cli_controls_report(cmd_args):
         default=1.0,
     )
 
+    parser.add_argument(
+        '--pval_off',
+        help='Flag to disable use of probe failures (pvalue) in report. Note that Illumina Legacy compatability mode does not include pval.',
+        action='store_true',
+        default=False,
+    )
+
+    parser.add_argument(
+        '--pval_sig',
+        help='p-value failure significance threshold (default <0.05). Ignore if not using pval.',
+        type=float,
+        default=0.05,
+    )
+
+    parser.add_argument(
+        '-l', '--legacy',
+        help='Change XLSX column names to match Illumina BeadArray output file exactly.',
+        action='store_true',
+        default=False,
+    )
+
     args = parser.parse_args(cmd_args) #sys.argv[1:])
     return controls_report(
         filepath=args.data_dir,
         outfilepath=args.out_dir,
         bg_offset=args.bg_offset,
         colorblind=args.colorblind,
-        cutoff_adjust=args.cutoff_adjust)
+        cutoff_adjust=args.cutoff_adjust,
+        legacy=args.legacy,
+        pval=(not args.pval_off), # needed to invert kwarg, because default is to run it, and flag is only to disable it
+        pval_sig=args.pval_sig)
 
 
 def cli_app():

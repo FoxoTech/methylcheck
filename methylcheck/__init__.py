@@ -10,6 +10,7 @@ from .probes.filters import (
     drop_nan_probes,
     problem_probe_reasons,
     )
+from .reports import controls_report
 from .samples.postprocessQC import (
     mean_beta_plot, beta_density_plot, beta_mds_plot,
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
@@ -39,6 +40,7 @@ __all__ = [
     'plot_assigned_groups',
     'beta_density_plot',
     'beta_mds_plot',
+    'controls_report',
     'combine_mds',
     'cumulative_sum_beta_distribution',
     'container_to_pkl',
