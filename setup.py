@@ -61,6 +61,7 @@ setup(
             'sphinx',
             'ipykernel',
             'xlsxwriter' # bead array
+            'openpyxl', # pandas xlsx support changed to use this
         ]
     },
     setup_requires=['pytest-runner'],
