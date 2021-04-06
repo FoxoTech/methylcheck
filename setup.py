@@ -44,6 +44,8 @@ setup(
         'tqdm',
         'joblib', # used by MDS only
         'sklearn', # used by MDS only
+        'xlsxwriter', # bead array
+        'openpyxl', # pandas xlsx support changed to use this
     ],
     extras_require={
         'dev': [
@@ -60,8 +62,6 @@ setup(
             'nbsphinx',
             'sphinx',
             'ipykernel',
-            'xlsxwriter', # bead array
-            'openpyxl', # pandas xlsx support changed to use this
         ]
     },
     setup_requires=['pytest-runner'],

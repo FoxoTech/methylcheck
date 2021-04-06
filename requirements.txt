@@ -11,3 +11,5 @@ nbsphinx
 sphinx
 ipykernel
 joblib
+xlsxwriter # for bead array
+openpyxl # pandas xlsx support changed to use this
