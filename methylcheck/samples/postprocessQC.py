@@ -505,6 +505,7 @@ notes
                                    'xkcd:orange', 'xkcd:orchid', 'xkcd:silver', 'xkcd:purple', 'xkcd:pink', 'xkcd:teal', 'xkcd:tomato', 'xkcd:yellow',
                                    'xkcd:olive', 'xkcd:lavender', 'xkcd:indigo', 'xkcd:black', 'xkcd:azure', 'xkcd:brown', 'xkcd:aquamarine', 'xkcd:darkblue']))
 
+
         if multi_params.get('fig') == None:
             fig = plt.figure(figsize=(12, 9))
             plt.title('MDS Plot of betas from methylation data')
@@ -523,7 +524,7 @@ notes
             ax = multi_params.get('ax')
 
         ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black')) # RETAINED
-        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth='0.2',) # EXCLUDED
+        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
         x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX
@@ -545,8 +546,9 @@ notes
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
             image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
             outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
-            plt.savefig(outfile)
-            LOGGER.info("Saved {0}".format(outfile))
+            if save == True:
+                plt.savefig(outfile)
+                LOGGER.info("Saved {0}".format(outfile))
             plt.close(fig)
             # returning DataFrame in original structure: rows are probes; cols are samples.
             return df  # may need to transpose this first.

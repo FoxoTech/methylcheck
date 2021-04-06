@@ -217,9 +217,9 @@ Use cases and format:
                         index_col=index_column,
                         # these params speed up reading
                         usecols=columns,
-                        dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float16,
-                            'noob_unmeth':np.float16, 'meth':np.float16, 'unmeth':np.float16,
-                            'beta_value':np.float16, 'm_value':np.float16, 'poobah_pval':np.float16},
+                        dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float32,
+                            'noob_unmeth':np.float32, 'meth':np.float32, 'unmeth':np.float32,
+                            'beta_value':np.float32, 'm_value':np.float32, 'poobah_pval':np.float32},
                         engine='c',
                         memory_map=True, # load all into memory at once for faster reading (less IO)
                         #na_filter=False, # disable to speed read, if not expecting NAs
@@ -759,8 +759,8 @@ def load_sesame(filepath='.',
                 usecols=columns,
                 # compression='infer' by default; works for .gz files
                 dtype={index_column: str,
-                    beta_column: np.float16,
-                    poobah_column: np.float16
+                    beta_column: np.float32,
+                    poobah_column: np.float32
                     },
                 engine='c', #fastest
                 memory_map=True, # load all into memory at once for faster reading (less IO)

@@ -290,8 +290,8 @@ Also see methylcheck.list_problem_probes for more details.',
 
 def cli_controls_report(cmd_args):
     parser = DefaultParser(
-        prog='methylcheck qc',
-        description='Run the QC pipeline on files in a given folder.',
+        prog='methylcheck controls',
+        description='Run the Illumina Bead Array QC pipeline on files in a given folder.',
     )
 
     parser.add_argument(

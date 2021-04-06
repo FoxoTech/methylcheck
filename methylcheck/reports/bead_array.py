@@ -659,16 +659,18 @@ target removal
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             how_close = round(np.nanmean(np.clip([val for col,val in missed_by_much.items() if passfail[col] == 0], 0, 100000)),2)
+
         if result == 1.0:
             result = 'OK'
-        elif result >= self.passing and how_close == 0:
+        elif result >= self.passing and (how_close == 0 or np.isnan(how_close)):
             result = 'MARGINAL (infinite values)'
-        elif result >= self.passing and 0.8 <= how_close <= 1.2:
+        elif result >= self.passing and 0.7 <= how_close <= 1.3:
             result = f'OK ({how_close})'
-        elif result < self.passing and 0.6 <= how_close <= 1.4:
+        elif result >= self.passing and 0.5 <= how_close <= 1.5:
             result = f'MARGINAL ({how_close})'
-        else:
+        else: # less than 70 percent of tests passed.
             result = f'FAIL ({how_close})'
+
 
         passing_col = [col for col in self.data[sample] if col['col'] == 'Passing Probes']
         if self.pval is True and passing_col != [] and passing_col[0]['val'] < passing_col[0]['max']:

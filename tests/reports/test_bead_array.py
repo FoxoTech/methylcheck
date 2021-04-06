@@ -38,7 +38,7 @@ class TestBeadArrayControlsReporter(): #unittest.TestCase):
         results = pd.read_excel(Path(PROCESSED_MOUSE, expected_outfile))
         if results.shape != (7,32):
             raise AssertionError("Result file shape differs.")
-        if not all(results['Result'].values[1:4] == ['MARGINAL (0.7)', 'MARGINAL (0.64)', 'FAIL (0.53)']):
+        if not all(results['Result'].values[1:5] == ['FAIL (0.7)', 'FAIL (0.64)', 'FAIL (0.53)', 'MARGINAL (0.56)']):
             raise AssertionError("Values in result column differ.")
         if Path(PROCESSED_MOUSE,expected_outfile).exists():
             Path(PROCESSED_MOUSE,expected_outfile).unlink()
@@ -119,7 +119,7 @@ def test_controls_report_kwargs_colorblind_bg_offset():
     if not Path(PROCESSED_450K,expected_outfile).exists():
         raise FileNotFoundError(f"QC Report file missing for folder: {PROCESSED_450K}")
     results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
-    if not list(results.iloc[1].values) == ['9247377093_R02C01', 0.671, 62.84, 99.475, 51.826, 10.854, 1.661, 1.894, 1.017, 0.716, 19.962, 0.66, 7.776, 1.97, 5.47, 0.361, 12.98, 5.932, 13.168, 0.902, 10.483, 14.944, 414, 1511, 294, 204, 0.85, 0.88, 99.7, 'M', 'FAIL (0.76)']:
+    if not list(results.iloc[1].values) == ['9247377093_R02C01', 0.671, 62.84, 99.475, 51.826, 10.854, 1.661, 1.894, 1.017, 0.716, 19.962, 0.66, 7.776, 1.97, 5.47, 0.361, 12.98, 5.932, 13.168, 0.902, 10.483, 14.944, 414, 1511, 294, 204, 0.85, 0.88, 99.7, 'M', 'OK (0.76)']:
         raise AssertionError(f"--colorblind, outfilepath, bg_offset=0, roundoff=3, passing=0.5: Calculated Numbers don't match those stored in test.")
 
 def test_controls_report_kwargs_no_pval():

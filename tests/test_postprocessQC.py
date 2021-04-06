@@ -3,6 +3,8 @@ import unittest
 import pandas as pd
 import sys
 import seaborn as sns
+from pathlib import Path
+import shutil
 #patching
 try:
     # python 3.4+ should use builtin unittest.mock not mock package
@@ -22,7 +24,6 @@ class TestPostProcessQC(unittest.TestCase):
         df = pd.read_pickle('docs/test_betas.pkl')
         if df.shape != (485512, 6):
             raise AssertionError()
-
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot(self, mock):
         methylcheck.mean_beta_plot(self.df, verbose=False, save=False)
@@ -39,6 +40,7 @@ class TestPostProcessQC(unittest.TestCase):
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_2(self, mock):
         methylcheck.mean_beta_compare(self.df, self.df.transpose(), verbose=False, save=False)
+
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_both(self, mock):
         methylcheck.mean_beta_compare(self.df.transpose(), self.df.transpose(), verbose=False, save=False)
@@ -49,7 +51,9 @@ class TestPostProcessQC(unittest.TestCase):
         df2 = methylcheck.cumulative_sum_beta_distribution(self.df.transpose(), cutoff=0.7, verbose=False, save=False, silent=True)
 
     def test_beta_mds_plot(self):
-        df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, verbose=False, save=False, silent=True)
+        #df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, save=False, verbose=True)
+        df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, save=False, verbose=False, silent=True)
+
     def test_beta_mds_plot_transposed(self):
         df2 = methylcheck.beta_mds_plot(self.df.transpose(), filter_stdev=2, verbose=False, save=False, silent=True)
 
@@ -73,9 +77,20 @@ class TestPostProcessQC(unittest.TestCase):
             raise AssertionError()
 
     def test_cli_all_plots_silent(self):
-        testargs = ["__program__", '-d', 'docs/test_betas.pkl', '--exclude_all', '--silent', '--verbose']
+        testargs = ["__program__", 'qc', '-d', 'docs/test_betas.pkl', '--exclude_all', '--silent', '--verbose']
         with patch.object(sys, 'argv', testargs):
-            results = methylcheck.cli.cli_parser()
+            results = methylcheck.cli.cli_app()
+
+    def test_cli_controls_report(self):
+        """ this test does NOT cover poobah and sex prediction, because they require 3 more big files """
+        report_folder = 'docs/example_data/controls_test'
+        testargs = ["__program__", 'controls', '-d', report_folder, '--pval_off']
+        with patch.object(sys, 'argv', testargs):
+            results = methylcheck.cli.cli_app()
+        outfile = Path(report_folder, 'controls_test_QC_Report.xlsx')
+        if not outfile.exists():
+            raise FileNotFoundError('controls_test_QC_Report.xlsx not found')
+        Path(outfile).unlink()
 
     def test_exclude_probes(self):
         probe_list = methylcheck.list_problem_probes('450k', criteria=None, custom_list=None)
