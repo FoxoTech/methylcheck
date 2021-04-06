@@ -59,7 +59,8 @@ setup(
             'm2r',
             'nbsphinx',
             'sphinx',
-            'ipykernel'
+            'ipykernel',
+            'xlsxwriter' # bead array
         ]
     },
     setup_requires=['pytest-runner'],
