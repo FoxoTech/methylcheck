@@ -36,10 +36,10 @@ df = methylcheck.load('<path to folder with methylprep output>')
 df,meta = methylcheck.load_both('<path to folder with methylprep output>')
 ```
 
-#### meta data
+### meta data
 `.load_both()` also conveniently loads a dataframe of all meta data associated with the samples. If you are using public GEO data, it will load that collection's meta data. Some analysis functions require specifying which samples are part of a treatment group (vs control) and the `meta` dataframe object can be used for this.
 
-#### csv
+### csv
 If you point to a folder with processed CSVs, this will load and combine these output files and return a dataframe:
 
  ```python
@@ -47,20 +47,37 @@ If you point to a folder with processed CSVs, this will load and combine these o
  df = methylcheck.load('docs/example_data/GSE29852/9247377093/')
  ```
 
-#### raw data
+### raw data
 You can also use `.load()` to read processed files in these formats:
 ```
 ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
 ```
 Specify these using the `format=...` parameter.
 
-#### sesame
-It will also load methylation data files processed using `R`'s `sesame` package:
+### sesame
+[Experimental] It will also load methylation data files processed using `R`'s `sesame` package:
 ```
 df = methylcheck.load(<filename>, format='sesame')
 ```
 
 For more, check out our [examples of loading data into `methylcheck`](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/docs/demo_qc_functions.html)
+
+## Reports
+
+### Bead Array Controls Reporter
+
+Methylcheck provides a python clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
+a color-coded excel document showing any irregularities with array processing.
+
+Example command line usage: `python -m methylcheck controls -d <file location>`
+
+
+### QC
+
+Methylcheck also provides a PDF and excel QC report, based on Genome Studio's QC plots, showing any irregularities with sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc)
+
+Example command line usage: `python -m methylcheck qc -d <file location> --plot all`
+
 
 ### GEO (`idat`)
 

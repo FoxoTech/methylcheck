@@ -10,6 +10,7 @@ methylcheck documentation
 
    Loading Data <docs/loading-data.ipynb>
    Quality Control <docs/quality-control-example.ipynb>
+   Bead Array Controls Reporter <docs/bead-array.md>
    Filtering Probes <docs/filtering-probes.ipynb>
    Examples <docs/example_notebooks/examples.md>
    docs/source/modules
