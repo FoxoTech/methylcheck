@@ -60,7 +60,7 @@ setup(
             'nbsphinx',
             'sphinx',
             'ipykernel',
-            'xlsxwriter' # bead array
+            'xlsxwriter', # bead array
             'openpyxl', # pandas xlsx support changed to use this
         ]
     },
