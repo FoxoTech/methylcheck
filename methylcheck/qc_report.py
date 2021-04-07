@@ -11,7 +11,7 @@ import methylcheck
 
 run_qc = methylcheck.run_qc
 
-__all__ = ['run_pipeline', 'run_qc']
+__all__ = ['run_pipeline', 'run_qc', 'ReportPDF']
 
 def run_pipeline(df, **kwargs):
     """Run a variety of probe and sample filters in tandem, then plot results
@@ -223,7 +223,7 @@ To use:
 
 - First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
 - Next, run ```myReport.run_qc()`` to fill it in.
-- Third, you must run ``myReport.close()`` after ``run_qc()`` to save the file to disk.
+- Third, you must run ``myReport.pdf.close()`` after ``run_qc()`` to save the file to disk.
 - You can supply kwargs to specify which QC plots to include
   - and supply a list of chart names to control the order of objects in the report.
   - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
@@ -655,4 +655,3 @@ Pre-processing pipeline:
                 self.plt.title(add_title, y=1.1) #pad=20) # -- placement is off
             self.pdf.savefig(fig)
             self.plt.close()
-    

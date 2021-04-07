@@ -741,7 +741,7 @@ def load_sesame(filepath='.',
     """ called within .load() for loading sesame-processed samples in csvs (optionally gzipped).
     returns a dataframe of betas, with failing probes filtered out (unless overridden). """
     SESAME_RGLOB_PATTERN = '*_R0[0-9]C0[0-9]*_calls.csv*'
-    SESAME_FILENAME_REGEX = '(.*_R0[0-9]C0[0-9]).*_calls\.csv(\.gz)?'
+    SESAME_FILENAME_REGEX = '(.*_R0[0-9]C0[0-9]).*_calls\\.csv(\\.gz)?'
 
     # files are Sentrix_ID ... manifest code ... _calls.csv.gz
     total_parts = list(Path(filepath).rglob(SESAME_RGLOB_PATTERN))

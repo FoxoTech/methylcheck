@@ -28,7 +28,7 @@ from .qc_plot import (
     plot_controls,
     )
 
-from .qc_report import run_pipeline
+from .qc_report import run_pipeline, ReportPDF
 from .load_processed import load, load_both, container_to_pkl
 from .read_geo_processed import read_geo, detect_header_pattern
 from .version import __version__
