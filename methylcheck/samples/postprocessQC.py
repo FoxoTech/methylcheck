@@ -363,6 +363,9 @@ notes
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
+    if len(df.columns) < 2:
+        LOGGER.warning("beta_mds_plot requires at least 2 samples")
+        return df
 
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
@@ -372,6 +375,7 @@ notes
         if verbose:
             LOGGER.info(f"Your data needed to be transposed (from {pre_df_shape} to {df.shape}) to ensure probes are in columns.")
     original_df = df.copy() # samples in index, guaranteed. transpose at end
+    # require 2 or more samples for MDS
 
     # CHECK for missing probe values NaN -- this is common as of methylprep version 1.2.5 because pOOBah removes probes from samples by default.
     missing_probe_counts = df.isna().sum()

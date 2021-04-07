@@ -303,7 +303,6 @@ Pre-processing pipeline:
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False
-        self.__dict__.pop('debug',None)
         self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
         self.__dict__['pval_cutoff'] = self.__dict__.get('pval_cutoff', 0.05)
         self.errors = self.open_error_buffer()
@@ -443,7 +442,7 @@ Pre-processing pipeline:
                         self.to_table(list_of_lists, col_names=['Sample_ID', 'Percent', 'Pass/Fail'],
                             row_names=None, add_title='Detection Poobah')
 
-                    if part == 'mds':
+                    if part == 'mds' and len(beta_df.columns) > 1:
                         LOGGER.info("Beta MDS Plot")
                         # ax and df_to_retain are not used, but could go into a qc chart
                         fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
