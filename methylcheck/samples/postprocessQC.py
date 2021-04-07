@@ -63,6 +63,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         plt.savefig('mean_beta.png')
     if not silent:
         plt.show()
+        plt.close('all')
     else:
         plt.close(fig)
 
@@ -218,6 +219,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if not silent:
         #plt.tight_layout()
         plt.show()
+        plt.close('all')
     else:
         plt.clf()
         plt.cla()
