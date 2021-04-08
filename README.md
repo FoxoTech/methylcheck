@@ -2,9 +2,7 @@ methylcheck is a Python-based package for filtering and visualizing Illumina met
 
 [![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[![CircleCI](https://circleci.com/gh/FoxoTech/methylcheck.svg?style=svg)](https://circleci.com/gh/FoxoTech/methylcheck)
-
-[![CircleCI](https://circleci.com/gh/circleci/circleci-docs.svg?style=svg)](https://circleci.com/gh/circleci/circleci-docs)
+[![CircleCI](https://circleci.com/gh/FoxoTech/methylcheck.svg?style=shield)](https://circleci.com/gh/FoxoTech/methylcheck)
 
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FoxoTech/methylcheck&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/FoxoTech/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/FoxoTech/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white) <img src="https://raw.githubusercontent.com/FoxoTech/methylcheck/feature/mouse/docs/python3.6.png" height="50">

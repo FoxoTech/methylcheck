@@ -3,6 +3,8 @@
 Methylcheck provides a python clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
 a color-coded excel document showing any irregularities with any sample's array processing.
 
+![](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/example_controls_report.png)
+
 You can run it from the command line like this:
 
 ```
