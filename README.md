@@ -97,9 +97,10 @@ Refer to the Jupyter notebooks on readthedocs for examples of filtering probes f
 
 ## Quality Control (QC) reports
 
-Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (Bead Array Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
+Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (Bead Array Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with a sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
 
 #### run_qc()
+
 `run_qc()` is adapted from Illumina's Genome Studio QC functions.
 
 The simplest way to generate a set of plots about the quality of your probes/array is to run this function in a Jupyter notebook:
@@ -119,7 +120,7 @@ python -m methylcheck qc -d <file location> --plot all
 ### Bead Array Controls Reporter
 
 This is a clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
-a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an OK|FAIL|MARGINAL based on the battery of tests.
+a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an `OK|FAIL|MARGINAL` based on the battery of tests. But you can still generate an exact match of the Illumina excel document output using the `--legacy` option.
 
 Example command line usage: `python -m methylcheck controls -d <file location>`
 
@@ -130,7 +131,7 @@ A second, more customizable quality control pipeline is the `methylcheck.run_pip
 
 
 ### ReportPDF
-The most customizable format is a `methylcheck.ReportPDF` class that allows you to build your own QC report and save it to PDF. You can specify which tests to include and inject your own custom tables into the PDF. This is most useful if you process multiple batches of data in a lab and want to create a standardized, detailed, easy-to-read PDF report about the quality of samples in each batch. It can also with with AWS.
+The most customizable format is a `methylcheck.ReportPDF` class that allows you to build your own QC report and save it to PDF. You can specify which tests to include and inject your own custom tables into the PDF. This is most useful if you process multiple batches of data in a lab and want to create a standardized, detailed, easy-to-read PDF report about the quality of samples in each batch. It also works within AWS.
 
 ![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/example_ReportPDF.png)
 
