@@ -184,6 +184,7 @@ FIX:
     if return_fig:
         return fig
     plt.show()
+    plt.close('all')
     # print list of bad samples for user
     if len(bad_samples) > 0:
         print('List of Bad Samples')
@@ -431,6 +432,8 @@ FIX:
             return sns_scatterplot.get_figure()
         else:
             sb.scatterplot(x=sx, y=sy, s=3)
+        plt.show()
+        plt.close('all')
     else:
         return {'meth_median': meth.median(), 'unmeth_median': unmeth.median()}
 
@@ -543,6 +546,9 @@ options:
 
     if return_fig:
         return figs
+    plt.show()
+    plt.close('all')
+
 
 def plot_controls(path=None, subset='all', return_fig=False):
     """internal array QC controls (available with the `--save_control` or `--all` methylprep process option)
@@ -740,6 +746,8 @@ options:
 
     if return_fig and figs != []:
         return figs
+    plt.show()
+    plt.close('all')
 
 
 def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None, xticks='show',
@@ -821,3 +829,4 @@ todo:
     if return_fig:
         return fig
     plt.show()
+    plt.close('all')

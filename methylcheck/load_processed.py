@@ -31,7 +31,7 @@ Arguments:
     filepath:
         Where to look for all the pickle files of processed data.
 
-    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df')
+    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'sesame')
         This also allows processed.csv file data to be loaded.
         If you need meth and unmeth values, choose 'meth' and
         it will return a data_containers object with the 'meth' and 'unmeth' values,
@@ -217,9 +217,9 @@ Use cases and format:
                         index_col=index_column,
                         # these params speed up reading
                         usecols=columns,
-                        dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float16,
-                            'noob_unmeth':np.float16, 'meth':np.float16, 'unmeth':np.float16,
-                            'beta_value':np.float16, 'm_value':np.float16, 'poobah_pval':np.float16},
+                        dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float32,
+                            'noob_unmeth':np.float32, 'meth':np.float32, 'unmeth':np.float32,
+                            'beta_value':np.float32, 'm_value':np.float32, 'poobah_pval':np.float32},
                         engine='c',
                         memory_map=True, # load all into memory at once for faster reading (less IO)
                         #na_filter=False, # disable to speed read, if not expecting NAs
@@ -741,7 +741,7 @@ def load_sesame(filepath='.',
     """ called within .load() for loading sesame-processed samples in csvs (optionally gzipped).
     returns a dataframe of betas, with failing probes filtered out (unless overridden). """
     SESAME_RGLOB_PATTERN = '*_R0[0-9]C0[0-9]*_calls.csv*'
-    SESAME_FILENAME_REGEX = '(.*_R0[0-9]C0[0-9]).*_calls\.csv(\.gz)?'
+    SESAME_FILENAME_REGEX = '(.*_R0[0-9]C0[0-9]).*_calls\\.csv(\\.gz)?'
 
     # files are Sentrix_ID ... manifest code ... _calls.csv.gz
     total_parts = list(Path(filepath).rglob(SESAME_RGLOB_PATTERN))
@@ -759,8 +759,8 @@ def load_sesame(filepath='.',
                 usecols=columns,
                 # compression='infer' by default; works for .gz files
                 dtype={index_column: str,
-                    beta_column: np.float16,
-                    poobah_column: np.float16
+                    beta_column: np.float32,
+                    poobah_column: np.float32
                     },
                 engine='c', #fastest
                 memory_map=True, # load all into memory at once for faster reading (less IO)

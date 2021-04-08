@@ -44,7 +44,7 @@ customize the import if your files were not prepared using methylprep (non-stand
 
 If a `poobah_values.pkl` file can be found in path, the dataframe returned will also include
 percent of probes for X and Y chromosomes that failed quality control, and warn the user if any did.
-This feature won't work if a containers object is passed in, instead of a path.
+This feature won't work if a containers object or tuple of dataframes is passed in, instead of a path.
 
 Note: ~90% of Y probes should fail if the sample is female. That chromosome is missing.
     """

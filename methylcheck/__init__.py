@@ -10,6 +10,7 @@ from .probes.filters import (
     drop_nan_probes,
     problem_probe_reasons,
     )
+from .reports import *
 from .samples.postprocessQC import (
     mean_beta_plot, beta_density_plot, beta_mds_plot,
     cumulative_sum_beta_distribution, mean_beta_compare, combine_mds,
@@ -27,7 +28,6 @@ from .qc_plot import (
     plot_controls,
     )
 
-from .qc_report import run_pipeline
 from .load_processed import load, load_both, container_to_pkl
 from .read_geo_processed import read_geo, detect_header_pattern
 from .version import __version__
@@ -37,8 +37,10 @@ getLogger(__name__).addHandler(NullHandler())
 __all__ = [
     'assign',
     'plot_assigned_groups',
+    'BeadArrayControlsReporter',
     'beta_density_plot',
     'beta_mds_plot',
+    'controls_report',
     'combine_mds',
     'cumulative_sum_beta_distribution',
     'container_to_pkl',
@@ -61,4 +63,5 @@ __all__ = [
     'plot_beta_by_type',
     'plot_M_vs_U',
     'plot_controls',
+    'ReportPDF',    
 ]

@@ -169,6 +169,11 @@ It then drops probes from array that match probe_list, at least partially.
 
 ADDED: checking whether array.index is string or int type. Regardless, this should work and not alter the original index.
 ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fetch the list for you.
+
+ref: https://bioconductor.org/packages/devel/bioc/vignettes/sesame/inst/doc/sesame.html#howwhy-probes-are-masked
+SESAME probe exclusion lists were pulled using these R commands:
+    EPIC_Zhou = sesameDataGet('EPIC.probeInfo')$mask # 104454 probes
+    HM450_Zhou <- sesameDataGet('HM450.probeInfo'))$mask # 65144 probes
 """
     # 1 - check shape of array, to ensure probes are the index/values
     ARRAY = df.index
@@ -179,7 +184,7 @@ ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fe
     all_criteria = ['Polymorphism', 'CrossHybridization',
         'BaseColorChange', 'RepeatSequenceElements', 'illumina',
         'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
-        'Zhou2016', 'McCartney2016'
+        'McCartney2016', 'Sesame'
         ]
     # 2 - check if probe_list is a list of probes, or a string
     if isinstance(probe_list,str):
@@ -216,7 +221,7 @@ ADDED v0.6.4: pass in a string like 'illumina' or 'McCartney2016' and it will fe
 
 
 def problem_probe_reasons(array, criteria=None):
-    """Returns a dataframe of methylation data with probes excluded based on recommendations from the literature.
+    """Returns a dataframe of probes to be excluded, based on recommendations from the literature.
     Mouse and 27k arrays are not supported.
 
     array: string
@@ -233,9 +238,11 @@ def problem_probe_reasons(array, criteria=None):
             'Zhou2016'
             'Naeem2014'
             'DacaRoszak2015'
+            'Sesame' -- uses the default mask imported from sesame
         If the array is EPIC the publications may include:
             'Zhou2016'
             'McCartney2016'
+            'Sesame' -- uses the default mask imported from sesame
         or these reasons:
             'Polymorphism'
             'CrossHybridization'
@@ -255,7 +262,7 @@ def problem_probe_reasons(array, criteria=None):
     all_criteria = ['Polymorphism', 'CrossHybridization',
         'BaseColorChange', 'RepeatSequenceElements',
         'Chen2013', 'Price2013', 'Zhou2016', 'Naeem2014', 'DacaRoszak2015',
-        'Zhou2016', 'McCartney2016'
+        'Zhou2016', 'McCartney2016', 'Sesame'
         ]
     if criteria != None and set(criteria) - set(all_criteria) != set():
         unrecognized = set(criteria) - set(all_criteria)
@@ -276,9 +283,19 @@ def problem_probe_reasons(array, criteria=None):
         'McCartney2016': 'McCartney_etal_2016',
         'Zhou2016': 'Zhou_etal_2016',
         }
+
     if array in translate:
         array = translate[array]
     probe_dataframe = _import_probe_filter_list(array)
+
+    sesame = pd.Series()
+    if 'Sesame' in criteria:
+        if array in ('IlluminaHumanMethylation450k', '450k', '450K'):
+            filename = '450k_Sesame.txt.gz'
+        elif array in ('IlluminaHumanMethylationEPIC', 'EPIC', 'EPIC+', 'epic', 'epic+'):
+            filename = 'EPIC_Sesame.txt.gz'
+        with resources.path(pkg_namespace, filename) as this_filepath:
+            sesame = pd.read_csv(this_filepath, header=None)[0] # Series / list
 
     if type(criteria) == str:
         criteria = [criteria]
@@ -289,7 +306,7 @@ def problem_probe_reasons(array, criteria=None):
         criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
         reasons = [reason for reason in criteria if reason in ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']]
         pubs = [ref for ref in criteria if ref in probe_pubs_translate.values()]
-        filtered_probes = probe_dataframe[ (probe_dataframe['Reason'].isin(reasons)) | (probe_dataframe['ShortCitation'].isin(pubs)) ]
+        filtered_probes = probe_dataframe[ (probe_dataframe['Reason'].isin(reasons)) | (probe_dataframe['ShortCitation'].isin(pubs)) | (probe_dataframe['Probe'].isin(sesame)) ]
         return filtered_probes
 
 
@@ -310,9 +327,7 @@ will result in these probes NOT being included in the final exclusion list.
 
 User also has ability to add custom list of probes to include in final returned list.
 
-----------
-Parameters
-----------
+Parameters:
 
     ``array``: string
         name for type of array used
@@ -360,18 +375,17 @@ Parameters
         User-provided list of probes to be excluded.
         These probe names have to match the probe names in your data exactly.
 
--------
-Returns
--------
+Returns:
 
-probe_exclusion_list: list
-    List containing probe identifiers to be excluded
-or probe_exclusion_dataframe: dataframe
-    DataFrame containing probe names as index and reason | paper_reference as columns
+    probe_exclusion_list: list
+        List containing probe identifiers to be excluded
+    or probe_exclusion_dataframe: dataframe
+        DataFrame containing probe names as index and reason | paper_reference as columns
 
 If you supply no criteria (default), then maximum filtering occurs:
-    EPIC will have 389050 probes removed
-    450k arrays will have 341057 probes removed
+
+- EPIC will have 389050 probes removed
+- 450k arrays will have 341057 probes removed
 
 Reason lists for 450k and probes removed:
 

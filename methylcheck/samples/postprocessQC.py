@@ -63,6 +63,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         plt.savefig('mean_beta.png')
     if not silent:
         plt.show()
+        plt.close('all')
     else:
         plt.close(fig)
 
@@ -218,6 +219,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     if not silent:
         #plt.tight_layout()
         plt.show()
+        plt.close('all')
     else:
         plt.clf()
         plt.cla()
@@ -361,6 +363,9 @@ notes
     if verbose:
         logging.basicConfig(level=logging.INFO)
 
+    if len(df.columns) < 2:
+        LOGGER.warning("beta_mds_plot requires at least 2 samples")
+        return df
 
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
@@ -370,6 +375,7 @@ notes
         if verbose:
             LOGGER.info(f"Your data needed to be transposed (from {pre_df_shape} to {df.shape}) to ensure probes are in columns.")
     original_df = df.copy() # samples in index, guaranteed. transpose at end
+    # require 2 or more samples for MDS
 
     # CHECK for missing probe values NaN -- this is common as of methylprep version 1.2.5 because pOOBah removes probes from samples by default.
     missing_probe_counts = df.isna().sum()
@@ -505,6 +511,7 @@ notes
                                    'xkcd:orange', 'xkcd:orchid', 'xkcd:silver', 'xkcd:purple', 'xkcd:pink', 'xkcd:teal', 'xkcd:tomato', 'xkcd:yellow',
                                    'xkcd:olive', 'xkcd:lavender', 'xkcd:indigo', 'xkcd:black', 'xkcd:azure', 'xkcd:brown', 'xkcd:aquamarine', 'xkcd:darkblue']))
 
+
         if multi_params.get('fig') == None:
             fig = plt.figure(figsize=(12, 9))
             plt.title('MDS Plot of betas from methylation data')
@@ -523,7 +530,7 @@ notes
             ax = multi_params.get('ax')
 
         ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black')) # RETAINED
-        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth='0.2',) # EXCLUDED
+        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
         x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX
@@ -545,8 +552,9 @@ notes
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
             image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
             outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
-            plt.savefig(outfile)
-            LOGGER.info("Saved {0}".format(outfile))
+            if save == True:
+                plt.savefig(outfile)
+                LOGGER.info("Saved {0}".format(outfile))
             plt.close(fig)
             # returning DataFrame in original structure: rows are probes; cols are samples.
             return df  # may need to transpose this first.
