@@ -1,7 +1,7 @@
 # Release History
 
 ## v0.7.1
-- Added a python clone of Illumina's Bead Array Controls Reporter software
+- Added a python clone of Illumina's BeadArray Controls Reporter software
 - New unit test coverage. Note that because methylprep v1.4.0 changes processing, the results will change slightly
     to match `sesame` instead of `minfi`, with nonlinear-dye-bias correction and infer-type-I-probe-switching.
 - changed org name from FoxoBioScience to FoxoTech

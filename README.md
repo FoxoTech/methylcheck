@@ -101,7 +101,7 @@ Refer to the Jupyter notebooks on readthedocs for examples of filtering probes f
 
 ## Quality Control (QC) reports
 
-Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (Bead Array Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with a sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
+Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (BeadArray Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with a sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
 
 #### run_qc()
 
@@ -121,9 +121,9 @@ python -m methylcheck qc -d <file location> --plot all
 ```
 
 
-### Bead Array Controls Reporter
+### BeadArray Controls Reporter
 
-This is a clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
+This is a clone of Illumina's Windows software, BeadArray Controls Reporter. This generates
 a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an `OK|FAIL|MARGINAL` based on the battery of tests. But you can still generate an exact match of the Illumina excel document output using the `--legacy` option.
 
 Example command line usage: `python -m methylcheck controls -d <file location>`
