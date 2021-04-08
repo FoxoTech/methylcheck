@@ -20,13 +20,13 @@ sys.path.insert(0, os.path.abspath('.'))
 # -- Project information -----------------------------------------------------
 
 project = 'methylcheck'
-copyright = '2020, FOXO Bioscience'
-author = 'FOXO Bioscience'
+copyright = '2021, FOXO Technologies, inc.'
+author = 'FOXO Technologies, inc.'
 
 # The short X.Y version
 version = '0.7'
 # The full version, including alpha/beta/rc tags
-release = '0.7'
+release = '0.7.1git sta'
 
 
 # -- General configuration ---------------------------------------------------
