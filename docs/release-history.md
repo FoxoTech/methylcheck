@@ -1,5 +1,11 @@
 # Release History
 
+## v0.7.1
+- Added a python clone of Illumina's Bead Array Controls Reporter software
+- New unit test coverage. Note that because methylprep v1.4.0 changes processing, the results will change slightly
+    to match `sesame` instead of `minfi`, with nonlinear-dye-bias correction and infer-type-I-probe-switching.
+- changed org name from FoxoBioScience to FoxoTech
+
 ## v0.7.0
 - Illumina Mouse Array Support
 - Complete rewrite of documentation
@@ -29,7 +35,7 @@ or several samples within a larger batch, and graying out the others in the plot
 
 ## v0.6.0
 - improved read_geo() function, for downloading GEO methylation data sets and parsing meta_data from projects.
-- change org name from lifeepigenetics to FoxoBioScience on Github.
+- changed org name from life-epigenetics to FoxoBioScience on Github.
 
 ## v0.5.9
 - qc_plot bug fixes -99

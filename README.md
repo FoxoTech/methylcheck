@@ -1,15 +1,21 @@
 methylcheck is a Python-based package for filtering and visualizing Illumina methylation array data. The focus is on quality control.
 
-[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![CircleCI](https://circleci.com/gh/FOXOBioScience/methylcheck.svg?style=shield&circle-token=58a514d3924fcfe0287c109d2323b7f697956ec9)](https://circleci.com/gh/FOXOBioScience/methylcheck) [![Build status](https://ci.appveyor.com/api/projects/status/j15lpvjg1q9u2y17?svg=true)](https://ci.appveyor.com/project/life_epigenetics/methQC) [![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FOXOBioScience/methylcheck&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/FOXOBioScience/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/FOXOBioScience/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white) <img src="https://raw.githubusercontent.com/FOXOBioScience/methylcheck/feature/mouse/docs/python3.6.png" height="50">
+[![Readthedocs](https://readthedocs.com/projects/life-epigenetics-methylcheck/badge/?version=latest)](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-![methylprep snapshots](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
+[![CircleCI](https://circleci.com/gh/FoxoTech/methylcheck.svg?style=svg)](https://circleci.com/gh/FoxoTech/methylcheck)
+
+[![CircleCI](https://circleci.com/gh/circleci/circleci-docs.svg?style=svg)](https://circleci.com/gh/circleci/circleci-docs)
+
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/aedf5c223e39415180ff35153b2bad89)](https://www.codacy.com?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=FoxoTech/methylcheck&amp;utm_campaign=Badge_Grade)
+[![Coverage Status](https://coveralls.io/repos/github/FoxoTech/methylcheck/badge.svg?t=OVL45Q)](https://coveralls.io/github/FoxoTech/methylcheck) ![PyPI-Downloads](https://img.shields.io/pypi/dm/methylcheck.svg?label=pypi%20downloads&logo=PyPI&logoColor=white) <img src="https://raw.githubusercontent.com/FoxoTech/methylcheck/feature/mouse/docs/python3.6.png" height="50">
+
+![methylcheck snapshots](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/methylcheck_overview.png "methylcheck snapshots")
 
 ## Methylcheck Package
 
 This package contains high-level APIs for filtering processed data from local files. 'High-level' means that the details are abstracted away, and functions are designed to work with a minimum of knowledge and specification required. But you can always override the "smart" defaults with custom settings if things don't work. Before starting you must first process a set of `idat` files with the associated `methylprep` package or download processed data from the NIH GEO database. Refer to [methylprep](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/index.html) for instructions on this step.
 
-![methylprep functions](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/methylcheck_functions.png)
+![methylprep functions](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/methylcheck_functions.png)
 
 ## Installation
 
@@ -124,7 +130,7 @@ a color-coded excel document showing any irregularities with array processing. W
 
 Example command line usage: `python -m methylcheck controls -d <file location>`
 
-![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/example_controls_report.png)
+![](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/example_controls_report.png)
 
 #### run_pipeline()
 A second, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, multi-dimensional scaling, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` automatically removes probes that fail the poobah p-value detection limit test by default; `run_pipeline()` examines where samples with lots of unreliable probes should be disregarded entirely.
@@ -133,7 +139,7 @@ A second, more customizable quality control pipeline is the `methylcheck.run_pip
 ### ReportPDF
 The most customizable format is a `methylcheck.ReportPDF` class that allows you to build your own QC report and save it to PDF. You can specify which tests to include and inject your own custom tables into the PDF. This is most useful if you process multiple batches of data in a lab and want to create a standardized, detailed, easy-to-read PDF report about the quality of samples in each batch. It also works within AWS.
 
-![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/example_ReportPDF.png)
+![](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/example_ReportPDF.png)
 
 ## Other functions
 
@@ -148,4 +154,4 @@ The most customizable format is a `methylcheck.ReportPDF` class that allows you 
 
 ## Authors
 
-Parts of this package were ported from `minfi`, an `R` package, and extended/developed by the team at Foxo Bioscience, who maintains it. You can write to `info@FOXOTechnologies.com` to give feedback, ask for help, or suggest improvements. For bugs, report issues on our [github repo](https://github.com/FOXOBioScience/methylcheck) page.
+Parts of this package were ported from `minfi`, an `R` package, and extended/developed by the team at Foxo Bioscience, who maintains it. You can write to `info@FoxoTechnologies.com` to give feedback, ask for help, or suggest improvements. For bugs, report issues on our [github repo](https://github.com/FoxoTech/methylcheck) page.
