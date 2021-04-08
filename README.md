@@ -49,7 +49,8 @@ If you point to a folder with processed CSVs, this will load and combine these o
 
 ### raw data
 You can also use `.load()` to read processed files in these formats:
-```
+
+```python
 ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame')
 ```
 Specify these using the `format=...` parameter.
@@ -61,23 +62,6 @@ df = methylcheck.load(<filename>, format='sesame')
 ```
 
 For more, check out our [examples of loading data into `methylcheck`](https://life-epigenetics-methylcheck.readthedocs-hosted.com/en/latest/docs/demo_qc_functions.html)
-
-## Reports
-
-### Bead Array Controls Reporter
-
-Methylcheck provides a python clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
-a color-coded excel document showing any irregularities with array processing.
-
-Example command line usage: `python -m methylcheck controls -d <file location>`
-
-
-### QC
-
-Methylcheck also provides a PDF and excel QC report, based on Genome Studio's QC plots, showing any irregularities with sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc)
-
-Example command line usage: `python -m methylcheck qc -d <file location> --plot all`
-
 
 ### GEO (`idat`)
 
@@ -113,7 +97,11 @@ Refer to the Jupyter notebooks on readthedocs for examples of filtering probes f
 
 ## Quality Control (QC) reports
 
+Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (Bead Array Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
+
 #### run_qc()
+`run_qc()` is adapted from Illumina's Genome Studio QC functions.
+
 The simplest way to generate a set of plots about the quality of your probes/array is to run this function in a Jupyter notebook:
 
 ```python
@@ -121,25 +109,42 @@ import methylcheck
 methylcheck.run_qc('<path to your methylprep processed files>')
 ```
 
-`run_qc()` is adapted from Illumina's Genome Studio QC functions.
+Or from the command line:
+
+```
+python -m methylcheck qc -d <file location> --plot all
+```
+
+
+### Bead Array Controls Reporter
+
+This is a clone of Illumina's Windows software, Bead Array Controls Reporter. This generates
+a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an OK|FAIL|MARGINAL based on the battery of tests.
+
+Example command line usage: `python -m methylcheck controls -d <file location>`
+
+![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/feature/v0.7.1/docs/example_controls_report.png)
 
 #### run_pipeline()
 A second, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, multi-dimensional scaling, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` automatically removes probes that fail the poobah p-value detection limit test by default; `run_pipeline()` examines where samples with lots of unreliable probes should be disregarded entirely.
 
+
 ### ReportPDF
-There is also a `methylcheck.qc_report.ReportPDF` class that allows you to build your own QC report and save it to PDF. This is most useful if you process multiple batches of data and want to create a standardized, easy-to-read PDF report about the quality of samples in each batch.
+The most customizable format is a `methylcheck.ReportPDF` class that allows you to build your own QC report and save it to PDF. You can specify which tests to include and inject your own custom tables into the PDF. This is most useful if you process multiple batches of data in a lab and want to create a standardized, detailed, easy-to-read PDF report about the quality of samples in each batch. It can also with with AWS.
+
+![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/example_ReportPDF.png)
 
 ## Other functions
 
 `methylcheck` provides functions to
 - predict the sex of samples (`.get_sex`)
-- detect probes that differ between two sets of samples within a batch (`.diff_meth_probes`)
+- detect probes that differ between two sets of samples within a batch (`.diff_meth_probes`) in `methylize`
 - remove sex-chromosome-linked probes and control probes
-- remove "sketchy" probes, deemed unreliable by researchers
-- filter sample outliers based on multi-dimensional scaling
-- combine datasets for analysis
+- remove "sketchy" probes, deemed unreliable by researchers. Note that `methylprep` v1.4.0 and above will exclude unreliable probes from output to match those that `sesame` removes, unless disabled. This feature allows you to select _additional_ probes to remove based on other published research results.
+- identify and excluder sample outliers based on multi-dimensional scaling (MDS)
+- combine datasets for analysis, and load data in a variety of formats (from methylprep, sesame, and NIH GEO sources)
 - plot sample beta or m-value distributions, or raw uncorrected probe channel intensities
 
 ## Authors
 
-Parts of this package were ported from `minfi`, an `R` package, and extended/developed by the team at Foxo Bioscience, who maintains it. You can write to `info@FOXOBioScience.com` to give feedback, ask for help, or suggest improvements. For bugs, report issues on our [github repo](https://github.com/FOXOBioScience/methylcheck) page.
+Parts of this package were ported from `minfi`, an `R` package, and extended/developed by the team at Foxo Bioscience, who maintains it. You can write to `info@FOXOTechnologies.com` to give feedback, ask for help, or suggest improvements. For bugs, report issues on our [github repo](https://github.com/FOXOBioScience/methylcheck) page.

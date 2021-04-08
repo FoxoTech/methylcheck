@@ -9,9 +9,7 @@ LOGGER = logging.getLogger(__name__)
 # app
 import methylcheck
 
-run_qc = methylcheck.run_qc
-
-__all__ = ['run_pipeline', 'run_qc', 'ReportPDF']
+__all__ = ['run_pipeline', 'ReportPDF']
 
 def run_pipeline(df, **kwargs):
     """Run a variety of probe and sample filters in tandem, then plot results
@@ -213,6 +211,7 @@ def detection_poobah(poobah_df, pval_cutoff):
         percent_failed = round(100*failed/total,1)
         out[sample_id] = percent_failed
     return out
+
 
 class ReportPDF:
     """ReportPDF allows you to build custom QC reports.
