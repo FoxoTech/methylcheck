@@ -123,7 +123,7 @@ a color-coded excel document showing any irregularities with array processing. W
 
 Example command line usage: `python -m methylcheck controls -d <file location>`
 
-![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/feature/v0.7.1/docs/example_controls_report.png)
+![](https://raw.githubusercontent.com/FOXOBioScience/methylcheck/master/docs/example_controls_report.png)
 
 #### run_pipeline()
 A second, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, multi-dimensional scaling, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` automatically removes probes that fail the poobah p-value detection limit test by default; `run_pipeline()` examines where samples with lots of unreliable probes should be disregarded entirely.
