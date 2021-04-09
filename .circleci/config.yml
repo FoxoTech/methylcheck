@@ -3,37 +3,21 @@ jobs:
   build:
     docker:
       - image: circleci/python:3.7.5  # - image: rocker/tidyverse:latest == did not work (req'd password setting first)
-      # - image: rocker/r-ver:3.5.2
     steps:
       - checkout
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.7/site-packages
       - restore_cache:
-          # key: <projectname>-{{ .Branch }}-{{ checksum "Pipfile.lock" }}  projectname can be anything, so long as it matches save_cache below.
-          # key: deps9-{{ .Branch }}-{{ checksum "Pipfile.lock" }}
           key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run:
           command: |
             pip3 install pipenv
+            # BRANCH specific testing of methylprep:
+            # pipenv install -e git+https://github.com/FoxoTech/methylprep.git@feature/v1.4.0-bugs#egg=methylprep --skip-lock
             pipenv install -e .[dev] --skip-lock
+            pipenv graph
             # This ^^^ installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
             # pytest recommends this: install your package in "editable" mode by running this from the same directory.
-      - run:
-          command: |
-            # sudo apt-get update && apt-get install -y r-base
-            # BiocManager::install("IlluminaHumanMethylationEPICmanifest") --- not needed yet
-            # sudo apt-get install -y r-base
-            # Rscript \
-            # -e 'chooseCRANmirror(ind=60)' \
-            # -e 'packages <- c("BiocManager", "minfi", "IlluminaHumanMethylation450kanno.ilmn12.hg19", "IlluminaHumanMethylation450kmanifest")' \
-            # -e 'if (length(setdiff(packages, rownames(installed.packages()))) > 0) {' \
-            # -e '   install.packages(setdiff(packages, rownames(installed.packages())))' \
-            # -e '}' \
-            # -e 'if (!requireNamespace("BiocManager", quietly = TRUE))' \
-            # -e '    install.packages("BiocManager")' \
-            # -e 'BiocManager::install("minfi")' \
-            # -e 'BiocManager::install("IlluminaHumanMethylation450kanno.ilmn12.hg19")' \
-            # -e 'BiocManager::install("IlluminaHumanMethylation450kmanifest")' \
       - save_cache:
           key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
           paths:
