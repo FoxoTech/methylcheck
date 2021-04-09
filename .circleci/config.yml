@@ -12,6 +12,8 @@ jobs:
       - run:
           command: |
             pip3 install pipenv
+            pipenv install -e git+https://github.com/FoxoTech/methylprep.git@feature/v1.4.0-bugs#egg=methylprep --skip-lock
+            pip show methylprep            
             pipenv install -e .[dev] --skip-lock
             # This ^^^ installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
             # pytest recommends this: install your package in "editable" mode by running this from the same directory.
@@ -25,7 +27,6 @@ jobs:
           name: Running tests
           command: |
             # pipenv install methylprep --skip-lock
-            pipenv install -e git+https://github.com/FoxoTech/methylprep.git@feature/v1.4.0-bugs#egg=methylprep --skip-lock
             pipenv install coveralls --skip-lock
             pipenv run coverage run setup.py pytest
             pipenv run coverage report
