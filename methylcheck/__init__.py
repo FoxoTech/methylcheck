@@ -26,6 +26,7 @@ from .qc_plot import (
     plot_M_vs_U,
     qc_signal_intensity,
     plot_controls,
+    bis_conversion_control,
     )
 
 from .load_processed import load, load_both, container_to_pkl
@@ -40,6 +41,7 @@ __all__ = [
     'BeadArrayControlsReporter',
     'beta_density_plot',
     'beta_mds_plot',
+    'bis_conversion_control',
     'controls_report',
     'combine_mds',
     'cumulative_sum_beta_distribution',
@@ -63,5 +65,5 @@ __all__ = [
     'plot_beta_by_type',
     'plot_M_vs_U',
     'plot_controls',
-    'ReportPDF',    
+    'ReportPDF',
 ]

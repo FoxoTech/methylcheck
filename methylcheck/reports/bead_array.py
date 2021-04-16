@@ -33,6 +33,8 @@ class BeadArrayControlsReporter():
     If there is a meta data pickle, and there's a Sex or Gender column, it will compare SEX.
         Sex in samplesheet must be reported as "M" or "F" not 0 or 1, or "Male"/"Female" etc.
     Otherwise, it just runs and predicts the sex for non-mouse arrays.
+
+    Note on GCT scores: this uses noob_meth instead of raw, uncorrected meth values to calculate, but the result should be nearly the same.
     """
     input_filenames = {
         'control_probes.pkl': 'control',
@@ -86,6 +88,7 @@ class BeadArrayControlsReporter():
         'Regression NORM_CT': None,
         'Predicted Sex': None,
         'Sex Match': None,
+        'GCT score': None,
     }
     untestable_columns = ['Baseline Green',
         'Baseline Red', 'Negative Baseline G',
@@ -538,6 +541,11 @@ target removal
             #self.norm_G_mean_red = round( np.mean(
             #con[con['Control_Type'] == 'NORM_G']['Mean_Value_Red'].values,
             #))
+        if hasattr(self,'noob_meth') and hasattr(self,'gct_scores'):
+            # sample var should match a column in noob_meth for this to work. And it only runs this function once per batch.
+            self.gct_score = self.gct_scores[sample]
+        else:
+            self.gct_score = None
 
         # had to flip this to >80% passing, because all tests are ABOVE thresholds
         if hasattr(self,'poobah') and isinstance(self.poobah, pd.DataFrame) and sample in self.poobah.columns:
@@ -573,6 +581,7 @@ target removal
             {'col': 'Negative Baseline R', 'val':self.negative_control_mean_red, 'formula': "mean NEGATIVE Red control probes"},
             {'col': 'Regression NORM_GA', 'val':self.regression_NORM_GA, 'formula': "NORM_G (grn) vs NORM_A (red)", 'max':0.9, 'med':0.9, 'min':0.9},
             {'col': 'Regression NORM_CT', 'val':self.regression_NORM_CT, 'formula': "NORM_C (grn) vs NORM_T (red)", 'max':0.9, 'med':0.9, 'min':0.9},
+            {'col': 'GCT score', 'val':self.gct_score, 'formula': "mean(oobG extC)/mean(oobG extT)", 'max':1.0, 'med':0.99, 'min':0.93},
             #{'col': 'NORM_A', 'val':self.norm_A_mean_green, 'formula': "mean NORM_A control probes Green)", 'max':600, 'med':300, 'min':100},
             #{'col': 'NORM_T', 'val':self.norm_T_mean_green, 'formula': "mean NORM_T control probes Green)", 'max':400, 'med':200, 'min':100},
             #{'col': 'NORM_C', 'val':self.norm_C_mean_red, 'formula': "mean NORM_C control probes Red)", 'max':1000, 'med':900, 'min':100},
@@ -586,12 +595,19 @@ target removal
                 self.data[sample].remove({'col': 'Passing Probes', 'val':(100 - self.failed_probes), 'formula': f"(p ≤ {self.pval_sig}) > 80% probes", 'max':80, 'med':80, 'min':80})
             except ValueError:
                 pass # poobah file could be missing, in which case it never gets calculated.
+        if self.gct_score is None:
+            try:
+                self.data[sample].remove({'col': 'GCT score', 'val':self.gct_score, 'formula': "mean(oobG extC)/mean(oobG extT)", 'max':0.92, 'med':0.91, 'min':0.90})
+            except ValueError:
+                pass # noob_meth file could be missing, in which case it never gets calculated.
+
         row.update({k['col']:k['val'] for k in self.data[sample]})
         self.report.append(row) # this is converted to excel sheet, but self.data is used to format the data in save()
         self.formulas.update( {k['col']:k['formula'] for k in list(self.data.values())[0]} )
         # process() adds predicted sex and result column
 
     def process(self):
+        self.gct_scores = methylcheck.bis_conversion_control(self.noob_meth) # a dict of {sentrix_id:score} pairs
         for sample,con in self.control.items():
             self.process_sample(sample, con) # saves everything on top of last sample, for now. testing.
 

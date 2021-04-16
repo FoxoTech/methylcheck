@@ -201,15 +201,18 @@ returns:
     return df
 
 
-def detection_poobah(poobah_df, pval_cutoff):
+def detection_poobah(poobah_df, pval_cutoff=0.05):
     """Given a dataframe of p-values with sample_ids in columns and probes in index,
-    calculates the percent failed probes per sample. Part of QC report."""
+    calculates the percent PASSING probes per sample. Part of QC report.
+
+    v0.7.2: if 'gct_score' is enabled, add column for GCT % per sample.
+    v0.7.2: changed from percent failing to percent passing"""
     out = {}
     for sample_id in poobah_df.columns:
         total = poobah_df.shape[0]
-        failed = poobah_df[sample_id][poobah_df[sample_id] >= pval_cutoff].count()
-        percent_failed = round(100*failed/total,1)
-        out[sample_id] = percent_failed
+        passing = poobah_df[sample_id][poobah_df[sample_id] <= pval_cutoff].count()
+        percent_passing = round(100*passing/total,1)
+        out[sample_id] = percent_passing
     return out
 
 
@@ -236,8 +239,8 @@ kwargs:
 
 - processing params
   - filename
-  - poobah_max_percent
-  - pval_cutoff
+  - poobah_min_percent (e.g. at least 80% of probes must pass for sample to pass)
+  - pval_cutoff (e.g. set alpha at 0.05)
   - outpath
   - path
 - front page text
@@ -247,6 +250,11 @@ kwargs:
   - keywords
 - if 'debug=True' is in kwargs,
   - then it will return a report without any parts that failed.
+- tests
+  - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
+  - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
+  - mds: performs multidimensional scaling to identify and report on sample outliers
+
 
 --------------
 custom tables:
@@ -302,7 +310,7 @@ Pre-processing pipeline:
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False
-        self.__dict__['poobah_max_percent'] = self.__dict__.get('poobah_max_percent', 5)
+        self.__dict__['poobah_min_percent'] = self.__dict__.get('poobah_min_percent', 80)
         self.__dict__['pval_cutoff'] = self.__dict__.get('pval_cutoff', 0.05)
         self.errors = self.open_error_buffer()
 
@@ -335,16 +343,17 @@ Pre-processing pipeline:
 
         self.tests = {
             'detection_poobah': self.__dict__.get('poobah',True),
-            'mds': self.__dict__.get('mds',True),
+            'mds': self.__dict__.get('mds',True), # part of detection_poobah table
             'auto_qc': self.__dict__.get('auto_qc',True), # NOT IMPLEMENTED YET #
+            # v0.7.3 adds bis-conversion completeness, the GCT score table --- https://rdrr.io/bioc/sesame/src/R/sesame.R
+            'gct_score': self.__dict__.get('gct',True), # part of detection_poobah table
         }
         self.plots = {
             'beta_density_plot': self.__dict__.get('beta_density_plot',True),
-            'M_vs_U': self.__dict__.get('M_vs_U',True),
+            'M_vs_U': self.__dict__.get('M_vs_U',False),
             'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True), # not sure Brian wanted this, but it is available
             'controls': self.__dict__.get('controls',True), # genome studio plots
             'probe_types': self.__dict__.get('probe_types',True),
-            # FUTURE lower priority: bis-conversion completeness, or GCT score --- https://rdrr.io/bioc/sesame/src/R/sesame.R
         }
 
         self.custom = {}
@@ -403,10 +412,16 @@ Pre-processing pipeline:
                 poobah_df = pd.read_pickle(Path(path,'poobah_values.pkl')) # off by default, process with --export_poobah
             except FileNotFoundError:
                 raise FileNotFoundError(f"Could not load pickle file: 'poobah_values.pkl'. Add 'poobah=False' to inputs to turn this off.")
+        if self.tests['gct_score'] is True and self.tests['detection_poobah'] is False:
+            LOGGER.warning(f"Cannot include GCT score unless poobah table is also enabled.")
         try:
             beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
-            meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
-            unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+            if Path(path,'noob_meth_values.pkl').exists() and Path(path,'noob_unmeth_values.pkl').exists():
+                meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl'))
+                unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl'))
+            else:
+                meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
+                unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
             control_dict_of_dfs = pd.read_pickle(Path(path,'control_probes.pkl'))
             LOGGER.info("Data loaded")
         except FileNotFoundError:
@@ -423,32 +438,65 @@ Pre-processing pipeline:
             'qc_signal_intensity': methylcheck.qc_signal_intensity,
         }
         '''
+        if 'mds' in self.tests and len(beta_df.columns) > 1:
+            # some things must be calculated ahead of time, because used twice
+            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
+            mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
+            print(mds_passing)
+            include_mds = True
+        else:
+            beta_mds_fig = None
+            mds_passing = []
+            include_mds = False
 
         for part in self.order:
             if part in self.tests and self.tests[part] == True:
                 try:
                     if part == 'detection_poobah':
-                        max_allowed = self.__dict__.get('poobah_max_percent')
+                        min_allowed = self.__dict__.get('poobah_min_percent')
                         sample_percent_failed_probes_dict = detection_poobah(poobah_df, pval_cutoff=self.__dict__['pval_cutoff'])
-                        sample_poobah_failures = {sample_id: ("pass" if percent < max_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
-                        #LOGGER.info(f'detection_poobah: {sample_percent_failed_probes_dict}')
+                        if self.tests['gct_score']:
+                            sample_gct_percent_dict = methylcheck.bis_conversion_control(meth_df)
+                        else:
+                            sample_gct_percent_dict = {}
+                        sample_poobah_failures = {sample_id: ("pass" if percent > min_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
                         LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
 
                         list_of_lists = []
+                        col_names=['Sample_ID', 'Percent', 'Pass/Fail']
+                        if self.tests['gct_score']:
+                            col_names=['Sample_ID', 'GCT score', 'Percent', 'Pass/Fail']
+                        if include_mds:
+                            col_names=['Sample_ID', 'MDS', 'Percent', 'Pass/Fail']
+                        if self.tests['gct_score'] and include_mds:
+                            col_names=['Sample_ID', 'GCT score', 'MDS', 'Poobah (%)', 'Poobah Pass/Fail']
+
                         for sample_id,percent in sample_percent_failed_probes_dict.items():
-                            row = [sample_id, percent, sample_poobah_failures[sample_id]]
+                            if self.tests['gct_score'] and sample_id in sample_gct_percent_dict:
+                                gct_score = sample_gct_percent_dict[sample_id]
+                            else:
+                                gct_score = None
+                            mds_pass_fail = 'Pass' if sample_id in mds_passing else 'Fail'
+
+                            if gct_score is not None and include_mds:
+                                row = [sample_id, gct_score, mds_pass_fail, percent, sample_poobah_failures[sample_id]]
+                            elif gct_score is not None and not include_mds:
+                                row = [sample_id, gct_score, percent, sample_poobah_failures[sample_id]]
+                            elif gct_score is None and include_mds:
+                                row = [sample_id, mds_pass_fail, percent, sample_poobah_failures[sample_id]]
+                            elif gct_score is None and not include_mds:
+                                row = [sample_id, percent, sample_poobah_failures[sample_id]]
+
                             list_of_lists.append(row)
-                        self.to_table(list_of_lists, col_names=['Sample_ID', 'Percent', 'Pass/Fail'],
-                            row_names=None, add_title='Detection Poobah')
+                        self.to_table(list_of_lists, col_names=col_names,
+                            row_names=None, add_title='Sample probe quality testing')
 
                     if part == 'mds' and len(beta_df.columns) > 1:
                         LOGGER.info("Beta MDS Plot")
                         # ax and df_to_retain are not used, but could go into a qc chart
-                        fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
-                        self.pdf.savefig(fig)
+                        self.pdf.savefig(beta_mds_fig)
                         self.plt.close()
                         #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
-                        #for sample_id in df_indexes_to_retain:
                 except Exception as e:
                     if self.debug:
                         LOGGER.error(f"Could not process {part}; {e}")
@@ -465,13 +513,13 @@ Pre-processing pipeline:
                         self.plt.close()
                     elif part == 'M_vs_U':
                         LOGGER.info(f"M_vs_U plot")
-                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True)
+                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True, poobah=poobah_df)
                         self.pdf.savefig(fig)
                         self.plt.close()
                         # if not plotting, it will return dict with meth median and unmeth median.
                     elif part == 'qc_signal_intensity':
                         LOGGER.info(f"QC signal intensity plot")
-                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True)
+                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True, poobah=poobah_df)
                         self.pdf.savefig(fig)
                         self.plt.close()
                     elif part == 'controls':

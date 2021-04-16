@@ -322,6 +322,8 @@ Arguments
         by default, most samples will contain missing values where probes failed the signal-noise detection
         in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
         with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
+    ``poobah``: path to poobah_values.pkl file. Default is None, but is supplied, this will color code dots according to
+        percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
 
 Options
 --------
