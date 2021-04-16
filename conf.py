@@ -26,7 +26,7 @@ author = 'FOXO Technologies, inc.'
 # The short X.Y version
 version = '0.7'
 # The full version, including alpha/beta/rc tags
-release = '0.7.1'
+release = '0.7.2'
 
 
 # -- General configuration ---------------------------------------------------
@@ -140,7 +140,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'methylcheck.tex', 'methylcheck Documentation',
-     'Life Epigenetics', 'manual'),
+     'FOXO Technologies, inc', 'manual'),
 ]
 
 
