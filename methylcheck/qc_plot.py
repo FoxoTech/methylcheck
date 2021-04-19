@@ -57,7 +57,7 @@ def run_qc(path):
 
 
 def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None, poobah=None, palette=None,
-    noob=True, silent=False, verbose=False, plot=True, cutoff_line=True, bad_sample_cutoff=10.5, return_fig=False):
+    noob=True, silent=False, verbose=False, plot=True, cutoff_line=True, bad_sample_cutoff=11.5, return_fig=False):
     """Suggests sample outliers based on methylated and unmethylated signal intensity.
 
 input (one of these):
@@ -86,7 +86,7 @@ input (one of these):
 optional params:
 ================
     cutoff_line: True will draw the line; False omits it.
-    bad_sample_cutoff (default 10.5): set the cutoff for determining good vs bad samples, based on signal intensities of meth and unmeth fluorescence channels. 10.5 was borrowed from minfi's internal defaults.
+    bad_sample_cutoff (default 11.5): set the cutoff for determining good vs bad samples, based on signal intensities of meth and unmeth fluorescence channels. 10.5 was borrowed from minfi's internal defaults.
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
@@ -444,15 +444,15 @@ FIX:
             })
             # each data set should have same samples in same order, so label_lookup will work for both hues
             label_lookup = {index_val: chr(i+65) if i <= 52 else str(i-65) for i,index_val in enumerate(data_df.index)}
-            data_df2['hue'] = "NOOB corrected intensity"
+            data_df2['hue'] = "Corrected intensity"
             data_df = data_df.append(data_df2)
             del data_df2
-            legend_order = ["Raw intensity", "NOOB corrected intensity"]
+            legend_order = ["Raw intensity", "Corrected intensity"]
             hues_palette = sb.color_palette("tab10", n_colors=2) if palette is None else sb.color_palette(palette, n_colors=2)
             this = sb.scatterplot(data=data_df, x='meth', y='unmeth', hue='hue', palette=hues_palette)
             # FINALLY, label ALL points so you can compare the shifts
             for index_val, row in data_df.iterrows():
-                color_code = {"Raw intensity":"blue", "NOOB corrected intensity": "darkorange"}
+                color_code = {"Raw intensity":"blue", "Corrected intensity": "darkorange"}
                 #proxy_label = chr(i+65) if i <= 52 else str(i-65)
                 proxy_label = label_lookup.get(index_val,"-1")
                 plt.text(x=row["meth"]+7, y=row["unmeth"]+7, s=proxy_label,
@@ -460,6 +460,8 @@ FIX:
                 #bbox=dict(facecolor=’yellow’,alpha=0.5))
         if poobah and not compare:
             plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        elif compare:
+            plt.title('M versus U plot: Showing effect of processing fluorescence intensities')
         else:
             plt.title('M versus U plot')
         plt.xlabel('Median Methylated Intensity')

@@ -243,6 +243,7 @@ kwargs:
   - pval_cutoff (e.g. set alpha at 0.05)
   - outpath
   - path
+  - runme: Default is not to actually generate all the parts of PDF with report.run_qc() then report.pdf.close(), but setting this to True will do everything at once.
 - front page text
   - title
   - author
@@ -254,7 +255,13 @@ kwargs:
   - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
   - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
   - mds: performs multidimensional scaling to identify and report on sample outliers
-
+- plots
+  - beta_density_plot
+  - M_vs_U (default False)
+  - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
+  - qc_signal_intensity
+  - controls (A batter of ported Genome Studio plots)
+  - probe_types
 
 --------------
 custom tables:
@@ -339,19 +346,20 @@ Pre-processing pipeline:
             self.order = self.__dict__['order']
         else:
             self.order = ['beta_density_plot', 'detection_poobah', 'mds', 'auto_qc',
-            'M_vs_U', 'qc_signal_intensity', 'controls', 'probe_types']
+            'qc_signal_intensity', 'M_vs_U_compare', 'M_vs_U', 'controls', 'probe_types']
 
         self.tests = {
             'detection_poobah': self.__dict__.get('poobah',True),
             'mds': self.__dict__.get('mds',True), # part of detection_poobah table
-            'auto_qc': self.__dict__.get('auto_qc',True), # NOT IMPLEMENTED YET #
+            'auto_qc': self.__dict__.get('auto_qc',True), # algorithmic failure prediction, NOT IMPLEMENTED YET #
             # v0.7.3 adds bis-conversion completeness, the GCT score table --- https://rdrr.io/bioc/sesame/src/R/sesame.R
             'gct_score': self.__dict__.get('gct',True), # part of detection_poobah table
         }
         self.plots = {
             'beta_density_plot': self.__dict__.get('beta_density_plot',True),
+            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True),
+            'M_vs_U_compare': self.__dict__.get('M_vs_U_compare',False),
             'M_vs_U': self.__dict__.get('M_vs_U',False),
-            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True), # not sure Brian wanted this, but it is available
             'controls': self.__dict__.get('controls',True), # genome studio plots
             'probe_types': self.__dict__.get('probe_types',True),
         }
@@ -361,6 +369,10 @@ Pre-processing pipeline:
             self.parse_custom_tables(self.__dict__['custom_tables'])
             LOGGER.info(f"Found custom_tables and inserted into order: {self.order}")
             LOGGER.info(self.custom)
+
+        if self.__dict__.get('runme') == True:
+            self.run_qc()
+            self.pdf.close()
 
     def parse_custom_tables(self, tables):
         """tables is a list of {
@@ -423,6 +435,14 @@ Pre-processing pipeline:
                 meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
                 unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
             control_dict_of_dfs = pd.read_pickle(Path(path,'control_probes.pkl'))
+            # for M_vs_U_compare only, need both
+            if self.__dict__.get('M_vs_U_compare') == True:
+                if not (Path(path,'noob_meth_values.pkl').exists() and
+                    Path(path,'noob_unmeth_values.pkl').exists() and
+                    Path(path,'meth_values.pkl').exists() and
+                    Path(path,'unmeth_values.pkl').exists()):
+                    LOGGER.error("Not all meth/unmeth pickle files found for M_vs_U compare plot. Skipping this plot.")
+                    self.__dict__.pop('M_vs_U_compare')
             LOGGER.info("Data loaded")
         except FileNotFoundError:
             raise FileNotFoundError("Could not load pickle files")
@@ -514,6 +534,12 @@ Pre-processing pipeline:
                     elif part == 'M_vs_U':
                         LOGGER.info(f"M_vs_U plot")
                         fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True, poobah=poobah_df)
+                        self.pdf.savefig(fig)
+                        self.plt.close()
+                        # if not plotting, it will return dict with meth median and unmeth median.
+                    elif part == 'M_vs_U_compare':
+                        LOGGER.info(f"M_vs_U_compare plot")
+                        fig = methylcheck.plot_M_vs_U(data_containers_or_path=path, compare=True, silent=False, verbose=True, plot=True, return_fig=True)
                         self.pdf.savefig(fig)
                         self.plt.close()
                         # if not plotting, it will return dict with meth median and unmeth median.
