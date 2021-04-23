@@ -1,5 +1,9 @@
 # Lib
 from logging import NullHandler, getLogger
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action='ignore', category=PendingDeprecationWarning)
+warnings.simplefilter(action='ignore', category=DeprecationWarning)
 # App
 from .cli import detect_array
 

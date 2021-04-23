@@ -123,7 +123,11 @@ class BeadArrayControlsReporter():
             raise FileNotFoundError(f"Could not locate poobah_values.pkl file in {filepath}; re-run and set 'pval=False' to skip calculating probe failures.")
         if hasattr(self,'samplesheet'):
             if isinstance(self.samplesheet, pd.DataFrame):
-                self.samplesheet = self.samplesheet.set_index('Sample_ID')
+                if 'Sample_ID' in self.samplesheet:
+                    self.samplesheet = self.samplesheet.set_index('Sample_ID')
+                elif 'Sentrix_ID' in self.samplesheet and 'Sentrix_Position' in self.samplesheet:
+                    self.samplesheet['Sample_ID'] = self.samplesheet['Sentrix_ID'].astype(str) + '_' + self.samplesheet['Sentrix_Position']
+                    self.samplesheet = self.samplesheet.set_index('Sample_ID')
             else:
                 raise TypeError("Meta Data from Samplesheet is not a valid dataframe.")
         if (hasattr(self,'samplesheet') and
@@ -541,7 +545,7 @@ target removal
             #self.norm_G_mean_red = round( np.mean(
             #con[con['Control_Type'] == 'NORM_G']['Mean_Value_Red'].values,
             #))
-        if hasattr(self,'noob_meth') and hasattr(self,'gct_scores'):
+        if hasattr(self,'noob_meth') and hasattr(self,'gct_scores') and self.gct_scores.get(sample) is not None:
             # sample var should match a column in noob_meth for this to work. And it only runs this function once per batch.
             self.gct_score = self.gct_scores[sample]
         else:
@@ -595,11 +599,13 @@ target removal
                 self.data[sample].remove({'col': 'Passing Probes', 'val':(100 - self.failed_probes), 'formula': f"(p ≤ {self.pval_sig}) > 80% probes", 'max':80, 'med':80, 'min':80})
             except ValueError:
                 pass # poobah file could be missing, in which case it never gets calculated.
-        if self.gct_score is None:
+        if self.gct_score is None or np.isnan(self.gct_score) is True:
             try:
-                self.data[sample].remove({'col': 'GCT score', 'val':self.gct_score, 'formula': "mean(oobG extC)/mean(oobG extT)", 'max':0.92, 'med':0.91, 'min':0.90})
-            except ValueError:
+                self.data[sample].remove({'col': 'GCT score', 'val':self.gct_score, 'formula': "mean(oobG extC)/mean(oobG extT)", 'max':1.0, 'med':0.99, 'min':0.93})
+            except ValueError as e:
+                print(f'ERROR {e}')
                 pass # noob_meth file could be missing, in which case it never gets calculated.
+                # and mouse is not supported...
 
         row.update({k['col']:k['val'] for k in self.data[sample]})
         self.report.append(row) # this is converted to excel sheet, but self.data is used to format the data in save()
@@ -607,9 +613,17 @@ target removal
         # process() adds predicted sex and result column
 
     def process(self):
-        self.gct_scores = methylcheck.bis_conversion_control(self.noob_meth) # a dict of {sentrix_id:score} pairs
+        if hasattr(self, 'noob_meth'):
+            self.gct_scores = methylcheck.bis_conversion_control(self.noob_meth) # a dict of {sentrix_id:score} pairs
+            if [v for v in self.gct_scores.values() if v is not None and np.isnan(v) is False] == []:
+                self.gct_scores = {}
+        else:
+            self.gct_scores = {}
         for sample,con in self.control.items():
             self.process_sample(sample, con) # saves everything on top of last sample, for now. testing.
+
+        #print(self.gct_scores)
+        #import pdb;pdb.set_trace()
 
         # predicted_sex, x_median, y_median, x_fail_percent, y_fail_percent,
         if isinstance(self.samplesheet, pd.DataFrame) and hasattr(self, 'noob_meth') and hasattr(self, 'noob_unmeth'):
@@ -618,6 +632,7 @@ target removal
             else:
                 LOGGER.info("Predicting Sex...")
             try:
+                print(self.noob_meth.shape, self.noob_unmeth.shape)
                 sex_df = methylcheck.get_sex((self.noob_meth, self.noob_unmeth), array_type=None, verbose=False, plot=False, on_lambda=False, median_cutoff= -2, include_probe_failure_percent=False)
             except ValueError as e:
                 if str(e).startswith('Unsupported Illumina array type'):
@@ -630,7 +645,13 @@ target removal
             # merge into processed output (self.report and self.data)
             # row index values are sample names
             for row in sex_df.itertuples():
-                item_order = [idx for idx,item in enumerate(self.report) if item['Sample'] == row.Index][0]
+                try:
+                    item_order = [idx for idx,item in enumerate(self.report) if item['Sample'] == row.Index][0]
+                except IndexError:
+                    # in tests, this happens if samplesheet has data that isn't in process results
+                    print("report and sex_df not matching")
+                    import pdb;pdb.set_trace()
+
                 self.data[row.Index].append({'col': 'Predicted Sex', 'val': row.predicted_sex, 'formula': f"X/Y probes"})
                 self.report[item_order]['Predicted Sex'] = row.predicted_sex
                 if self.predict_sex:
@@ -664,7 +685,7 @@ target removal
             if col.get('max') is None:
                 print(f"WARNING: no threshold for {col['col']}")
                 continue
-            if np.isnan(col['val']):
+            if pd.isna(col['val']):
                 continue
             passfail[col['col']] = 1 if col['val'] >= col['max'] else 0
             missed_by_much[col['col']] = round(col['val'] / (col['max'] + 0.00000000001),2)

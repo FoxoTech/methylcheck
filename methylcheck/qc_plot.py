@@ -254,6 +254,11 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
             _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
             _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
             return meth, unmeth, _meth, _unmeth
+        elif (noob and Path(path, f'{n}meth_values.pkl').exists() and
+            Path(path, f'{n}unmeth_values.pkl').exists()):
+            _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
+            _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
+            return _meth, _unmeth
         else:
             sample_filenames = []
             csvs = []
@@ -443,7 +448,7 @@ FIX:
                 'unmeth': _unmeth.median()
             })
             # each data set should have same samples in same order, so label_lookup will work for both hues
-            label_lookup = {index_val: chr(i+65) if i <= 52 else str(i-65) for i,index_val in enumerate(data_df.index)}
+            label_lookup = {index_val: chr(i+65) if i <= 26 else str(i-26) for i,index_val in enumerate(data_df.index)}
             data_df2['hue'] = "Corrected intensity"
             data_df = data_df.append(data_df2)
             del data_df2

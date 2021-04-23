@@ -66,7 +66,7 @@ def detect_array(df, returns='name', on_lambda=False):
         return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 868000: # actual: 865860
         return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
-    elif 220000 <= col_count <= 270000: # actual: 236685 C20, 262812 v2
+    elif 220000 <= col_count <= 270000: # actual: 236685 C20, 262812 v2, 284762 V3-V4
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
         raise ValueError(f'Unsupported Illumina array type. Your data file contains {col_count} rows for probes.')

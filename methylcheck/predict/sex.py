@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
-import seaborn as sb
+import seaborn as sns
 from pathlib import Path
 #app
 import methylcheck # uses .load; get_sex uses methylprep models too and detect_array()
@@ -20,7 +20,9 @@ def _get_copy_number(meth,unmeth):
     return np.log2(meth+unmeth)
 
 
-def get_sex(data_source, array_type=None, verbose=False, plot=False, on_lambda=False, median_cutoff= -2, include_probe_failure_percent=True):
+def get_sex(data_source, array_type=None, verbose=False, plot=False, save=False,
+        on_lambda=False, median_cutoff= -2, include_probe_failure_percent=True,
+        poobah_cutoff=20, custom_label=None):
     """This will calculate and predict the sex of each sample.
 
 inputs:
@@ -28,6 +30,7 @@ inputs:
     the "data_source" can be any one of:
         path -- to a folder with csv data that contains processed sample data
         path -- to a folder with the 'meth_values.pkl' and 'unmeth_values.pkl' dataframes
+        path -- to a folder also containing samplesheet pkl and poobah_values.pkl, if you want to compare predicted sex with actual sex.
         data_containers -- object created from methylprep.run_pipeline() or methylcheck.load(path, 'meth')
         tuple of (meth, unmeth) dataframes
     array_type (string)
@@ -36,6 +39,17 @@ inputs:
     median_cutoff
         the minimum difference in the medians of X and Y probe copy numbers to assign male or female
         (copied from the minif sex predict function)
+    poobah_cutoff
+        The maximum percent of sample probes that can fail before the sample fails. Default is 20 (percent)
+    plot
+        True: creates a plot, with option to save as image
+    save
+        True: saves the plot, if plot is True
+    include_probe_failure_percent:
+        True: includes poobah percent per sample as column in the output table and on the plot.
+    custom_label:
+        Option to provide a dictionary with keys as sample_ids and values as labels to apply to samples.
+        e.g. add more data about samples to the multi-dimensional QC plot
 
 while providing a filepath is the easiest way, you can also pass in a data_containers object,
 a list of data_containers containing raw meth/unmeth values, instead. This object is produced
@@ -46,8 +60,7 @@ If a `poobah_values.pkl` file can be found in path, the dataframe returned will 
 percent of probes for X and Y chromosomes that failed quality control, and warn the user if any did.
 This feature won't work if a containers object or tuple of dataframes is passed in, instead of a path.
 
-Note: ~90% of Y probes should fail if the sample is female. That chromosome is missing.
-    """
+Note: ~90% of Y probes should fail if the sample is female. That chromosome is missing."""
     allowed_array_types = {'27k','450k','epic','epic+','mouse'}
 
     try:
@@ -61,9 +74,14 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     if data_source_type in ('path'):
         # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
         # the saved pickles function isn't working for batches yet.
-        meth, unmeth = methylcheck.qc_plot._get_data(
-            data_containers=None, path=data_source,
-            compare=False, noob=False, verbose=False)
+        try:
+            meth, unmeth = methylcheck.qc_plot._get_data(
+                data_containers=None, path=data_source,
+                compare=False, noob=False, verbose=False)
+        except Exception as e:
+            meth, unmeth = methylcheck.qc_plot._get_data(
+                data_containers=None, path=data_source,
+                compare=False, noob=True, verbose=False)
         if include_probe_failure_percent == True and Path(data_source,'poobah_values.pkl').exists():
             poobah = pd.read_pickle(Path(data_source,'poobah_values.pkl'))
 
@@ -129,12 +147,14 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     output = output.round(1)
 
     # if poobah_df exists, calculate percent X and Y probes that failed
+    sample_failure_percent = {} # % of ALL probes in sample, not just X or Y
     if include_probe_failure_percent == True and isinstance(poobah, pd.DataFrame):
         p_value_cutoff = 0.05
         X_col = []
         Y_col = []
         failed_samples = []
         for column in poobah.columns:
+            sample_failure_percent[column] = round(100*len(poobah[column][poobah[column] >= p_value_cutoff].index) / len(poobah.index),1)
             failed_probe_names = poobah[column][poobah[column] >= p_value_cutoff].index
             failed_x_probe_names = list(set(failed_probe_names) & set(x_probes))
             failed_y_probe_names = list(set(failed_probe_names) & set(y_probes))
@@ -144,13 +164,147 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             Y_col.append(Y_percent)
             if X_percent > 10:
                 failed_samples.append(column)
+
         output['X_fail_percent'] = X_col #output.index.map(X_col)
         output['Y_fail_percent'] = Y_col #output.index.map(Y_col)
+
         if failed_samples != []:
             LOGGER.warning(f"{len(failed_samples)} samples had >10% of X probes fail p-value probe detection. Predictions for these may be unreliable:")
             LOGGER.warning(f"{failed_samples}")
 
+    if data_source_type in ('path'):
+        output = _fetch_actual_sex_from_sample_sheet_meta_data(data_source, output)
+
     if plot == True:
-        sb.scatterplot(output['x_median'], output['y_median'], output['predicted_sex'])
-        plt.show()
+        _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
+            sample_failure_percent=sample_failure_percent,
+            median_cutoff=median_cutoff,
+            include_probe_failure_percent=include_probe_failure_percent,
+            verbose=verbose,
+            save=save,
+            poobah_cutoff=poobah_cutoff,
+            custom_label=custom_label,
+            )
+    return output
+
+
+def _plot_predicted_sex(data=pd.DataFrame(),
+    sample_failure_percent={},
+    median_cutoff= -2,
+    include_probe_failure_percent=True,
+    verbose=False,
+    save=False,
+    poobah_cutoff=20, #%
+    custom_label=None):
+    """
+data columns: ['x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent']
+- color is sex, pink or blue
+- marker circle size will be larger and more faded if poobah values are worse, smaller and darker if low variance. Like a probability cloud.
+- sample text is (ID, delta age)
+- sex mismatches are X, matched samples are circles (if samplesheet contains actual sex data)
+- omits labels for samples that have LOW failure rates, but shows IDs when failed
+
+TODO
+- add legend of sketchy samples and labels
+- show delta age on labels (using custom column dict)
+- test pass in dict of delta ages and map it
+- unit test with custom label and without, and check that beadarray report still works with this function
+- save_fig
+
+if there is a "custom_label" dict passed in, such as (actual_age - predicted_age), it simply adds those this label to the marker text labels.
+Dicts must match the data DF index.
+    """
+    if sample_failure_percent != {} and set(sample_failure_percent.keys()) == set(data.index):
+        data['sample_failure_percent'] = pd.Series(sample_failure_percent)
+    else:
+        LOGGER.warning("sample_failure_percent index did not align with output data index")
+    sns.set_theme(style="white")
+    custom_palette = sns.set_palette(sns.color_palette(['#FE6E89','#0671B7']))
+    show_mismatches = None if 'sex_matches' not in data.columns else "sex_matches"
+    if show_mismatches:
+        data["sex_matches"] = data["sex_matches"].map({0:"Mismatch", 1:"Match"})
+    fig = sns.relplot(data=data,
+        x='x_median',
+        y='y_median',
+        hue="predicted_sex",
+        size="sample_failure_percent",
+        style=show_mismatches,
+        sizes=(5, 600),
+        alpha=.5,
+        palette=custom_palette,
+        height=10)
+    ax = fig.axes[0,0]
+    # for zoomed-in plots with few points close together, set the min scale to be at least 2 units.
+    yscale = plt.gca().get_ylim()
+    xscale = plt.gca().get_xlim()
+    if abs(yscale[1]-yscale[0]) < 2.0:
+        ax.set_xlim(xmin=xscale[0]-1, xmax=xscale[1]+1)
+        ax.set_ylim(ymin=yscale[0]-1, ymax=yscale[1]+1)
+    label_lookup = {index_val: chr(i+65) if (i <= 26) else str(i-26) for i,index_val in enumerate(data.index)}
+    for idx,row in data.iterrows():
+        if row['sample_failure_percent'] > poobah_cutoff:
+            label = f"{label_lookup[idx]}, {custom_label.get(idx)}" if isinstance(custom_label, dict) and custom_label.get(idx) else label_lookup[idx]
+            ax.text(row['x_median'], row['y_median'], label, horizontalalignment='center', fontsize=10, color='darkred')
+        else:
+            label = f"{custom_label.get(idx)}" if isinstance(custom_label, dict) else None
+            if label:
+                ax.text(row['x_median']+0.05, row['y_median']+0.05, label, horizontalalignment='center', fontsize=10, color='grey')
+    N_failed = len(data[data['sample_failure_percent'] > poobah_cutoff].index)
+    N_total = len(data['sample_failure_percent'].index)
+    plt.title(f"{N_failed} of {N_total} samples failed poobah, with at least {poobah_cutoff}% of probes failing")
+    plt.show()
+
+
+def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
+    """output is a dataframe with Sample_ID in the index. This adds actual_sex as a column and returns it."""
+    # bead array does the same thing, and only calls get_sex() with the minimum of data to be fast, because these are already loaded. Just passes in meth/unmeth data
+    # Sample sheet should have 'M' or 'F' in column to match predicted sex.
+
+    # merge actual sex into processed output, if available
+    input_filenames = {
+        'poobah_values.pkl': 'poobah',
+        'sample_sheet_meta_data.pkl': 'meta'
+    }
+    loaded_files = {}
+    for filename in Path(filepath).rglob('*.pkl'):
+        if filename.name in input_filenames.keys():
+            loaded_files[input_filenames[filename.name]] = pd.read_pickle(filename)
+    if len(loaded_files) == 2:
+        loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        # fixing case of the relevant column
+        renamed_column = None
+        if ('Gender' in loaded_files['meta'].columns or 'Sex' in loaded_files['meta'].columns):
+            if 'Gender' in loaded_files['meta'].columns:
+                renamed_column = 'Gender'
+            elif 'Sex' in loaded_files['meta'].columns:
+                renamed_column = 'Sex'
+        else:
+            renamed_columns = {col:(col.title() if col.lower() in ('sex','gender') else col) for col in loaded_files['meta'].columns}
+            loaded_files['meta'] = loaded_files['meta'].rename(columns=renamed_columns)
+            if 'Gender' in renamed_columns.values():
+                renamed_column = 'Gender'
+            elif 'Sex' in renamed_columns.values():
+                renamed_column = 'Sex'
+        if renamed_column is not None:
+            # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; beadarray does NOT do this step, but should.
+            sex_values = set(loaded_files['meta'][renamed_column].unique())
+            if not sex_values.issubset(set(['M','F'])): # subset, because samples might only contain one sex
+                if 'Male' in sex_values and 'Female' in sex_values:
+                    loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'Male':'M', 'Female':'F'})
+                elif 'male' in sex_values and 'female' in sex_values:
+                    loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'male':'M', 'female':'F'})
+                elif 'MALE' in sex_values and 'FEMALE' in sex_values:
+                    loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'MALE':'M', 'FEMALE':'F'})
+                else:
+                    raise ValueError(f"Cannot compare with predicted sex because actual sexes listed in your samplesheet are not M or F: (found {sex_values})")
+
+            output['actual_sex'] = None
+            output['sex_matches'] = None
+            for row in output.itertuples():
+                actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
+                sex_matches = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
+                output.loc[row.Index, 'actual_sex'] = actual_sex
+                output.loc[row.Index, 'sex_matches'] = sex_matches
+        else:
+            pass # no Sex/Gender column found in samplesheet
     return output
