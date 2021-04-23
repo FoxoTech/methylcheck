@@ -71,6 +71,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
 
     (data_source_type, data_source) = methylcheck.load_processed._data_source_type(data_source)
     # data_source_type is one of {'path', 'container', 'control', 'meth_unmeth_tuple'}
+    poobah=None
     if data_source_type in ('path'):
         # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
         # the saved pickles function isn't working for batches yet.
@@ -91,11 +92,9 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
         meth, unmeth = methylcheck.qc_plot._get_data(
             data_containers=data_source, path=None,
             compare=False, noob=False, verbose=False)
-        poobah = None
 
     elif data_source_type is 'meth_unmeth_tuple':
         (meth, unmeth) = data_source
-        poobah = None
 
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")
@@ -184,6 +183,8 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             save=save,
             poobah_cutoff=poobah_cutoff,
             custom_label=custom_label,
+            data_source_type=data_source_type,
+            data_source=data_source
             )
     return output
 
@@ -195,7 +196,9 @@ def _plot_predicted_sex(data=pd.DataFrame(),
     verbose=False,
     save=False,
     poobah_cutoff=20, #%
-    custom_label=None):
+    custom_label=None,
+    data_source_type=None,
+    data_source=None):
     """
 data columns: ['x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent']
 - color is sex, pink or blue
@@ -218,22 +221,26 @@ Dicts must match the data DF index.
         data['sample_failure_percent'] = pd.Series(sample_failure_percent)
     else:
         LOGGER.warning("sample_failure_percent index did not align with output data index")
-    sns.set_theme(style="white")
+    #sns.set_theme(style="white")
     custom_palette = sns.set_palette(sns.color_palette(['#FE6E89','#0671B7']))
     show_mismatches = None if 'sex_matches' not in data.columns else "sex_matches"
     if show_mismatches:
         data["sex_matches"] = data["sex_matches"].map({0:"Mismatch", 1:"Match"})
+    show_failure = None if 'sample_failure_percent' not in data.columns else "sample_failure_percent"
+    print(data)
     fig = sns.relplot(data=data,
         x='x_median',
         y='y_median',
         hue="predicted_sex",
-        size="sample_failure_percent",
+        size=show_failure,
         style=show_mismatches,
         sizes=(5, 600),
         alpha=.5,
         palette=custom_palette,
-        height=10)
+        height=8,
+        aspect=1.34)
     ax = fig.axes[0,0]
+    fig.fig.subplots_adjust(top=.95)
     # for zoomed-in plots with few points close together, set the min scale to be at least 2 units.
     yscale = plt.gca().get_ylim()
     xscale = plt.gca().get_xlim()
@@ -242,18 +249,24 @@ Dicts must match the data DF index.
         ax.set_ylim(ymin=yscale[0]-1, ymax=yscale[1]+1)
     label_lookup = {index_val: chr(i+65) if (i <= 26) else str(i-26) for i,index_val in enumerate(data.index)}
     for idx,row in data.iterrows():
-        if row['sample_failure_percent'] > poobah_cutoff:
+        if "sample_failure_percent" in row and row['sample_failure_percent'] > poobah_cutoff:
             label = f"{label_lookup[idx]}, {custom_label.get(idx)}" if isinstance(custom_label, dict) and custom_label.get(idx) else label_lookup[idx]
             ax.text(row['x_median'], row['y_median'], label, horizontalalignment='center', fontsize=10, color='darkred')
         else:
             label = f"{custom_label.get(idx)}" if isinstance(custom_label, dict) else None
             if label:
                 ax.text(row['x_median']+0.05, row['y_median']+0.05, label, horizontalalignment='center', fontsize=10, color='grey')
-    N_failed = len(data[data['sample_failure_percent'] > poobah_cutoff].index)
-    N_total = len(data['sample_failure_percent'].index)
-    plt.title(f"{N_failed} of {N_total} samples failed poobah, with at least {poobah_cutoff}% of probes failing")
-    plt.show()
 
+    if "sample_failure_percent" in data.columns:
+        N_failed = len(data[data['sample_failure_percent'] > poobah_cutoff].index)
+        N_total = len(data['sample_failure_percent'].index)
+        ax.set_title(f"{N_failed} of {N_total} samples failed poobah, with at least {poobah_cutoff}% of probes failing")
+    else:
+        ax.set_title(f"Predicted sex based on matching X and Y probes.")
+    if save:
+        filepath = 'predicted_sexes.png' if data_source_type != 'path' else Path(data_source,'predicted_sexes.png')
+        plt.savefig(filepath, bbox_inches="tight")
+    plt.show()
 
 def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
     """output is a dataframe with Sample_ID in the index. This adds actual_sex as a column and returns it."""
@@ -261,15 +274,22 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
     # Sample sheet should have 'M' or 'F' in column to match predicted sex.
 
     # merge actual sex into processed output, if available
-    input_filenames = {
-        'poobah_values.pkl': 'poobah',
-        'sample_sheet_meta_data.pkl': 'meta'
+    file_patterns = {
+        'sample_sheet_meta_data.pkl': 'meta',
+        '*_meta_data.pkl': 'meta',
+        '*samplesheet*.csv': 'meta',
+        '*sample_sheet*.csv': 'meta',
     }
     loaded_files = {}
-    for filename in Path(filepath).rglob('*.pkl'):
-        if filename.name in input_filenames.keys():
-            loaded_files[input_filenames[filename.name]] = pd.read_pickle(filename)
-    if len(loaded_files) == 2:
+    for file_pattern in file_patterns:
+        for filename in Path(filepath).rglob(file_pattern):
+            if '.pkl' in filename.suffixes:
+                loaded_files['meta'] = pd.read_pickle(filename)
+                break
+            if '.csv' in filename.suffixes:
+                loaded_files['meta'] = pd.read_csv(filename)
+                break
+    if len(loaded_files) == 1:
         loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
         # fixing case of the relevant column
         renamed_column = None
