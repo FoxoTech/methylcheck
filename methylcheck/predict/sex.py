@@ -22,7 +22,7 @@ def _get_copy_number(meth,unmeth):
 
 def get_sex(data_source, array_type=None, verbose=False, plot=False, save=False,
         on_lambda=False, median_cutoff= -2, include_probe_failure_percent=True,
-        poobah_cutoff=20, custom_label=None):
+        poobah_cutoff=20, custom_label=None, return_fig=False, return_labels=False):
     """This will calculate and predict the sex of each sample.
 
 inputs:
@@ -39,14 +39,23 @@ inputs:
     median_cutoff
         the minimum difference in the medians of X and Y probe copy numbers to assign male or female
         (copied from the minif sex predict function)
-    poobah_cutoff
-        The maximum percent of sample probes that can fail before the sample fails. Default is 20 (percent)
-    plot
-        True: creates a plot, with option to save as image
-    save
-        True: saves the plot, if plot is True
     include_probe_failure_percent:
         True: includes poobah percent per sample as column in the output table and on the plot.
+        Note: you must supply a 'path' as data_source to include poobah in plots.
+    poobah_cutoff
+        The maximum percent of sample probes that can fail before the sample fails. Default is 20 (percent)
+        Has no effect if `include_probe_failure_percent` is False.
+    plot
+        True: creates a plot, with option to `save` as image or `return_fig`.
+    save
+        True: saves the plot, if plot is True
+    return_fig
+        If True, returns a pyplot figure instead of a dataframe. Default is False.
+        Note: return_fig will not show a plot on screen.
+    return_labels: (requires plot == True)
+        When using poobah_cutoff, the figure only includes A-Z,1...N labels on samples on plot to make it easier to read.
+        So to get what sample_ids these labels correspond to, you can rerun the function with return_labels=True and it will
+        skip plotting and just return a dataframe with sample_ids and these labels, to embed in a PDF report if you like.
     custom_label:
         Option to provide a dictionary with keys as sample_ids and values as labels to apply to samples.
         e.g. add more data about samples to the multi-dimensional QC plot
@@ -175,7 +184,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
         output = _fetch_actual_sex_from_sample_sheet_meta_data(data_source, output)
 
     if plot == True:
-        _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
+        fig = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
             sample_failure_percent=sample_failure_percent,
             median_cutoff=median_cutoff,
             include_probe_failure_percent=include_probe_failure_percent,
@@ -184,8 +193,14 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             poobah_cutoff=poobah_cutoff,
             custom_label=custom_label,
             data_source_type=data_source_type,
-            data_source=data_source
+            data_source=data_source,
+            return_fig=return_fig,
+            return_labels=return_labels,
             )
+        if return_labels:
+            return fig # these are a lookup dictionary of labels
+    if return_fig:
+        return fig
     return output
 
 
@@ -198,7 +213,9 @@ def _plot_predicted_sex(data=pd.DataFrame(),
     poobah_cutoff=20, #%
     custom_label=None,
     data_source_type=None,
-    data_source=None):
+    data_source=None,
+    return_fig=False,
+    return_labels=False):
     """
 data columns: ['x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent']
 - color is sex, pink or blue
@@ -206,13 +223,11 @@ data columns: ['x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fai
 - sample text is (ID, delta age)
 - sex mismatches are X, matched samples are circles (if samplesheet contains actual sex data)
 - omits labels for samples that have LOW failure rates, but shows IDs when failed
-
-TODO
-- add legend of sketchy samples and labels
+- adds legend of sketchy samples and labels
 - show delta age on labels (using custom column dict)
-- test pass in dict of delta ages and map it
-- unit test with custom label and without, and check that beadarray report still works with this function
+- unit tests with custom label and without, and check that beadarray report still works with this function
 - save_fig
+- return_labels, returns a lookup dict instead of plot
 
 if there is a "custom_label" dict passed in, such as (actual_age - predicted_age), it simply adds those this label to the marker text labels.
 Dicts must match the data DF index.
@@ -227,14 +242,19 @@ Dicts must match the data DF index.
     if show_mismatches:
         data["sex_matches"] = data["sex_matches"].map({0:"Mismatch", 1:"Match"})
     show_failure = None if 'sample_failure_percent' not in data.columns else "sample_failure_percent"
-    print(data)
+    sample_sizes = (20, 600)
+    if show_failure: # avoid sizing dots with narrow range; gives false impression of bad samples.
+        poobah_range = data["sample_failure_percent"].max() - data["sample_failure_percent"].min()
+        if poobah_range < poobah_cutoff/2:
+            show_failure = None
+            sample_sizes = (40,40)
     fig = sns.relplot(data=data,
         x='x_median',
         y='y_median',
         hue="predicted_sex",
         size=show_failure,
         style=show_mismatches,
-        sizes=(5, 600),
+        sizes=sample_sizes,
         alpha=.5,
         palette=custom_palette,
         height=8,
@@ -256,7 +276,9 @@ Dicts must match the data DF index.
             label = f"{custom_label.get(idx)}" if isinstance(custom_label, dict) else None
             if label:
                 ax.text(row['x_median']+0.05, row['y_median']+0.05, label, horizontalalignment='center', fontsize=10, color='grey')
-
+    if return_labels:
+        plt.close() # release memory
+        return label_lookup
     if "sample_failure_percent" in data.columns:
         N_failed = len(data[data['sample_failure_percent'] > poobah_cutoff].index)
         N_total = len(data['sample_failure_percent'].index)
@@ -266,6 +288,8 @@ Dicts must match the data DF index.
     if save:
         filepath = 'predicted_sexes.png' if data_source_type != 'path' else Path(data_source,'predicted_sexes.png')
         plt.savefig(filepath, bbox_inches="tight")
+    if return_fig:
+        return fig
     plt.show()
 
 def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
@@ -290,7 +314,13 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                 loaded_files['meta'] = pd.read_csv(filename)
                 break
     if len(loaded_files) == 1:
-        loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        if 'Sample_ID' in loaded_files['meta'].columns:
+            loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        elif 'Sentrix_ID' in loaded_files['meta'].columns and 'Sentrix_Position' in loaded_files['meta'].columns:
+            loaded_files['meta']['Sample_ID'] = loaded_files['meta']['Sentrix_ID'].astype(str) + '_' + loaded_files['meta']['Sentrix_Position'].astype(str)
+            loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        else:
+            raise ValueError("Your sample sheet must have a Sample_ID column, or (Sentrix_ID and Sentrix_Position) columns.")
         # fixing case of the relevant column
         renamed_column = None
         if ('Gender' in loaded_files['meta'].columns or 'Sex' in loaded_files['meta'].columns):
@@ -322,6 +352,9 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
             output['sex_matches'] = None
             for row in output.itertuples():
                 actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
+                if isinstance(actual_sex, pd.Series):
+                    LOGGER.warning(f"Multiple samples matched actual sex for {row.Index}, because Sample_ID repeats in sample sheets. Only using first match, so matches may not be accurate.")
+                    actual_sex = actual_sex[0]
                 sex_matches = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
                 output.loc[row.Index, 'actual_sex'] = actual_sex
                 output.loc[row.Index, 'sex_matches'] = sex_matches

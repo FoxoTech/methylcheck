@@ -345,7 +345,7 @@ Pre-processing pipeline:
         if 'order' in self.__dict__:
             self.order = self.__dict__['order']
         else:
-            self.order = ['beta_density_plot', 'detection_poobah', 'mds', 'auto_qc',
+            self.order = ['beta_density_plot', 'detection_poobah', 'predict_sex', 'mds', 'auto_qc',
             'qc_signal_intensity', 'M_vs_U_compare', 'M_vs_U', 'controls', 'probe_types']
 
         self.tests = {
@@ -360,6 +360,7 @@ Pre-processing pipeline:
             'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True),
             'M_vs_U_compare': self.__dict__.get('M_vs_U_compare',False),
             'M_vs_U': self.__dict__.get('M_vs_U',False),
+            'predict_sex': self.__dict__.get('predict_sex',False),
             'controls': self.__dict__.get('controls',True), # genome studio plots
             'probe_types': self.__dict__.get('probe_types',True),
         }
@@ -517,6 +518,7 @@ Pre-processing pipeline:
                         self.pdf.savefig(beta_mds_fig)
                         self.plt.close()
                         #pretty_table = Table(titles=['Sample_ID', 'MDS Pass/Fail'])
+
                 except Exception as e:
                     if self.debug:
                         LOGGER.error(f"Could not process {part}; {e}")
@@ -560,6 +562,15 @@ Pre-processing pipeline:
                         for fig in list_of_figs:
                             self.pdf.savefig(figure=fig, bbox_inches='tight')
                         self.plt.close('all')
+                    elif part == 'predict_sex':
+                        # get_sex() handles missing data issues; no need to validate files exist
+                        include_probe_failure_percent = True if (self.tests['detection_poobah'] is True and 'detection_poobah' in self.order) else False
+                        poobah_cutoff = (100 - self.__dict__.get('poobah_min_percent',80))
+                        fig = methylcheck.get_sex(path, plot=True, save=False, on_lambda=self.on_lambda,
+                            include_probe_failure_percent=include_probe_failure_percent, poobah_cutoff=poobah_cutoff,
+                            return_fig=True) # custom_label={dict of values for samples keyed to sample IDs}
+                        self.pdf.savefig(fig.fig) # seaborn relplots embed the matplotlib fig within them
+                        self.plt.close()
                 except Exception as e:
                     if self.debug:
                         LOGGER.error(f"Could not process {part}; {e}")

@@ -9,6 +9,9 @@
   - M_vs_U not included by default, because redundant with qc_signal_intensity
   - M_vs_U compare=True now labels each sample and has legend, so you can see effect of NOOB+dye correction on batch
   - added poobah color-coding to MDS plot
+- get_sex improved plotting
+  - will read poobah data and size sample points according to percent of failed probes
+  - save plots, or return fig, and more options now
 
 ## v0.7.1
 - Added a python clone of Illumina's BeadArray Controls Reporter software
