@@ -911,11 +911,11 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
         raise FileNotFoundError("this requires methylated intensities in a pickle file.")
     # using the number of probes in meth df to determine array
     array_type, man_filepath = methylcheck.detect_array(meth, returns='filepath', on_lambda=on_lambda)
+    try:
+        from methylprep import Manifest, ArrayType
+    except ImportError:
+        raise ImportError("this function requires methylprep")
     if Path.exists(man_filepath):
-        try:
-            from methylprep import Manifest, ArrayType
-        except ImportError:
-            raise ImportError("this function requires methylprep")
         manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
     else:
         # initialize and force download with filepath=None
