@@ -119,6 +119,9 @@ def test_controls_report_kwargs_no_pval():
         raise AssertionError(f"--pval=False: Calculated Numbers don't match those stored in test: returned {list(results.iloc[1].values)}")
 
 def test_controls_report_kwargs_pval_sig():
+    
+    methylprep.run_pipeline(TESTPATH, save_control=True, poobah=True, export_poobah=True)
+
     expected_outfile = 'GSE69852_QC_Report.xlsx'
     if Path(PROCESSED_450K,expected_outfile).exists():
         Path(PROCESSED_450K,expected_outfile).unlink()
@@ -128,6 +131,7 @@ def test_controls_report_kwargs_pval_sig():
     results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
     if not list(results.iloc[1].values) == ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 69.1, 'M', 'FAIL (pval)']:
         # pre v0.7.3 -->                  #['9247377093_R02C01', 0.08, 62.84, 99.47, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.96, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 40.8, 'M', 'FAIL (pval)']:
+        # on circlci I get -->             ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 85.2, 'M', 'OK (0.96)']
         raise AssertionError(f"--pval=True pval_sign=0.01: Calculated Numbers don't match those stored in test: return {list(results.iloc[1].values)}")
     if Path(PROCESSED_450K,expected_outfile).exists():
         Path(PROCESSED_450K,expected_outfile).unlink()
