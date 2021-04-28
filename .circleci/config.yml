@@ -45,8 +45,7 @@ jobs:
           command: |
             pipenv install methylprep --skip-lock
             pipenv install coveralls --skip-lock
-            #pipenv run coverage run setup.py test
-            pipenv run coverage run pytest tests --junit-xml=htmlcov/junit.xml
+            pipenv run coverage run setup.py test -a "--junit-xml=htmlcov/junit.xml"
       - run:
           name: Running test coverage
           command: |
