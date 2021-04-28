@@ -918,7 +918,9 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
             raise ImportError("this function requires methylprep")
         manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
     else:
-        raise FileNotFoundError("manifest file not found.")
+        # initialize and force download with filepath=None
+        manifest = Manifest(ArrayType(array_type), filepath_or_buffer=None, on_lambda=on_lambda)
+
     # want meth channel data; 89203 probes
     oobG_mask = set(manifest.data_frame[(manifest.data_frame['Infinium_Design_Type'] == 'I') & (manifest.data_frame['Color_Channel'] == 'Red')].index)
     if str(array_type) == 'epic+':
