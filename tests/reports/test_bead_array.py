@@ -121,7 +121,7 @@ def test_controls_report_kwargs_no_pval():
 
 def test_controls_report_kwargs_pval_sig():
 
-    methylprep.run_pipeline(TESTPATH, save_control=True, poobah=True, export_poobah=True)
+    methylprep.run_pipeline(PROCESSED_450K, save_control=True, poobah=True, export_poobah=True)
 
     expected_outfile = 'GSE69852_QC_Report.xlsx'
     if Path(PROCESSED_450K,expected_outfile).exists():
