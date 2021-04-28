@@ -13,6 +13,7 @@ except ImportError:
 
 #app
 import methylcheck
+import methylprep
 
 TESTPATH = 'tests'
 PROCESSED_450K = Path('docs/example_data/GSE69852')
@@ -119,7 +120,7 @@ def test_controls_report_kwargs_no_pval():
         raise AssertionError(f"--pval=False: Calculated Numbers don't match those stored in test: returned {list(results.iloc[1].values)}")
 
 def test_controls_report_kwargs_pval_sig():
-    
+
     methylprep.run_pipeline(TESTPATH, save_control=True, poobah=True, export_poobah=True)
 
     expected_outfile = 'GSE69852_QC_Report.xlsx'
