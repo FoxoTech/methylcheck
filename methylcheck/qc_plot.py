@@ -1,9 +1,10 @@
+import warnings
+from pathlib import Path
+import logging
 import pandas as pd
 import numpy as np
 import seaborn as sb
 import matplotlib.pyplot as plt
-from pathlib import Path
-import logging
 
 #app
 import methylcheck
@@ -11,7 +12,7 @@ from .progress_bar import *
 
 LOGGER = logging.getLogger(__name__)
 
-__all__ = ['run_qc', 'plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 'plot_controls']
+__all__ = ['run_qc', 'plot_beta_by_type', 'qc_signal_intensity', 'plot_M_vs_U', 'plot_controls', 'bis_conversion_control']
 
 def run_qc(path):
     """Generates all QC plots for a dataset in the path provided.
@@ -56,7 +57,7 @@ def run_qc(path):
 
 
 def qc_signal_intensity(data_containers=None, path=None, meth=None, unmeth=None, poobah=None, palette=None,
-    noob=True, silent=False, verbose=False, plot=True, bad_sample_cutoff=10.5, return_fig=False):
+    noob=True, silent=False, verbose=False, plot=True, cutoff_line=True, bad_sample_cutoff=11.5, return_fig=False):
     """Suggests sample outliers based on methylated and unmethylated signal intensity.
 
 input (one of these):
@@ -80,10 +81,12 @@ input (one of these):
         if poobah=False: suppresses this color
         if poobah=dataframe: color-codes samples according to percent probe failure range,
             but only if you pass in meth and unmeth dataframes too, not data_containers object.
+        if poobah=True: looks for poobah_values.pkl in the path provided.
 
 optional params:
 ================
-    bad_sample_cutoff (default 10.5): set the cutoff for determining good vs bad samples, based on signal intensities of meth and unmeth fluorescence channels. 10.5 was borrowed from minfi's internal defaults.
+    cutoff_line: True will draw the line; False omits it.
+    bad_sample_cutoff (default 11.5): set the cutoff for determining good vs bad samples, based on signal intensities of meth and unmeth fluorescence channels. 10.5 was borrowed from minfi's internal defaults.
     noob: use noob-corrected meth/unmeth values
     verbose: additional messages
     plot: if True (default), shows a plot. if False, this function returns the median values per sample of meth and unmeth probes.
@@ -98,20 +101,27 @@ FIX:
     doesn't give good error message for compare
     """
     if not path and not data_containers and type(meth) is type(None) and type(unmeth) is type(None):
-        print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
+        print("ERROR: You must specify a path to methylprep processed data files or provide a data_containers object as input.")
         return
-    if type(meth) is type(None) and type(unmeth) is type(None):
+    if not isinstance(data_containers,list) and isinstance(data_containers, (str,Path)):
+        print("ERROR: If you want to supply a path to your processed files, use 'path=<path>'.")
+        return
+    # path can be a string, but must be converted to a Path
+    if isinstance(path, str):
+        path = Path(path)
+    # meth can be none, or df, or path
+    if isinstance(meth, type(None)) and isinstance(unmeth, type(None)):
         meth, unmeth = _get_data(data_containers=data_containers, path=path, compare=False, noob=noob, verbose=verbose)
     if (path is not None and not isinstance(poobah, pd.DataFrame)
-        and not isinstance(poobah, type(None))
-        and verbose and not silent):
+        and not isinstance(poobah, type(None))):
         if poobah in (False,None):
             pass # unless poobah IS a dataframe below, nothing happens. None/False suppress this
         else:
             if 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
                 poobah = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
             else:
-                LOGGER.info("Cannot load poobah_values.pkl file.")
+                if verbose and not silent:
+                    LOGGER.info("Cannot load poobah_values.pkl file.")
 
     # Plotting
     medians = _make_qc_df(meth,unmeth)
@@ -161,11 +171,17 @@ FIX:
         #sizes = percent_failures_hues.copy()
         percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
         legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
-        qc = pd.merge(left=medians,
-           right=percent_failures_hues,
-           left_on=medians.index,
-           right_on=percent_failures_hues.index,
-           how='inner')
+        try:
+            qc = pd.merge(left=medians,
+               right=percent_failures_hues,
+               left_on=medians.index,
+               right_on=percent_failures_hues.index,
+               how='inner')
+        except:
+            # edge case where meth/unmeth medians loses sample sentrix_ids, but poobah pkl retains them - proceed with merging assuming order is retained
+            tempA = medians.reset_index(drop=True)
+            tempB = percent_failures_hues.reset_index(drop=True)
+            qc = pd.merge(left=tempA,right=tempB,left_on=tempA.index,right_on=tempB.index,how='inner')
         hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
         this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
             palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
@@ -174,10 +190,10 @@ FIX:
 
     plt.xlim([min_x,max_x])
     plt.ylim([min_y,max_y])
-    # cutoff line
-    x = np.linspace(6,14)
-    y = -1*x+(2*bad_sample_cutoff)
-    plt.plot(x, y, '--', lw=1, color='black', alpha=0.75, label='Cutoff')
+    if cutoff_line:
+        x = np.linspace(6,14)
+        y = -1*x+(2*bad_sample_cutoff)
+        plt.plot(x, y, '--', lw=1, color='black', alpha=0.75, label='Cutoff')
     # legend
     plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1)
     # display plot
@@ -206,7 +222,6 @@ def _make_qc_df(meth,unmeth):
     qc.index.name = None
     return qc
 
-
 def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose=True):
     """ internal function that loads data from object or path and returns 2 or 4 dataframes """
     # NOTE: not a flexible function because it returns 0, 2, or 4 objects depending on inputs.
@@ -225,10 +240,25 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
     elif path:
         n = 'noob_' if noob else ''
         # first try to load from disk
-        if Path(path, 'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists():
+        if Path(path, 'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists() and not compare:
             meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
             unmeth = pd.read_pickle(Path(path, 'unmeth_values.pkl'))
             return meth, unmeth
+        elif (compare and
+            Path(path, 'meth_values.pkl').exists() and
+            Path(path, 'unmeth_values.pkl').exists() and
+            Path(path, f'{n}meth_values.pkl').exists() and
+            Path(path, f'{n}unmeth_values.pkl').exists()):
+            meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
+            unmeth = pd.read_pickle(Path(path, 'unmeth_values.pkl'))
+            _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
+            _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
+            return meth, unmeth, _meth, _unmeth
+        elif (noob and Path(path, f'{n}meth_values.pkl').exists() and
+            Path(path, f'{n}unmeth_values.pkl').exists()):
+            _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
+            _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
+            return _meth, _unmeth
         else:
             sample_filenames = []
             csvs = []
@@ -313,14 +343,12 @@ optional params:
     compare:
         if the processed data contains both noob and uncorrected values, it will plot both in different colors
         the compare option will not work with using the 'meth' and 'unmeth' inputs, only with path or data_containers.
-
-this will draw a diagonal line on plots.
-    the cutoff line is based on the X-Y scale of the plot, which depends on the range of intensity values in your data set.
+    cutoff_line: True will draw a diagonal line on plots.
+        the cutoff line is based on the X-Y scale of the plot, which depends on the range of intensity values in your data set.
 
 FIX:
     doesn't return both types of data if using compare and not plotting
     doesn't give good error message for compare
-
     """
     try:
         if Path(data_containers_or_path).exists(): # if passing in a valid string, this should work.
@@ -330,15 +358,17 @@ FIX:
     except:
         path = None # but fails if passing in a data_containers object
 
-    if type(data_containers_or_path) == type(Path()): #this only recognizes a Path object
+    if isinstance(data_containers_or_path, Path): #this only recognizes a Path object
         path = data_containers_or_path
+        data_containers = None
+    elif isinstance(path, Path):
         data_containers = None
     else:
         path = None
         data_containers = data_containers_or_path # by process of exclusion, this must be an object
 
-    if not path and not data_containers and type(meth) is None and type(unmeth) is None:
-        print("You must specify a path to methylprep processed data files or provide a data_containers object as input.")
+    if not path and not data_containers and not isinstance(meth, pd.DataFrame) and not isinstance(unmeth, pd.DataFrame):
+        print("You must specify a path to methylprep processed data files, or provide a data_containers object as input, or pass in meth and unmeth dataframes.")
         return
 
     # 2. load meth + unmeth from path
@@ -369,7 +399,7 @@ FIX:
     if verbose and not silent and isinstance(poobah_df,pd.DataFrame):
         LOGGER.info("Using poobah_values.pkl")
 
-    #palette options to pass in: "CMRmap" "flare" "twilight" "Blues"
+    #palette options to pass in: "CMRmap" "flare" "twilight" "Blues", "tab10"
     hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
 
     if poobah is not False and isinstance(poobah_df, pd.DataFrame) and not compare:
@@ -408,13 +438,35 @@ FIX:
         elif not poobah and not compare:
             this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
         elif compare:
-            this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
-            # combine both and reference each
-            if not silent:
-                print(f'Blue: {"noob" if noob else "uncorrected"}')
-            sb.scatterplot(x=_meth.median(),y=_unmeth.median(),s=75)
-        if poobah:
+            data_df = pd.DataFrame(data={
+                'meth': meth.median(),
+                'unmeth': unmeth.median()
+            })
+            data_df["hue"] = "Raw intensity"
+            data_df2 = pd.DataFrame(data={ # the NOOB version
+                'meth': _meth.median(),
+                'unmeth': _unmeth.median()
+            })
+            # each data set should have same samples in same order, so label_lookup will work for both hues
+            label_lookup = {index_val: chr(i+65) if i <= 26 else str(i-26) for i,index_val in enumerate(data_df.index)}
+            data_df2['hue'] = "Corrected intensity"
+            data_df = data_df.append(data_df2)
+            del data_df2
+            legend_order = ["Raw intensity", "Corrected intensity"]
+            hues_palette = sb.color_palette("tab10", n_colors=2) if palette is None else sb.color_palette(palette, n_colors=2)
+            this = sb.scatterplot(data=data_df, x='meth', y='unmeth', hue='hue', palette=hues_palette)
+            # FINALLY, label ALL points so you can compare the shifts
+            for index_val, row in data_df.iterrows():
+                color_code = {"Raw intensity":"blue", "Corrected intensity": "darkorange"}
+                #proxy_label = chr(i+65) if i <= 52 else str(i-65)
+                proxy_label = label_lookup.get(index_val,"-1")
+                plt.text(x=row["meth"]+7, y=row["unmeth"]+7, s=proxy_label,
+                    fontdict={'color':color_code.get(row["hue"], "black"), 'size':8, 'family':'sans-serif'})
+                #bbox=dict(facecolor=’yellow’,alpha=0.5))
+        if poobah and not compare:
             plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        elif compare:
+            plt.title('M versus U plot: Showing effect of processing fluorescence intensities')
         else:
             plt.title('M versus U plot')
         plt.xlabel('Median Methylated Intensity')
@@ -427,11 +479,14 @@ FIX:
         for i in range(1000):
             sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
             sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
+        #if return_fig:
+        #    sns_scatterplot = sb.scatterplot(x=sx, y=sy, s=3)
+        #    return sns_scatterplot.get_figure()
+        #else:
+        #    sb.scatterplot(x=sx, y=sy, s=3)
+        this = sb.scatterplot(x=sx, y=sy, s=3)
         if return_fig:
-            sns_scatterplot = sb.scatterplot(x=sx, y=sy, s=3)
-            return sns_scatterplot.get_figure()
-        else:
-            sb.scatterplot(x=sx, y=sy, s=3)
+            return this.get_figure() #sns_scatterplot.get_figure()
         plt.show()
         plt.close('all')
     else:
@@ -830,3 +885,69 @@ todo:
         return fig
     plt.show()
     plt.close('all')
+
+
+def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbose=False):
+    """ GCT score: requires path to noob_meth or raw meth_values.pkl; or you can pass in a meth dataframe.
+    use_median: not supported yet. Always uses mean of probe values """
+    found_meth = False
+    try:
+        if isinstance(path_or_df, pd.DataFrame):
+            meth = path_or_df
+            found_meth = True
+        else:
+            path = Path(path_or_df)
+            if path.is_dir() and Path(path, 'meth_values.pkl').is_file():
+                meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
+                found_meth = True
+            if path.is_dir() and Path(path, 'noob_meth_values.pkl').is_file() and not found_meth:
+                meth = pd.read_pickle(Path(path, 'noob_meth_values.pkl'))
+                found_meth = True
+    except Exception as e: # cannot unpack NoneType
+        print(e)
+        print("No data.")
+        return
+    if not found_meth:
+        raise FileNotFoundError("this requires methylated intensities in a pickle file.")
+    # using the number of probes in meth df to determine array
+    array_type, man_filepath = methylcheck.detect_array(meth, returns='filepath', on_lambda=on_lambda)
+    try:
+        from methylprep import Manifest, ArrayType
+    except ImportError:
+        raise ImportError("this function requires methylprep")
+    if Path.exists(man_filepath):
+        manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
+    else:
+        # initialize and force download with filepath=None
+        manifest = Manifest(ArrayType(array_type), filepath_or_buffer=None, on_lambda=on_lambda)
+
+    # want meth channel data; 89203 probes
+    oobG_mask = set(manifest.data_frame[(manifest.data_frame['Infinium_Design_Type'] == 'I') & (manifest.data_frame['Color_Channel'] == 'Red')].index)
+    if str(array_type) == 'epic+':
+        array_type = 'epic' #file match below
+        # 'epic' should suffice for this test, except that probe names won't match
+        oobG_mask = set([probe.split('_')[0] for probe in oobG_mask]) # these probe names have extra crap on end
+        meth = meth.rename(index=lambda x: x.split('_')[0])
+
+    from importlib import resources # py3.7+
+    pkg_namespace = 'methylcheck.data_files'
+    with resources.path(pkg_namespace, f'{array_type}_extC.csv') as probe_filepath:
+        ext_C_probes = pd.read_csv(probe_filepath)
+        ext_C_probes = ext_C_probes['x'].values # simple, flat list of probe cgXXX names
+    with resources.path(pkg_namespace, f'{array_type}_extT.csv') as probe_filepath:
+        ext_T_probes = pd.read_csv(probe_filepath)
+        ext_T_probes = ext_T_probes['x'].values
+    ext_C = set(ext_C_probes).intersection(oobG_mask)
+    ext_T = set(ext_T_probes).intersection(oobG_mask)
+    # GCT: mean (C) / mean (T), after removing NaNs
+    # TEST bis_conversion_control('/Volumes/LEGX/GSE69852/idats_2021_04_12')
+    table = {} # keys are sentrix_ids; values are GCT scores
+    for sample in meth.columns:
+        C_mask = meth[sample].index.isin(ext_C)
+        C_mean = meth[sample].loc[C_mask].mean() # excludes NAN by default
+        T_mask = meth[sample].index.isin(ext_T)
+        T_mean = meth[sample].loc[T_mask].mean()
+        if verbose:
+            LOGGER.info(f"{sample}: ({int(round(C_mean))} / {int(round(T_mean))}) = GCT {round(100*C_mean/T_mean, 1)}")
+        table[sample] = round(100*C_mean/T_mean, 1)
+    return table

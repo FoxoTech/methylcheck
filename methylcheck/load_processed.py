@@ -84,6 +84,8 @@ Use cases and format:
     format = meth_df: (dataframe)
         you have processed CSV files in the path specified and want a dataframe returned
         take the data_containers object returned and run `methylcheck.container_to_pkl(containers, save=True)` function on it.
+    format = noob_df: (dataframe)
+        loads noob_meth_values.pkl and noob_unmeth_values.pkl and returns two dataframes in a list
     format = sesame:
         for reading csvs processed using R's sesame package. It has a different format (Probe_ID, ind_beta, ind_negs, ind_poob) per sample.
         Only those probes that pass the p-value cutoff will be included.

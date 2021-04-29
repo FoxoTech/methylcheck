@@ -140,7 +140,7 @@ latex_elements = {
 #  author, documentclass [howto, manual, or own class]).
 latex_documents = [
     (master_doc, 'methylcheck.tex', 'methylcheck Documentation',
-     'Life Epigenetics', 'manual'),
+     'FOXO Technologies, inc', 'manual'),
 ]
 
 

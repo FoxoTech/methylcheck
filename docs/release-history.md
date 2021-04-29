@@ -1,5 +1,18 @@
 # Release History
 
+## v0.7.2
+- added GCT score to BeadArray controls report, ReportDF
+- ReportPDF changes
+  - uses noob_meth/unmeth instead of raw, uncorrected meth/unmeth values for GCT and U vs M plot
+  - inverted poobah table to report percent passing (instead of failing) probes per sample, like BeadArray report
+  - this changed input from 'poobah_max_percent' (default 5%) to 'poobah_min_percent', (default 80%)
+  - M_vs_U not included by default, because redundant with qc_signal_intensity
+  - M_vs_U compare=True now labels each sample and has legend, so you can see effect of NOOB+dye correction on batch
+  - added poobah color-coding to MDS plot
+- get_sex improved plotting
+  - will read poobah data and size sample points according to percent of failed probes
+  - save plots, or return fig, and more options now
+
 ## v0.7.1
 - Added a python clone of Illumina's BeadArray Controls Reporter software
 - New unit test coverage. Note that because methylprep v1.4.0 changes processing, the results will change slightly

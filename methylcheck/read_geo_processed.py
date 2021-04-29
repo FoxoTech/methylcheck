@@ -253,7 +253,7 @@ FIXED:
 TODO:
     [-] BUG: meth_unmeth_pval works `as_beta` but not returning full data yet
     [-] multiline header not working with all files yet.
-
+    [-] _family GSM123456-tbl-1.txt files not detected yet
 
 notes:
     this makes inferences based on strings in the filename, and based on the column names.

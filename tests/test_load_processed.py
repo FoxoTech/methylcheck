@@ -90,7 +90,7 @@ class TestLoadProcessed():
     def test_load_meth_df_from_pickle_450k(self):
         dfs = methylcheck.load(self.test_450k, 'meth_df')
         (meth,unmeth) = dfs
-        if meth.shape != (485512, 1) or unmeth.shape != (485512, 1):
+        if meth.shape != (485512, 6) or unmeth.shape != (485512, 6):
             raise AssertionError("wrong probe count or sample count returned")
         if isinstance(meth,pd.DataFrame) is False or isinstance(unmeth,pd.DataFrame) is False:
             raise AssertionError(f"error in DataFrames returned: ({meth.shape} vs (485512,1) | {unmeth.shape} vs (485512,1))")
@@ -98,7 +98,7 @@ class TestLoadProcessed():
     def test_load_noob_df_from_pickle_450k(self):
         dfs = methylcheck.load(self.test_450k, 'noob_df')
         (meth,unmeth) = dfs
-        if meth.shape != (485512, 1) or unmeth.shape != (485512, 1):
+        if meth.shape != (485512, 6) or unmeth.shape != (485512, 6):
             raise AssertionError("wrong probe count or sample count returned")
         if isinstance(meth,pd.DataFrame) is False or isinstance(unmeth,pd.DataFrame) is False:
             raise AssertionError(f"error in DataFrames returned: ({meth.shape} vs (485512,1) | {unmeth.shape} vs (485512,1))")

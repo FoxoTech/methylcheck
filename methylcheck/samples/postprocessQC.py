@@ -10,6 +10,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+from pathlib import Path
 
 # because sklearn is a HUGE library and we're only using a single function from it,
 # I've embedded the code we need in a local file. This makes methylcheck small enough to run in AWS lambda,
@@ -293,7 +294,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick'):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette="spectral"):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
@@ -322,6 +323,8 @@ Arguments
         by default, most samples will contain missing values where probes failed the signal-noise detection
         in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
         with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
+    ``poobah``: path to poobah_values.pkl file. Default is None. If supplied, this will color code dots according to
+        percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
 
 Options
 --------
@@ -367,6 +370,15 @@ notes
         LOGGER.warning("beta_mds_plot requires at least 2 samples")
         return df
 
+    if isinstance(poobah, str):
+        poobah = Path(poobah)
+    if isinstance(poobah, Path):
+        # load the df
+        if Path(poobah).is_file():
+            poobah = pd.read_pickle(poobah)
+        elif Path(poobah,'poobah_values.pkl').is_file():
+            poobah = pd.read_pickle(Path(poobah,'poobah_values.pkl'))
+
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
         pre_df_shape = df.shape
@@ -385,16 +397,6 @@ notes
         # replace
         # random_big_ints = {i:np.random.randint(10,1000000) for i in list(df.index)}
         #random_int_df = pd.DataFrame(np.random.randint(10, 1000000, size=(df.shape[0], df.shape[1])), columns=df.columns, index=df.index)
-
-        #val = np.ravel(df.values)
-        #val = val[~np.isnan(val)]
-        #val = np.random.choice(val, size=(df.shape[0], df.shape[1]))
-        #random_int_df = pd.DataFrame(val, columns=df.columns, index=df.index)
-        #LOGGER.info("PRE random")
-        #LOGGER.info(random_int_df.head())
-        #df.update(random_int_df) # only replaces NaNs with random numbers.
-        #LOGGER.info("POST random")
-        #LOGGER.info(df.head())
 
         if nafill == 'quick': # gave best/fastest reasonable results. uses adj probe value from same sample.
             df = df.fillna(axis='index', method='bfill') # uses adjacent probe value from same sample to make MDS work.
@@ -433,15 +435,15 @@ notes
         PSF = 2
 
     if df.shape[0] < 40:
-        DOTSIZE = 16
+        DOTSIZE = 17
     elif 40 < df.shape[0] < 60:
-        DOTSIZE = 14
+        DOTSIZE = 15
     elif 40 < df.shape[0] < 60:
-        DOTSIZE = 12
+        DOTSIZE = 13
     elif 60 < df.shape[0] < 80:
-        DOTSIZE = 10
+        DOTSIZE = 11
     elif 80 < df.shape[0] < 100:
-        DOTSIZE = 8
+        DOTSIZE = 9
     elif 100 < df.shape[0] < 300:
         DOTSIZE = 7
     else:
@@ -498,7 +500,7 @@ notes
         md2 = np.array(md2)
 
         color_num = multi_params.get('color_num',0)
-        # ADD TO EXISTING FIG... up to 24 colors (repeated 3x for 72 total)
+        # ADD TO EXISTING FIG... up to 24 colors (repeated 3x for 72 total) for separate QC groups
         COLORSET = dict(enumerate(['xkcd:blue', 'xkcd:green', 'xkcd:coral', 'xkcd:lightblue', 'xkcd:magenta', 'xkcd:goldenrod', 'xkcd:plum', 'xkcd:beige',
                                    'xkcd:orange', 'xkcd:orchid', 'xkcd:silver', 'xkcd:purple', 'xkcd:pink', 'xkcd:teal', 'xkcd:tomato', 'xkcd:yellow',
                                    'xkcd:olive', 'xkcd:lavender', 'xkcd:indigo', 'xkcd:black', 'xkcd:azure', 'xkcd:brown', 'xkcd:aquamarine', 'xkcd:darkblue',
@@ -511,11 +513,24 @@ notes
                                    'xkcd:orange', 'xkcd:orchid', 'xkcd:silver', 'xkcd:purple', 'xkcd:pink', 'xkcd:teal', 'xkcd:tomato', 'xkcd:yellow',
                                    'xkcd:olive', 'xkcd:lavender', 'xkcd:indigo', 'xkcd:black', 'xkcd:azure', 'xkcd:brown', 'xkcd:aquamarine', 'xkcd:darkblue']))
 
+        # these are used with poobah as a scale of failure rate
+        poobah_palettes = {
+        "magma": dict(enumerate(
+            [(0.15, 0.6, 0.4), (0.3, 0.25, 0.60), (0.44, 0.25, 0.5), (0.7, 0.2, 0.2), (0.973, 0.462, 0.36), (0.68, 0.60, 0.25), (0.9, 0.8, 0.2)]
+        )),
+        "twilight": dict(enumerate(
+            [(0.5383401557517628, 0.677970811290954, 0.7711273443905772), (0.37324816143326384, 0.38140848555753937, 0.7059820097480604), (0.28669151388283165, 0.08242987384848069, 0.39331182532243375), (0.3153587000920581, 0.07942099731524319, 0.2681190407694196), (0.6456734938264543, 0.2615520316161528, 0.31248673753935263), (0.7904577684772788, 0.5982813427706246, 0.48622257801969754)]
+        )),
+        "viridis": dict(enumerate(
+            [(0.275191, 0.194905, 0.496005), (0.212395, 0.359683, 0.55171), (0.153364, 0.497, 0.557724), (0.122312, 0.633153, 0.530398), (0.288921, 0.758394, 0.428426), (0.626579, 0.854645, 0.223353)]
+        ))
+        }
+        sb_palette = poobah_palettes.get(palette, poobah_palettes.get("magma"))
 
         if multi_params.get('fig') == None:
             fig = plt.figure(figsize=(12, 9))
             plt.title('MDS Plot of betas from methylation data')
-            plt.grid() # adds fig.axes implied
+            plt.grid(linestyle='dotted') # adds fig.axes implied
         else:
             fig = multi_params.get('fig')
 
@@ -529,8 +544,24 @@ notes
         else:
             ax = multi_params.get('ax')
 
-        ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black')) # RETAINED
-        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
+        if isinstance(poobah, pd.DataFrame):
+            percent_failures_hues, legend_order = _add_poobah(poobah)
+            poobah_color_lookup = list(enumerate(percent_failures_hues)) # list of tuples with (0, '5 to 10') data. numbers should match md2
+            color_lookup = {legend_group:[] for legend_group in legend_order}
+            for N,legend_group in poobah_color_lookup:
+                color_lookup[legend_group].append(N)
+            ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4)
+            ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black'))
+            color_num = 0
+            for legend_group in legend_order:
+                this_x = mds_transformed[color_lookup[legend_group], 0]
+                this_y = mds_transformed[color_lookup[legend_group], 1]
+                ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num,'black'), label=legend_group)
+                color_num += 1
+            ax.legend(title="p-value failure (%)")
+        else:
+            ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, color='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
+            ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, color=COLORSET.get(color_num,'black'), edgecolor='black', linewidth=0.4) # RETAINED
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
         x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX
@@ -547,10 +578,12 @@ notes
         if multi_params.get('return_plot_obj') == True:
             return fig, ax, df_indexes_to_retain
 
+        if save:
+            saved_fig = plt.gcf()
         if silent == True:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
-            image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
+            image_name = df.index.name or f'beta_mds_n={len(df.index)}'
             outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
             if save == True:
                 plt.savefig(outfile)
@@ -594,12 +627,13 @@ notes
 
     if save:
         # save file. return dataframe.
+        """
         fig = plt.figure(figsize=(12, 9))
         plt.title('MDS Plot of betas from methylation data')
         plt.grid() # adds fig.axes implied
         ax = fig.add_subplot(1,1,1)
         ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black')) # RETAINED
-        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth='0.2',) # EXCLUDED
+        ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4,) # EXCLUDED
         ax.set_xlim(old_X_range)
         ax.set_ylim(old_Y_range)
         # UNRESOLVED BUG. (but not seen again since Sep 2019)
@@ -607,10 +641,11 @@ notes
         # pre_df_excl = len(df.index[df_indexes_to_exclude])
         # unique_df_excl = len(set(df.index[df_indexes_to_exclude]))
         # print(pre_df_excl, unique_df_excl)
+        """
 
-        image_name = df.index.name or 'beta_mds_n={0}_p={1}'.format(len(df.index), len(df.columns)) # np.size(df,0), np.size(md2,1)
+        image_name = df.index.name or f'beta_mds_n={len(df.index)}'
         outfile = '{0}_s={1}_{2}.png'.format(image_name, filter_stdev, datetime.date.today())
-        plt.savefig(outfile)
+        saved_fig.savefig(outfile)
         plt.close(fig) # avoids displaying plot again in jupyter.
         if verbose:
             LOGGER.info("Saved {0}".format(outfile))
@@ -619,6 +654,29 @@ notes
     if df_out.shape[0] < df_out.shape[1]:
         df_out = df_out.transpose()
     return df_out
+
+
+def _add_poobah(poobah):
+    """ used by beta_MDS_plot """
+    if poobah.isna().sum().sum() > 0:
+        LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
+    percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
+    percent_failures = percent_failures.rename('probe_failure_(%)')
+    # Series.where will replace the stuff that is False, so you have to negate it.
+    percent_failures_hues = percent_failures.where(~percent_failures.between(0,5), 0)
+    percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
+    percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
+    percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
+    percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+    percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+    percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+    percent_failures_hues = percent_failures_hues.astype(int)
+    percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+    legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+    #hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
+    #this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
+    #    palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+    return percent_failures_hues, legend_order # a df with sample names in index and failure % in a column.
 
 
 def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
