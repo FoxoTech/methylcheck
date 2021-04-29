@@ -50,6 +50,7 @@ class TestBeadArrayControlsReporterEpic(): #unittest.TestCase):
         if results.shape != (2,30):
             raise AssertionError(f"Result file shape differs: {results.shape} vs (2,30)")
         if not list(results.iloc[1].values) == ['202908430131_R07C01', 0.29, 70.18, 45.5, 41.57, 15.44, 1.78, 1.88, 8.07, 7.22, 12.42, 4.67, 7.07, 2.49, 6.13, 2.83, 7.67, 5.25, 19.46, 6.07, 9.18, 15.88, 495, 1700, 404, 354, 0.89, 0.87, 99.5, 'OK (0.98)']:
+            print('actual:', results.iloc[1].values)
             raise AssertionError(f"Values in result column differ: {list(results.iloc[1].values)}")
         if Path(PROCESSED_EPIC,expected_outfile).exists():
             Path(PROCESSED_EPIC,expected_outfile).unlink()
