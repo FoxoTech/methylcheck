@@ -47,17 +47,12 @@ jobs:
             pipenv install coveralls --skip-lock
             pipenv run coverage run setup.py test
       - run:
-          name: Running test coverage
+          name: Coverage
           command: |
             # pipenv run pytest tests --junit-xml=htmlcov/junit.xml # rerun tests to collect test-results | see setup.cfg
             pipenv run coverage report
             pipenv run coverage html
             pipenv run coveralls # -- pushes report to coveralls.io
-      - run:
-          name: Optional upload codacy code-quality
-          command: |
-            # ECHO disabling this because matplotlib bug breaks this command, but not the pytest function just run.
-            # pipenv run pytest tests --junitxml=htmlcov/junit.xml #--junit-xml=htmlcov/junit.xml # must rerun to collect test results
       - store_test_results:
           path: htmlcov
       - store_artifacts:
