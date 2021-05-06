@@ -55,7 +55,7 @@ inputs:
     return_labels: (requires plot == True)
         When using poobah_cutoff, the figure only includes A-Z,1...N labels on samples on plot to make it easier to read.
         So to get what sample_ids these labels correspond to, you can rerun the function with return_labels=True and it will
-        skip plotting and just return a dataframe with sample_ids and these labels, to embed in a PDF report if you like.
+        skip plotting and just return a dictionary with sample_ids and these labels, to embed in a PDF report if you like.
     custom_label:
         Option to provide a dictionary with keys as sample_ids and values as labels to apply to samples.
         e.g. add more data about samples to the multi-dimensional QC plot

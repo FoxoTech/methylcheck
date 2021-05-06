@@ -1,5 +1,9 @@
 # Release History
 
+## v0.7.3
+- Improved ReportPDF custom tables option
+  - if fields are too long, it will truncate them or auto scale the font size smaller to fit on page.
+
 ## v0.7.2
 - added GCT score to BeadArray controls report, ReportDF
 - ReportPDF changes

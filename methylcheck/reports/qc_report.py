@@ -272,11 +272,12 @@ pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries wit
 ```python
 custom_tables=[
     {
-    'title': "some title, optional",
+    'title': "some title, optional", # NOTE: chart titles must be unique!
     'col_names': ["<list of strings>"],
     'row_names': ["<list of strings, optional>"],
     'data': ["<list of lists, with order matching col_names>"],
-    'order_after': ["string name of the plot this should come after. It cannot appear first in list."]
+    'order_after': "string name of the plot this should come after. It cannot appear first in list.",
+    'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
     },
     {"<...second table here...>"}
 ]
@@ -369,7 +370,7 @@ Pre-processing pipeline:
         if 'custom_tables' in self.__dict__:
             self.parse_custom_tables(self.__dict__['custom_tables'])
             LOGGER.info(f"Found custom_tables and inserted into order: {self.order}")
-            LOGGER.info(self.custom)
+            #LOGGER.info(self.custom)
 
         if self.__dict__.get('runme') == True:
             self.run_qc()
@@ -381,7 +382,7 @@ Pre-processing pipeline:
         'col_names': [list of strings],
         'row_names': [list of strings, optional],
         'data': [list of lists, with order matching col_names],
-        'order_after': [string name of the plot this should come after. It cannot appear first in list.]
+        'order_after': string name of the plot this should come after. It cannot appear first in list.
         }"""
         for table in tables:
             required_attributes = {'title', 'data', 'order_after', 'col_names'}
@@ -390,7 +391,7 @@ Pre-processing pipeline:
                     raise KeyError("Your custom table must contain these keys: {required_attributes} (row_names is optional)")
             #1 place order -- refer to this later in self.custom
             try:
-                _index = self.order.index(table['order_after'])
+                _index = self.order.index(table['order_after']) + 1
                 self.order.insert(_index, table['title'])
                 self.custom[table['title']] = table
             except ValueError:
@@ -481,7 +482,7 @@ Pre-processing pipeline:
                         else:
                             sample_gct_percent_dict = {}
                         sample_poobah_failures = {sample_id: ("pass" if percent > min_allowed else "fail") for sample_id,percent in sample_percent_failed_probes_dict.items()}
-                        LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
+                        #LOGGER.info(f"Poobah: {len([k for k in sample_poobah_failures.values() if k =='fail'])} failure(s) out of {len(sample_poobah_failures)} samples.")
 
                         list_of_lists = []
                         col_names=['Sample_ID', 'Percent', 'Pass/Fail']
@@ -581,7 +582,8 @@ Pre-processing pipeline:
             elif part in self.custom:
                 table = self.custom[part]
                 self.to_table(table['data'], col_names=table['col_names'],
-                    row_names=table.get('row_names'), add_title=table['title'])
+                    row_names=table.get('row_names'), add_title=table['title'],
+                    font_size=table.get('font_size',None))
 
 
         # and finally, appendix of log messages
@@ -706,11 +708,16 @@ Pre-processing pipeline:
         pdf.savefig()
         self.plt.close()
 
-    def to_table(self, list_of_lists, col_names, row_names=None, add_title=''):
+    def to_table(self, list_of_lists, col_names, row_names=None, add_title='', font_size='auto'):
         """
         - embeds a table in a PDF page.
         - attempts to split long tables into multiple pages.
-        - should warn if table is too wide to fit. """
+        - should warn if table is too wide to fit.
+        - font_size:
+          - auto: let matplotlib figure out the best size. This breaks if one column or value is soooooooper long.
+          - truncate: IN FUTURE, chop off each value that is too long, to force it to fit on a page. Data loss.
+          - INT: set the font for this table at this size (for control freaks)
+          - None: default -- use font size 12."""
 
         # stringify numbers; replace None
         for idx, sub in enumerate(list_of_lists):
@@ -720,10 +727,55 @@ Pre-processing pipeline:
         pages = math.ceil(len(list_of_lists)/rows_per_page)
         #paginate table
         for page in range(pages):
-            #LOGGER.debug(f'page {page+1} -- {(page * rows_per_page)}:{(page + 1) * rows_per_page}')
+            #LOGGER.debug(f'page, cols: {len(col_names)}, rows: {len(list_of_lists)}')
+            truncate = False
+            if isinstance(font_size, str) and font_size.lower() == 'truncate':
+                # overwrites list_of_lists so must happen before table is created
+                truncate = True
+                truncate_font_size = 12
+                try:
+                    max_field_length = 24
+                    # default max length = 24 chars; if more than 4 columns, reduce by ((N-4)/20)*80 chars
+                    if 4 < len(col_names) < 10:
+                        max_field_length = int((24 - ((len(col_names)-4)/20) * 80))
+                        if max_field_length <= 4: # 9 col
+                            truncate_font_size = 6
+                            max_field_length += 8
+                        elif max_field_length <= 8: # 8 col
+                            truncate_font_size = 7
+                            max_field_length += 3
+                        elif max_field_length <= 12: # 7 col
+                            truncate_font_size = 7
+                            max_field_length += 1
+                        elif max_field_length <= 16: # 6 col
+                            truncate_font_size = 7
+                            #max_field_length += 1
+                        elif max_field_length <= 20: # 5 col
+                            truncate_font_size = 7
+                            #max_field_length += 0
+                        elif max_field_length <= 24: # 4 col
+                            truncate_font_size = 8
+                            #max_field_length += 0
+                    elif len(col_names) >= 10:
+                        LOGGER.error(f"Could not truncate long fields in custom table because there were 10 or more columns.")
+                        truncate = False
+                    if truncate is True:
+                        for row_num, row in enumerate(list_of_lists.copy()):
+                            for field_num,field in enumerate(row):
+                                if len(str(field)) > max_field_length:
+                                    list_of_lists[row_num][field_num] = str(field)[:max_field_length] + '..'
+                                    if self.debug:
+                                        LOGGER.info(f"{field} truncated to {field[:max_field_length]}..")
+                        for field_num,field in enumerate(col_names):
+                            if len(str(field)) > max_field_length:
+                                col_names[field_num] = str(field)[:max_field_length] + '..'
+                                if self.debug:
+                                    LOGGER.info(f"column name {field} truncated to {field[:max_field_length]}..")
+                except Exception as e:
+                    truncate = False
+                    LOGGER.error(f"Could not truncate long fields in custom table: {e}")
             page_data = list_of_lists[(page * rows_per_page) : (page + 1) * rows_per_page]
-            fig, ax = self.plt.subplots(1, figsize=(10,8))
-            #ax.axis('tight')
+            fig, ax = self.plt.subplots(1, figsize=(8,10.5))
             ax.axis('off')
             matplotlib_table = ax.table(
                 cellText=page_data,
@@ -732,9 +784,26 @@ Pre-processing pipeline:
                 edges='open',
                 colLoc='right',
                 )
-            matplotlib_table.auto_set_font_size(False)
-            matplotlib_table.set_fontsize(12)
+
+            if font_size is None:
+                matplotlib_table.auto_set_font_size(False)
+                matplotlib_table.set_fontsize(12)
+            elif isinstance(font_size, int):
+                matplotlib_table.auto_set_font_size(False)
+                matplotlib_table.set_fontsize(font_size)
+            elif ( (isinstance(font_size, str) and font_size.lower() == 'auto') or
+                   (isinstance(font_size, str) and font_size.lower() == 'truncate' and truncate is False) ): #default shrinks to fit page
+                matplotlib_table.auto_set_font_size(True)
+                scale_ratio = 1.2 # use smaller page margins
+                matplotlib_table.scale(scale_ratio, scale_ratio)
+            elif truncate is True:
+                matplotlib_table.auto_set_column_width(col=list(range(len(col_names)))) # Provide integer list of columns to adjust
+                matplotlib_table.auto_set_font_size(False)
+                matplotlib_table.set_fontsize(truncate_font_size)
+                scale_ratio = 1.2
+                matplotlib_table.scale(scale_ratio, scale_ratio)
             if page == 0:
                 self.plt.title(add_title, y=1.1) #pad=20) # -- placement is off
+            #fig.set_size_inches(8,10.5)
             self.pdf.savefig(fig)
             self.plt.close()
