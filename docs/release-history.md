@@ -1,5 +1,8 @@
 # Release History
 
+## v0.7.4
+- fixed big where csv data_files were not included in pypi
+
 ## v0.7.3
 - Improved ReportPDF custom tables option
   - if fields are too long, it will truncate them or auto scale the font size smaller to fit on page.
