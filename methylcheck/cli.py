@@ -9,7 +9,7 @@ import pandas as pd
 # App
 from .probes.filters import list_problem_probes, exclude_probes, exclude_sex_control_probes
 from .samples.postprocessQC import mean_beta_plot, beta_density_plot, cumulative_sum_beta_distribution, beta_mds_plot
-from .reports import controls_report
+from .reports import controls_report, ReportPDF
 
 LOGGER = logging.getLogger(__name__)
 
@@ -66,7 +66,7 @@ def detect_array(df, returns='name', on_lambda=False):
         return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 868000: # actual: 865860
         return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
-    elif 220000 <= col_count <= 270000: # actual: 236685 C20, 262812 v2, 284762 V3-V4
+    elif 200000 <= col_count <= 300000: # actual: 236685 C20, 262812 v2, 284762 V3-V4, MM285 293220 --- testing, changed max from 270k to 290k for v1.4.6
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
         raise ValueError(f'Unsupported Illumina array type. Your data file contains {col_count} rows for probes.')
@@ -129,11 +129,14 @@ controls
     subparsers = parser.add_subparsers(dest='command', required=True)
     #subparsers.required = True # this is a python3.4-3.7 bug; cannot specify in the call above.
 
-    qc_parser = subparsers.add_parser('qc', help="Run methylcheck's QC pipline")
+    qc_parser = subparsers.add_parser('qc', help="Apply filters to exclude probes based on academic refs, or sex-linked, or control probes")
     qc_parser.set_defaults(func=cli_qc)
 
     controls_parser = subparsers.add_parser('controls', help='Generate an XLSX QC report similar to Illumina Bead Array Controls Reporter')
     controls_parser.set_defaults(func=cli_controls_report)
+
+    report_parser = subparsers.add_parser('report', help="Run methylcheck's ReportPDF pipeline and generate a PDF.")
+    report_parser.set_defaults(func=cli_ReportPDF)
 
     #-- when this has subparsers, use -- args = parser.parse_known_args(sys.argv[1:])
     parsed_args, func_args = parser.parse_known_args(sys.argv[1:])
@@ -359,6 +362,61 @@ def cli_controls_report(cmd_args):
         legacy=args.legacy,
         pval=(not args.pval_off), # needed to invert kwarg, because default is to run it, and flag is only to disable it
         pval_sig=args.pval_sig)
+
+
+def cli_ReportPDF(cmd_args):
+    parser = DefaultParser(
+        prog='methylcheck report',
+        description='Run the Genome Studio-based QC pipeline and generate a PDF Summary.',
+    )
+
+    parser.add_argument(
+        '-d', '--data_dir',
+        required=False,
+        type=Path,
+        default='.',
+        help="""Path where input files are located. Default is current folder if omitted.""",
+    )
+
+    parser.add_argument(
+        '-o', '--out_dir',
+        required=False,
+        type=Path,
+        help="""Path where output files will be saved. Defaults to same folder as 'data_dir'.""",
+    )
+
+    parser.add_argument(
+        '-f', '--filename',
+        required=False,
+        default='multipage_pdf.pdf',
+        help="""Filename of the PDF generated. Defaults to 'multipage_pdf.pdf' if omitted.""",
+    )
+
+
+    parser.add_argument(
+        '--pval_min_percent',
+        help='Set the minimum percent of probes that must pass pOOBAH for a sample to be retained. Default is 80%.',
+        type=int,
+        default=80,
+    )
+
+    parser.add_argument(
+        '--pval_sig',
+        help='p-value failure significance level. Default alpha is 0.05.',
+        type=float,
+        default=0.05,
+    )
+
+    args = parser.parse_args(cmd_args)
+    if args.out_dir is None:
+        args.out_dir = args.data_dir
+    return ReportPDF(
+        path=args.data_dir,
+        outpath=args.out_dir,
+        filename=args.filename,
+        pval_min_percent=args.pval_min_percent,
+        pval_cutoff=args.pval_sig,
+        runme=True) # <--- this autocompletes report and closes it at end of __init__ in one step.
 
 
 def cli_app():

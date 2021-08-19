@@ -294,7 +294,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette="spectral"):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette="spectral", labels=None):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
@@ -325,6 +325,9 @@ Arguments
         with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
     ``poobah``: path to poobah_values.pkl file. Default is None. If supplied, this will color code dots according to
         percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
+    ``labels``: pass in a dictionary with sample names found in ``df`` columns and a (number or string) representing the groups to assign samples to.
+        Use this to color-code the samples against a known classification scheme, such as cell type, and observe whether the MDS clustering
+        pattern aligns with this input parameter. This feature is not compatible with ``poobah`` or ``multi_params``.
 
 Options
 --------
@@ -562,6 +565,25 @@ notes
         else:
             ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, color='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
             ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, color=COLORSET.get(color_num,'black'), edgecolor='black', linewidth=0.4) # RETAINED
+
+        if isinstance(poobah, pd.DataFrame) and isinstance(labels, dict):
+            print("ERORR: You cannot apply both poobah and labels; labels will be ignored.")
+        elif isinstance(labels, dict): # TODO: support pd.Series here
+            # THIS WILL WRITE OVER the black/grey dots already on plot.
+            label_color_lookup = list(enumerate(labels.values()))
+            legend_order = list(set([v for k,v in labels.items()])) # in order seen
+            color_lookup = {legend_group:[] for legend_group in legend_order}
+            for N,legend_group in label_color_lookup:
+                color_lookup[legend_group].append(N)
+            ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, c='xkcd:ivory', edgecolor='black', linewidth=0.4)
+            ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black'))
+            color_num = 0
+            for legend_group in legend_order:
+                this_x = mds_transformed[color_lookup[legend_group], 0]
+                this_y = mds_transformed[color_lookup[legend_group], 1]
+                ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num,'black'), label=legend_group)
+                color_num += 1
+            ax.legend(title="Sample Categories")
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
         x_range_max = PSF*old_X_range[1] if PSF*old_X_range[1] > maxX else PSF*maxX

@@ -793,3 +793,30 @@ def load_sesame(filepath='.',
         return df
     else:
         LOGGER.info("No sesame files found.")
+
+def load_all_betas(path):
+    """ loads methylprep processed data and returns a single dataframe of all non-control probe betas, similar
+    to sesame 3.13+ standard export format. Path should contain all of the pickled output files to merge. """
+    cg = Path(path, 'beta_values.pkl').expanduser()
+    con = Path(path, 'control_probes.pkl').expanduser()
+    mouse = Path(path, 'mouse_probes.pkl').expanduser()
+    if mouse.exists() and mouse.is_file():
+        ms = pd.read_pickle(mouse)
+    else:
+        ms = None
+    if cg.exists() and con.exists():
+        df1 = pd.read_pickle(cg)
+        dfcon = pd.read_pickle(con) # a list of dicts
+    samples = list(df1.columns)
+    col_data = []
+    for sample in samples:
+        df2 = dfcon[sample].loc[ ~mcon.snp_beta.isna() ][['snp_beta']]
+        df2 = df2.rename(columns={'snp_beta':sample})
+        if isinstance(ms, dict):
+            df3 = ms[sample][['beta_value']]
+            df3 = df3.rename(columns={'beta_value':sample})
+        else:
+            df3 = pd.DataFrame()
+        one_col = pd.concat([df1[[sample]], df2, df3])
+        col_data.append(one_col)
+    return pd.concat(col_data, axis='columns')

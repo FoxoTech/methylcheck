@@ -504,7 +504,7 @@ Plot the overall density distribution of beta values and the density distributio
 options:
     return_fig: (default False) if True, returns a list of figure objects instead of showing plots.
     """
-    mouse_probe_types = ['cg','ch']
+    mouse_probe_types = ['cg','ch','uk']
     probe_types = ['I', 'II', 'IR', 'IG', 'all'] # 'SnpI', 'Control' are in manifest, but not in the processed data
     if probe_type not in probe_types + mouse_probe_types:
         raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot or, if mouse array, one of these ({mouse_probe_types}) or 'all'.")
@@ -519,7 +519,7 @@ options:
         try:
             from methylprep import Manifest, ArrayType
         except ImportError:
-            raise ImportError("this required methylprep")
+            raise ImportError("plot_betas_by_type() requires methylprep")
 
         manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
     else:
@@ -537,37 +537,37 @@ options:
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent, full_range=True)
     if probe_type in ('II', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'II']
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type II probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent, full_range=True)
     if probe_type in ('IR', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Red')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I Red (IR) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent, full_range=True)
     if probe_type in ('IG', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Grn')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I Green (IG) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent, full_range=True)
     if str(array_type) != 'mouse':
         if return_fig:
             return figs
@@ -575,29 +575,30 @@ options:
 
     ############ MOUSE ONLY ################
     # TODO: control probe types #
-    # 'probe_type' are I, II, IR, IG and Probe_Type (mouse only) are 'cg','ch' | 'mu','rp','rs' are on control or mouse probes
-    mapper = manifest.data_frame.loc[:, ['Probe_Type']]
+    # 'probe_type' are I, II, IR, IG and probe_type (mouse only) are 'cg','ch','uk'. | 'rs' are in controls
+    # mouse_probe_types are 'ch','cg','rs','uk'
+    mapper = pd.DataFrame(data=manifest.data_frame.index.str[:2], index=manifest.data_frame.index)
+    mapper = mapper.rename(columns={'IlmnID':'mouse_probe_type'})
     beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
 
-    if probe_type in ('cg','ch'):
-        subset = beta_df[beta_df['Probe_Type'] == probe_type]
-        subset = subset.drop('probe_type', axis='columns')
-        subset = subset.drop('Color_Channel', axis='columns')
-        subset = subset.drop('Probe_Type', axis='columns')
+    if probe_type in mouse_probe_types:
+        subset = beta_df[beta_df['mouse_probe_type'] == probe_type]
+        subset = subset.drop(columns=['probe_type','Color_Channel','mouse_probe_type'])
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', return_fig=True, silent=silent, full_range=True) )
         else:
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', silent=silent, full_range=True)
     if probe_type == 'all':
         for mouse_probe_type in mouse_probe_types:
-            subset = beta_df[beta_df['Probe_Type'] == mouse_probe_type]
-            subset = subset.drop('probe_type', axis='columns')
-            subset = subset.drop('Color_Channel', axis='columns')
-            subset = subset.drop('Probe_Type', axis='columns')
+            subset = beta_df[beta_df['mouse_probe_type'] == mouse_probe_type]
+            subset = subset.drop(columns=['probe_type','Color_Channel','mouse_probe_type'])
+            if subset.shape[0] == 0:
+                if not silent:
+                    LOGGER.warning("No {mouse_probe_type} probes found")
             if return_fig:
-                figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', return_fig=True, silent=silent) )
+                figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', return_fig=True, silent=silent, full_range=True) )
             else:
-                methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', silent=silent)
+                methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', silent=silent, full_range=True)
 
     if return_fig:
         return figs

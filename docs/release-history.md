@@ -1,5 +1,9 @@
 # Release History
 
+## v0.7.5
+- updated documentation
+- minor bug fixes in read_geo()
+
 ## v0.7.4
 - fixed big where csv data_files were not included in pypi
 

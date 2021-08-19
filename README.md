@@ -103,6 +103,15 @@ Refer to the Jupyter notebooks on readthedocs for examples of filtering probes f
 
 Methylcheck provides multiple report formats and flavors. These include a python clone of Illumina's Windows software (BeadArray Controls Reporter) and a PDF/excel report based on Genome Studio's QC plots. These highlight any irregularities with a sample's array processing (Bisulfite conversion, staining, fluorescence variation, etc) in a simple summary format.
 
+### BeadArray Controls Reporter (Recommended)
+
+This is a clone of Illumina's Windows software, BeadArray Controls Reporter. This generates
+a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an `OK|FAIL|MARGINAL` based on the battery of tests. But you can still generate an exact match of the Illumina excel document output using the `--legacy` option.
+
+Example command line usage: `python -m methylcheck controls -d <file location>`
+
+![](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/example_controls_report.png)
+
 #### run_qc()
 
 `run_qc()` is adapted from Illumina's Genome Studio QC functions.
@@ -120,19 +129,8 @@ Or from the command line:
 python -m methylcheck qc -d <file location> --plot all
 ```
 
-
-### BeadArray Controls Reporter
-
-This is a clone of Illumina's Windows software, BeadArray Controls Reporter. This generates
-a color-coded excel document showing any irregularities with array processing. We've added some enhancements to the output, such as matching the [M]ale or [F]emale in the Sex/Gender column of your sample sheet with the predicted sex from the data, and an overall `result` column that gives an `OK|FAIL|MARGINAL` based on the battery of tests. But you can still generate an exact match of the Illumina excel document output using the `--legacy` option.
-
-Example command line usage: `python -m methylcheck controls -d <file location>`
-
-![](https://raw.githubusercontent.com/FoxoTech/methylcheck/master/docs/example_controls_report.png)
-
 #### run_pipeline()
-A second, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, multi-dimensional scaling, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` automatically removes probes that fail the poobah p-value detection limit test by default; `run_pipeline()` examines where samples with lots of unreliable probes should be disregarded entirely.
-
+A third, more customizable quality control pipeline is the `methylcheck.run_pipeline()` function. `run_pipeline()` wraps `run_qc()` but adds several sample outlier detection tools. One method, `multi-dimensional scaling`, is interactive, and allows you to identify samples within your batch that you can statistically reject as outliers. Note that `methylprep process` CLI removes probes that fail the p-value detection limit test if  the `--poobah` or `--all` parameter is passed; `run_pipeline()` examines and drops whole _samples_ when they contain too many unreliable probes. Multi-dimensional scaling reduces probe data and plots it on a 2D plane, where samples with poorer quality data will tend to appear unclustered from the rest of a batch of data.
 
 ### ReportPDF
 The most customizable format is a `methylcheck.ReportPDF` class that allows you to build your own QC report and save it to PDF. You can specify which tests to include and inject your own custom tables into the PDF. This is most useful if you process multiple batches of data in a lab and want to create a standardized, detailed, easy-to-read PDF report about the quality of samples in each batch. It also works within AWS.
