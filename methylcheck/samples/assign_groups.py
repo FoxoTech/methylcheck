@@ -11,6 +11,7 @@ def get_input(text):
 
 def assign(df, two_pass=False):
     """Manually and interactively assign each sample to a group, based on beta-value distribution shape.
+    This function is not documented or supported anymore.
 
 how:
     sorts samples by the position of their peak intensity in beta dist, then lets the human assign a number to

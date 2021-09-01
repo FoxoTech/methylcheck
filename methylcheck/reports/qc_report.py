@@ -21,7 +21,7 @@ this is analogous to using the methylcheck CLI, but for notebooks/scripts
 
 required:
     df: (required)
-        - data as a DataFrame of beta values
+        - data as a DataFrame of beta values (or DataFrame of m_values)
         - sample names in columns and probes in rows
 
 parameters:

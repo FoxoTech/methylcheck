@@ -92,8 +92,8 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             meth, unmeth = methylcheck.qc_plot._get_data(
                 data_containers=None, path=data_source,
                 compare=False, noob=True, verbose=False)
-        if include_probe_failure_percent == True and Path(data_source,'poobah_values.pkl').exists():
-            poobah = pd.read_pickle(Path(data_source,'poobah_values.pkl'))
+        if include_probe_failure_percent == True and Path(data_source,'poobah_values.pkl').expanduser().exists():
+            poobah = pd.read_pickle(Path(data_source,'poobah_values.pkl').expanduser())
 
     elif data_source_type in ('container'):
         # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
@@ -286,7 +286,7 @@ Dicts must match the data DF index.
     else:
         ax.set_title(f"Predicted sex based on matching X and Y probes.")
     if save:
-        filepath = 'predicted_sexes.png' if data_source_type != 'path' else Path(data_source,'predicted_sexes.png')
+        filepath = 'predicted_sexes.png' if data_source_type != 'path' else Path(data_source,'predicted_sexes.png').expanduser()
         plt.savefig(filepath, bbox_inches="tight")
     if return_fig:
         return fig
@@ -306,7 +306,7 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
     }
     loaded_files = {}
     for file_pattern in file_patterns:
-        for filename in Path(filepath).rglob(file_pattern):
+        for filename in Path(filepath).expanduser().rglob(file_pattern):
             if '.pkl' in filename.suffixes:
                 loaded_files['meta'] = pd.read_pickle(filename)
                 break
@@ -345,13 +345,18 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'male':'M', 'female':'F'})
                 elif 'MALE' in sex_values and 'FEMALE' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'MALE':'M', 'FEMALE':'F'})
+                elif 'm' in sex_values or 'f' in sex_values:
+                    loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'m':'M', 'f':'F'})
                 else:
                     raise ValueError(f"Cannot compare with predicted sex because actual sexes listed in your samplesheet are not M or F: (found {sex_values})")
 
             output['actual_sex'] = None
             output['sex_matches'] = None
             for row in output.itertuples():
-                actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
+                try:
+                    actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
+                except KeyError:
+                    raise KeyError("Could not read actual sex from meta data to compare.")
                 if isinstance(actual_sex, pd.Series):
                     LOGGER.warning(f"Multiple samples matched actual sex for {row.Index}, because Sample_ID repeats in sample sheets. Only using first match, so matches may not be accurate.")
                     actual_sex = actual_sex[0]

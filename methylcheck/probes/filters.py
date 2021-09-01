@@ -46,8 +46,9 @@ def _import_probe_exclusion_list(array, _type):
 
     |array | sex_linked | controls|
     |------|------------|---------|
-    |EPIC+ | 20137      | 755     |
-    |EPIC  | 19627      | 695     |
+    |mouse |            | 695     |
+    |epic+ | 20137      | 755     |
+    |epic  | 19627      | 695     |
     |450k  | 11648      | 916     |
     |27k   |            |         |
 
@@ -56,11 +57,11 @@ def _import_probe_exclusion_list(array, _type):
     array -- [EPIC, EPIC+, 450k, 27k] or ['IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylationEPIC+', 'IlluminaHumanMethylation450k']
     type -- [sex, control]"""
 
-    if array in ('IlluminaHumanMethylation450k','450k'):
+    if array in ('IlluminaHumanMethylation450k','450k','450K'):
         filename = '450k_{0}.npy'.format(_type)
     elif array in ('IlluminaHumanMethylationEPIC','EPIC','epic'):
         filename = 'EPIC_{0}.npy'.format(_type)
-    elif array in ('IlluminaHumanMethylationEPIC+','EPIC+','epic+'):
+    elif array in ('IlluminaHumanMethylationEPIC+','EPIC+','epic+','EPICPLUS','EPIC_PLUS'):
         filename = 'EPIC+_{0}.npy'.format(_type)
     elif array in ('27k','27K'):
         raise NotImplementedError("No probe lists available for 27k arrays.")
@@ -82,7 +83,8 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
     ----------
     df: dataframe of beta values or m-values.
     array: type of array used.
-        {'27k', '450k', 'EPIC', 'MOUSE'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC', 'mouse'}
+        {'27k', '450k', 'EPIC', 'EPICPLUS', 'MOUSE'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC', 'mouse'}
+        or {'27k', '450k', 'epic', 'epic+', 'mouse'}
 
     Optional Arguments
     ------------------
@@ -103,47 +105,38 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
     -------
         a dataframe with samples removed."""
     translate = {
-        'IlluminaHumanMethylationEPIC':'EPIC',
+        'IlluminaHumanMethylationEPIC':'epic',
         'IlluminaHumanMethylation450k':'450k',
         'IlluminaHumanMethylation27k':'27k',
         'MOUSE':'mouse',
+        'EPIC':'epic',
+        'EPICPLUS':'epic+',
+        'EPIC_PLUS': 'epic+',
+        '450K': '450k',
+        '27K': '27k',
          }
     if array in translate:
         array = translate[array]
     exclude_sex = _import_probe_exclusion_list(array, 'sex') if no_sex == True else []
     exclude_control = _import_probe_exclusion_list(array, 'control') if no_control == True else []
     exclude = list(exclude_sex)+list(exclude_control)
-
     # first check shape of df; probes are in the longer axis.
     FLIPPED = False
     if len(df.columns) > len(df.index):
         df = df.transpose()
         FLIPPED = True # use this to reverse at end, so returned in original orientation.
 
+    control_probes_removed = df[ df.index.isin(exclude_control) ].index
+    sex_probes_removed = df[ df.index.isin(exclude_sex) ].index
     # next, actually remove probes from all samples matching these lists.
     filtered = df.drop(exclude, errors='ignore')
-
     # errors = ignore: if a probe is missing from df, or present multiple times, drop what you can.
     if verbose == True:
-        print("""Array {4}: Removed {0} sex linked probes and {1} internal control probes \
-from {2} samples. {3} probes remaining.""".format(
-        len(exclude_sex),
-        len(exclude_control),
-        len(filtered.columns),
-        len(filtered),
-        array
-        ))
-        discrepancy = (len(exclude_sex) + len(exclude_control)) - (len(df) - len(filtered))
-        if discrepancy != 0:
-            print("Discrepancy between number of probes to exclude ({0}) and number actually removed ({1}): {2}".format(
-                len(exclude_sex) + len(exclude_control),
-                len(df) - len(filtered),
-                discrepancy
-            ))
-        if len(exclude_control) == discrepancy:
-            print("It appears that your sample had no control probes, or that the control probe names didn't match the manifest ({0}).".format(array))
+        if len(control_probes_removed) > 0:
+            # control probes are typically not part of the dataset in methylprep
+            print(f"""{array}: Removed {len(sex_probes_removed)} sex-linked probes and {len(control_probes_removed)} control probes from {len(filtered.columns)} samples. {len(filtered)} probes remaining.""")
         else:
-            print("This happens when probes are present multiple times in array, or the manifest doesn't match the array ({0}).".format(array))
+            print(f"""{array}: Removed {len(sex_probes_removed)} sex-linked probes from {len(filtered.columns)} samples. {len(filtered)} probes remaining.""")
     # reverse the FLIP
     if FLIPPED:
         filtered = filtered.transpose()
@@ -209,7 +202,7 @@ SESAME probe exclusion lists were pulled using these R commands:
     if pre_overlap != post_overlap:
         print("matching probes: {0} vs {1} after name fix, yielding {2} probes.".format(pre_overlap, post_overlap, len(df)-post_overlap))
     else:
-        print("Of {0} probes, {1} matched, yielding {2} probes after filtering.".format(len(df), post_overlap, len(df)-post_overlap))
+        print("Of {len(df.index)} probes, {post_overlap} matched, yielding {len(df.index)-post_overlap} probes after filtering.")
     if post_overlap >= pre_overlap:
         # match which probes to drop from array.
         array_probes_lookup = {str(probe).split('_')[0]: probe for probe in list(ARRAY)}
@@ -270,8 +263,8 @@ def problem_probe_reasons(array, criteria=None):
     translate = {
         'EPIC+': 'IlluminaHumanMethylationEPIC',
         'EPIC': 'IlluminaHumanMethylationEPIC',
-        '450k': 'IlluminaHumanMethylation450k',
-        '27k': 'IlluminaHumanMethylation27k',
+        '450K': 'IlluminaHumanMethylation450k',
+        '27K': 'IlluminaHumanMethylation27k',
         'MOUSE':'mouse',
          }
     translate.update({k.lower():v for k,v in translate.items()})
@@ -288,6 +281,8 @@ def problem_probe_reasons(array, criteria=None):
         array = translate[array]
     probe_dataframe = _import_probe_filter_list(array)
 
+    if criteria is None:
+        criteria = all_criteria
     sesame = pd.Series()
     if 'Sesame' in criteria:
         if array in ('IlluminaHumanMethylation450k', '450k', '450K'):
@@ -300,14 +295,11 @@ def problem_probe_reasons(array, criteria=None):
     if type(criteria) == str:
         criteria = [criteria]
 
-    if not criteria:
-        return probe_dataframe
-    else:
-        criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
-        reasons = [reason for reason in criteria if reason in ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']]
-        pubs = [ref for ref in criteria if ref in probe_pubs_translate.values()]
-        filtered_probes = probe_dataframe[ (probe_dataframe['Reason'].isin(reasons)) | (probe_dataframe['ShortCitation'].isin(pubs)) | (probe_dataframe['Probe'].isin(sesame)) ]
-        return filtered_probes
+    criteria = [probe_pubs_translate.get(crit, crit) for crit in criteria]
+    reasons = [reason for reason in criteria if reason in ['Polymorphism', 'CrossHybridization', 'BaseColorChange', 'RepeatSequenceElements']]
+    pubs = [ref for ref in criteria if ref in probe_pubs_translate.values()]
+    filtered_probes = probe_dataframe[ (probe_dataframe['Reason'].isin(reasons)) | (probe_dataframe['ShortCitation'].isin(pubs)) | (probe_dataframe['Probe'].isin(sesame)) ]
+    return filtered_probes
 
 
 

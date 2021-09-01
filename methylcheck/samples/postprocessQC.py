@@ -72,7 +72,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
 
 def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False, highlight_samples=None, figsize=(12,9), show_labels=None, filename='beta.png'):
     """Returns a plot of beta values for each sample in a batch of samples as a separate line.
-    Y-axis values is the count (of what? intensity? normalized?).
+    Y-axis values is an arbitrary scale, similar to a histogram of probes that have a given beta value.
     X-axis values are beta values (0 to 1) for a single samples
 
     Input (df):
@@ -239,8 +239,9 @@ def sample_plot(df, **kwargs):
 
 
 def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
-    """ attempts to filter outlier samples based on the cumulative area under the curve
-    exceeding a reasonable value (cutoff).
+    """Attempts to filter outlier samples based on the cumulative area under the curve
+    exceeding a reasonable value (cutoff). This method only works on poor quality samples that are
+    better identified using BeadArrayControlReporter summary (CLI: 'methylcheck controls')
 
     Inputs:
         DataFrame -- wide format (probes in columns, samples in rows)
@@ -680,8 +681,9 @@ notes
 
 def _add_poobah(poobah):
     """ used by beta_MDS_plot """
-    if poobah.isna().sum().sum() > 0:
-        LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
+    #if poobah.isna().sum().sum() > 0:
+    #    LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
+    # this happens normally with qualityMask True
     percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
     percent_failures = percent_failures.rename('probe_failure_(%)')
     # Series.where will replace the stuff that is False, so you have to negate it.

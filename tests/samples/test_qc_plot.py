@@ -83,6 +83,12 @@ class TestQcPlots(unittest.TestCase):
 
     @patch("methylcheck.qc_plot.plt.show")
     def test_qc_signal_intensity_from_path(self, mock):
+        test = methylcheck.qc_signal_intensity(path=Path(TESTPATH), silent=True, verbose=False, plot=False)
+        if not (test['cutoffs'][0] == 12.889238234452801 and test['good_samples'] == ['0'] and test['bad_samples'] == [] and test['bad_sample_cutoff'] == 11.5):
+            raise AssertionError(f"qc_signal_intensity results don't match tests for sample in {TESTPATH}")
+
+    @patch("methylcheck.qc_plot.plt.show")
+    def test_qc_signal_intensity_from_path(self, mock):
         methylcheck.qc_signal_intensity(
             data_containers=None, path=PROCESSED_ALL,
             silent=True, verbose=False, plot=True)
@@ -99,6 +105,11 @@ class TestQcPlots(unittest.TestCase):
     def test_plot_M_vs_U_from_path_no_poobah(self, mock):
         methylcheck.plot_M_vs_U(PROCESSED_ALL, silent=True, poobah=False)
         methylcheck.plot_M_vs_U(PROCESSED_ALL, silent=True, poobah=None)
+
+    @patch("methylcheck.qc_plot.plt.show")
+    def test_plot_M_vs_U_from_path_poobah_noob(self, mock):
+        """ loads noob_meth_values.pkl instead """
+        methylcheck.plot_M_vs_U(PROCESSED_ALL, silent=True, poobah=True, noob=True)
 
     @patch("methylcheck.qc_plot.plt.show")
     def test_plot_M_vs_U_from_path_compare(self, mock):

@@ -555,6 +555,10 @@ Arguments:
         data_df = data_df.rename(columns=sample_mapping)
         LOGGER.info("Renamed data_df.index and meta_df.columns to Sample_Name")
 
+    # ensure data_df returns probes in rows
+    if data_df.shape[0] < data_df.shape[1]:
+        data_df = data_df.transpose()
+
     return data_df, meta
 
 
