@@ -764,6 +764,7 @@ target removal
         project_name = Path(self.filepath).resolve().name
         writer = pd.ExcelWriter(Path(self.outfilepath, f"{project_name}_QC_Report.xlsx"), engine='xlsxwriter')
         report_df= pd.DataFrame(self.report)
+        report_df = report_df.round(self.roundoff)
         report_df.to_excel(writer, sheet_name='QC_REPORT', startcol=0, startrow=(2 if not self.legacy else 1), header=False, index=False)
         # Get the xlsxwriter objects from the dataframe writer object.
         workbook  = writer.book
@@ -835,7 +836,7 @@ target removal
         writer.save()
 
 
-def controls_report(**kwargs):
+def controls_report(*args, **kwargs):
     """Run a clone of Illumina's Bead Array Controls Reporter to generate an excel QC Report.
 
 CLI: methylcheck controls
@@ -846,7 +847,7 @@ CLI: methylcheck controls
 
     Note: this function is analogous to methylcheck.plot_controls() except that the output if a color-coded excel sheet instead of image charts.
 
-Required:
+Required Args:
     filepath (str or Path) to input files
 
 Optional Arguments:
@@ -881,6 +882,8 @@ Optional Arguments:
         so if any tests is a massive failure, the sample fails. Also, if pval(poobah) is included, and
         over 20% of probes fail, the sample fails regardless of other tests.
     """
+    if len(args) > 0:
+        raise AttributeError("This function takes 0 arguments. Specify the filepath using filepath=<path>.")
     if 'filepath' not in kwargs:
         raise FileNotFoundError("No control probes file location specified.")
     reporter = BeadArrayControlsReporter(**kwargs)

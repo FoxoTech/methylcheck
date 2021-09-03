@@ -37,9 +37,9 @@ setup(
     include_package_data=True,
     install_requires=[
         'numpy',
-        'pandas',
+        'pandas>=1.2.0,<1.3.0',
         'statsmodels',
-        'matplotlib<3.1.3',
+        'matplotlib',
         'seaborn',
         'tqdm',
         'joblib', # used by MDS only

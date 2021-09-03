@@ -1,5 +1,32 @@
 # Release History
 
+## v0.7.6
+- Reading IDATs loading bar didn't work correctly, showed up after loading.
+- Fixed error/logging messages:
+  - exclude_sex_control_probes() said 916 control probes were removed, then said “it appears your sample had no control probes”
+  - Erroneous message about missing values in poobah file: "color coding may be inaccurate."
+  - Filtering probes info message said there were N samples when it meant probes.
+  - methylprep.download.build_composite_dataset() Process time was negative.
+- Target Removal and Staining graphs in plot_controls() had unreadable X-axis sample names. Labels are suppressed when
+  showing more than 30 samples.
+- methylcheck.detect_array() sometimes returned array types in wrong case. All functions expect lowercase array types now.
+  - resolves exclude_sex_control_probes bugs.
+- run_qc() and get_sex() did not recognize poobah_values.pkl on MacOS when using "~" in the filepath.
+- methylcheck.problem_probe_reasons() lists probes matching any/all criteria when passing in no arguments, as documented
+- get_sex() understands samplesheet ‘m’ and ‘f’ when not capitalized now.
+- Load_both: always returns dataframe with probes in rows now, like .load() does.
+- plot_M_vs_U now loads the noob_meth_values.pkl files if noob=True and files are found; otherwise it uses whatever meth/unmeth data is available.
+- Methylcheck.qc_plot.qc_signal_intensity returns a dictionary of data about good/bad samples based on signal intensity.
+  Previously it was only returning this if 'plot' was False.
+
+## v0.7.5
+- added 'methylcheck report' CLI option to create a ReportPDF
+- updated documentation
+- minor bug fixes in read_geo()
+  - qc_plot() now handles mouse probe type differently
+  - handles importing from multiple pandas versions correctly
+  - read_geo can open series_matrix.txt files now
+
 ## v0.7.4
 - fixed big where csv data_files were not included in pypi
 

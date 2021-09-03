@@ -5,7 +5,13 @@ import re
 import csv # for pd_load quote-chars
 from collections import Counter
 import logging
-from pandas.io.parsers import ParserError
+try:
+    from pandas.errors import ParserError
+except ImportError:
+    from pandas.io.parsers import ParserError
+import gzip
+import io
+import shutil
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel( logging.INFO )
@@ -263,6 +269,23 @@ notes:
     this = Path(filepath)
     kwargs = {'nrows':200} if test_only else {}
 
+    # is it a series_matrix_file?
+    for thisfile in this.glob('*'):
+        if 'series_matrix' in thisfile.name:
+            if thisfile.suffix == '.gz':
+                gz_string = str(thisfile)
+                with gzip.open(gz_string, 'rb') as f_in:
+                    with open(gz_string[:-3], 'wb') as f_out:
+                        shutil.copyfileobj(f_in, f_out)
+                new_file = Path( thisfile.parent, f_out.name )
+                if read_series_matrix(new_file, detect_only=True):
+                    if verbose: LOGGER.info(f"Found series matrix: {new_file}")
+                    return read_series_matrix(new_file)
+            elif thisfile.suffix == '.txt':
+                if read_series_matrix(thisfile, detect_only=True):
+                    if verbose: LOGGER.info(f"Found series matrix: {thisfile.name}")
+                    return read_series_matrix(thisfile)
+
     raw = pd_load(filepath, **kwargs)
     if not isinstance(raw, pd.DataFrame):
         LOGGER.error(f"Did not detect a file: {type(raw)} aborting")
@@ -515,7 +538,7 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
     non-normalized
     matrix_processed
     matrix_signal
-    series_matrix
+    series_matrix -- read_series_matrix(file, detect_only=True)
     methylated_signal_intensities and unmethylated_signal_intensities
     _family
 
@@ -730,31 +753,68 @@ def detect_header_pattern(test, filename, return_sample_column_names=False):
             'sample_names_stems': sample_column_residuals, # unique parts of sample names
            }
 
+
+def pd_best_parameters(filepath, nskiprows, nrows=100):
+    list_params  = []
+    list_methods = ['auto', 'tab', 'quoted']
+    for method in list_methods:
+        try:
+            # determine the keyword argument values for the current method
+            kwargs = None
+            if method == 'auto':
+                kwargs = {'skiprows': nskiprows}
+            elif method == 'tab':
+                kwargs = {'sep':'\t', 'skiprows': nskiprows}
+            elif method == 'quoted':
+                kwargs = {'sep':r',\s+','skiprows': nskiprows, 'quoting':csv.QUOTE_ALL, 'engine': 'python'}
+            else:
+                continue
+            # try loading the dataframe using the current argument values
+            df = pd.read_csv(filepath, nrows=nrows, **kwargs)
+            item = {'method':method, 'cols': df.shape[1], 'kwargs': kwargs}
+            list_params.append(item)
+        except:
+            # read_csv function failed so just continue to try the next method
+            continue
+    # ensure list is not empty
+    if len(list_params) == 0:
+        return None
+    # determine the best set of loading parameters
+    best_params = sorted([(parts['method'], parts['cols'], parts['kwargs']) for parts in list_params], key= lambda param_tuple: param_tuple[1], reverse=True)
+    best_kwargs = best_params[0][2]
+    return best_kwargs
+
+
 def pd_load(filepath, **kwargs):
     """ helper function that reliably loads any GEO file, by testing for the separator that gives the most columns """
     this = Path(filepath)
-
+    # check to see if file is a text file
+    # need to determine best parameter values for loading into a data frame
     if this.suffix not in ('.xlsx', '.pkl'):
-        # first, check that we're getting the max cols
-        test_csv = pd.read_csv(this, nrows=100, skiprows=kwargs.get('skiprows',0))
-        test_t = pd.read_csv(this, sep='\t', nrows=100, skiprows=kwargs.get('skiprows',0))
-        test_space = pd.read_csv(this, sep=r',\s+', quoting=csv.QUOTE_ALL, engine='python', skiprows=kwargs.get('skiprows',0))
-
-        params = [
-            {'method':'auto', 'cols': test_csv.shape[1], 'kwargs': {}},
-            {'method':'tab', 'cols': test_t.shape[1], 'kwargs': {'sep':'\t'}},
-            {'method':'quoted', 'cols': test_space.shape[1], 'kwargs': {'sep':r',\s+', 'quoting':csv.QUOTE_ALL, 'engine': 'python'}},
-        ]
-        best_params = sorted([(parts['method'], parts['cols'], parts['kwargs']) for parts in params], key= lambda param_tuple: param_tuple[1], reverse=True)
-        kwargs.update(best_params[0][2])
-
+        # check to see if skiprows was specified
+        nskiprows = kwargs.get('skiprows', 0)
+        if nskiprows == 0:
+            # ensure we skip over all non-header lines at the beginning of the file
+            if '.gz' in this.suffixes:
+                with gzip.open(this, 'rt') as myfile:
+                    for line in myfile:
+                        # check to see if current line is a valid header line
+                        if (not line.startswith('#')) and (',' in line or '\t' in line):
+                            # header line found so exit loop
+                            break;
+                        else:
+                            # current line not recognized as a possible header row
+                            # skip this line by incrementing number of rows to be skipped
+                            nskiprows = nskiprows + 1
+        # determine the best parameters for loading the pandas dataframe
+        best_params = pd_best_parameters(this, nskiprows)
+        kwargs.update(best_params)
     if '.csv' in this.suffixes:
         raw = pd.read_csv(this, **kwargs)
     elif '.xlsx' in this.suffixes:
         raw = pd.read_excel(this, **kwargs)
     elif '.pkl' in this.suffixes:
         raw = pd.read_pickle(this, **kwargs)
-        #return raw
     elif '.txt' in this.suffixes:
         try:
             raw = pd.read_csv(this, **kwargs) # includes '\t' if testing worked best with tabs
@@ -767,5 +827,79 @@ def pd_load(filepath, **kwargs):
             # or use codecs first to load and parse text file before dataframing...
     else:
         print(f'ERROR: this file type ({this.suffix}) is not supported')
-        return
+        return None
     return raw
+
+
+def read_series_matrix(textfile, detect_only=False, include_headers_df=False):
+    """Loads another kind of GEO file with its meta data embedded in a weird format.
+    - detect_only=True
+        returns True or False, if the file appears to be a series_matrix.
+        otherwise, returns a dataframe.
+    - include_header_df= True
+        returns a dictionary of objects: df are the beta values;
+        headers_df contains the meta data about the samples;
+        series_dict is a dictionary containing information about the series.
+
+    FTP/HTTPS pattern: https://ftp.ncbi.nlm.nih.gov/geo/series/GSE168nnn/{GSExxxx}/matrix/{GSExxxx}_series_matrix.txt.gz
+    where GSE168 is the first part of the ID.
+    """
+    headers = []
+    table = []
+    start_table = False
+    end_table = False
+    with open(textfile,'r') as infile:
+        # DETECTOR
+        header_count = 0
+        table_begin_detected = False
+        table_end_detected = False
+        for line in infile:
+            if line.startswith('!'):
+                header_count += 1
+            if line.startswith('!series_matrix_table_begin'):
+                table_begin_detected = True
+            if line.startswith('!series_matrix_table_end'):
+                table_end_detected = True
+        if header_count == 0:
+            return False
+        if detect_only and header_count > 0 and table_begin_detected and table_end_detected:
+            return True
+        # LOADER
+        infile.seek(0, 0)
+        for line in infile:
+            if line.startswith('!'):
+                headers.append(line)
+            if line.startswith('!series_matrix_table_begin'):
+                start_table = True # on NEXT line
+                continue
+            if line.startswith('!series_matrix_table_end'):
+                end_table = True
+            if end_table:
+                break
+            if start_table:
+                table.append(line)
+    df = pd.read_csv(io.StringIO('\n'.join(table)), delim_whitespace=True)
+    if 'ID_REF' in df.columns:
+        df = df.set_index('ID_REF')
+        df.index.name = 'IlmnID'
+    # BUILD headers_df
+    # these meta_headers have 1, zero, and zero values following them, respectively.
+    meta_headers = ['!series_matrix_table_begin\n', '!series_matrix_table_end\n', '!series_matrix_table_begin', '!series_matrix_table_end']
+    if include_headers_df and len(headers) > 0:
+        key_dict = dict([header.split('\t') for header in headers if len(header.split('\t')) == 2]) # passing in a list of 2-lists.
+        key_dict = {k:v.replace('\n','') for k,v in key_dict.items()}
+        predicted_N_columns = [len(header.split('\t')) for header in headers if header.split('\t')[0] not in (meta_headers + list(key_dict.keys()))]
+        values = [header.split('\t')[1:] for header in headers if header.split('\t')[0] not in (meta_headers + list(key_dict.keys()))]
+        values = [[value.strip().strip('\"') for value in row] for row in values]
+        predicted_columns = [header.split('\t')[0] for header in headers if header.split('\t')[0] not in (meta_headers + list(key_dict.keys()))]
+        if len(set(predicted_N_columns)) != 1:
+            print('inconsistent header column count: set(predicted_N_columns)')
+            return {'df': df, 'headers_df':None, 'series_dict':None}
+        cols = list(set(predicted_N_columns))[0]
+        # test assumption that order of samples in df matches order of meta data in header here.
+        if not all([i.startswith('GSM') for i in values[1]]):
+            print("WARNING: geo header data might not align with tabular data. Check failed.")
+        headers_df = pd.DataFrame(data=values, index=predicted_columns, columns=df.columns)
+        headers_df.name = key_dict.get('!Series_title')
+        return {'df': df, 'headers_df':headers_df, 'series_dict': key_dict}
+    return df

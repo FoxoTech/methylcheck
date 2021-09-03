@@ -30,16 +30,16 @@ def run_qc(path):
     Note: this will only look in the path folder; it doesn't do a recursive search for matching files.
     """
     try:
-        beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
-        controls = pd.read_pickle(Path(path,'control_probes.pkl'))
-        if Path(path,'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists():
-            meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
-            unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
+        beta_df = pd.read_pickle(Path(path,'beta_values.pkl').expanduser())
+        controls = pd.read_pickle(Path(path,'control_probes.pkl').expanduser())
+        if Path(path,'meth_values.pkl').expanduser().exists() and Path(path,'unmeth_values.pkl').expanduser().exists():
+            meth_df = pd.read_pickle(Path(path,'meth_values.pkl').expanduser())
+            unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl').expanduser())
         else:
-            meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl'))
-            unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl'))
-        if Path(path,'poobah_values.pkl').exists():
-            poobah = pd.read_pickle(Path(path,'poobah_values.pkl'))
+            meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl').expanduser())
+            unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl').expanduser())
+        if Path(path,'poobah_values.pkl').expanduser().exists():
+            poobah = pd.read_pickle(Path(path,'poobah_values.pkl').expanduser())
         else:
             poobah = None
     except FileNotFoundError:
@@ -96,7 +96,11 @@ optional params:
 
 this will draw a diagonal line on plots
 
-FIX:
+returns:
+========
+    A dictionary of data about good/bad samples based on signal intensity
+
+TODO:
     doesn't return both types of data if using compare and not plotting
     doesn't give good error message for compare
     """
@@ -156,7 +160,10 @@ FIX:
     elif isinstance(poobah, pd.DataFrame):
         plt.title('M versus U plot: Colors are the percent of probe failures per sample')
         if poobah.isna().sum().sum() > 0:
-            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+            if poobah.isna().equals(meth.isna()) and poobah.isna().equals(unmeth.isna()):
+                pass # not a problem if the SAME probes are excluded in all dataframes
+            else:
+                LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
         percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
         percent_failures = percent_failures.rename('probe_failure_(%)')
         # Series.where will replace the stuff that is False, so you have to negate it.
@@ -205,6 +212,13 @@ FIX:
     if len(bad_samples) > 0:
         print('List of Bad Samples')
         print([str(s) for s in bad_samples])
+    return {
+        'medians': medians,
+        'cutoffs': cutoffs,
+        'good_samples': [str(s) for s in medians.index[cutoffs >= bad_sample_cutoff]],
+        'bad_samples': [str(s) for s in bad_samples],
+        'bad_sample_cutoff': bad_sample_cutoff,
+    }
 
 
 def _make_qc_df(meth,unmeth):
@@ -240,10 +254,16 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
     elif path:
         n = 'noob_' if noob else ''
         # first try to load from disk
-        if Path(path, 'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists() and not compare:
-            meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
-            unmeth = pd.read_pickle(Path(path, 'unmeth_values.pkl'))
-            return meth, unmeth
+        if (noob and Path(path, f'{n}meth_values.pkl').exists() and
+            Path(path, f'{n}unmeth_values.pkl').exists()):
+            _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
+            _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
+            return _meth, _unmeth
+            # THIS DOES NOT warn user if they want noob and the files don't exist.
+        elif Path(path, 'meth_values.pkl').exists() and Path(path,'unmeth_values.pkl').exists() and not compare:
+            _meth = pd.read_pickle(Path(path, 'meth_values.pkl'))
+            _unmeth = pd.read_pickle(Path(path, 'unmeth_values.pkl'))
+            return _meth, _unmeth
         elif (compare and
             Path(path, 'meth_values.pkl').exists() and
             Path(path, 'unmeth_values.pkl').exists() and
@@ -254,11 +274,6 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
             _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
             _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
             return meth, unmeth, _meth, _unmeth
-        elif (noob and Path(path, f'{n}meth_values.pkl').exists() and
-            Path(path, f'{n}unmeth_values.pkl').exists()):
-            _meth = pd.read_pickle(Path(path, f'{n}meth_values.pkl'))
-            _unmeth = pd.read_pickle(Path(path, f'{n}unmeth_values.pkl'))
-            return _meth, _unmeth
         else:
             sample_filenames = []
             csvs = []
@@ -346,7 +361,7 @@ optional params:
     cutoff_line: True will draw a diagonal line on plots.
         the cutoff line is based on the X-Y scale of the plot, which depends on the range of intensity values in your data set.
 
-FIX:
+TODO:
     doesn't return both types of data if using compare and not plotting
     doesn't give good error message for compare
     """
@@ -355,41 +370,46 @@ FIX:
             path = Path(data_containers_or_path)
         else:
             path = None
-    except:
-        path = None # but fails if passing in a data_containers object
+    except TypeError:
+        path = None # fails if passing in a data_containers object
 
-    if isinstance(data_containers_or_path, Path): #this only recognizes a Path object
+    if isinstance(data_containers_or_path, Path): #this only recognizes a Path object, not a string path
         path = data_containers_or_path
         data_containers = None
     elif isinstance(path, Path):
         data_containers = None
     else:
         path = None
-        data_containers = data_containers_or_path # by process of exclusion, this must be an object
+        data_containers = data_containers_or_path # by process of exclusion, this must be an object, or None
 
-    if not path and not data_containers and not isinstance(meth, pd.DataFrame) and not isinstance(unmeth, pd.DataFrame):
+    if isinstance(data_containers_or_path, pd.DataFrame):
+        raise ValueError("M_vs_U cannot plot a dataframe of processed data; requires meth and unmeth values.")
+    if not isinstance(path, Path) and isinstance(data_containers, type(None)) and not isinstance(meth, pd.DataFrame) and not isinstance(unmeth, pd.DataFrame):
         print("You must specify a path to methylprep processed data files, or provide a data_containers object as input, or pass in meth and unmeth dataframes.")
+        # hasattr: user defined class instances should have __name__ and other objects should not
         return
 
     # 2. load meth + unmeth from path
-    elif isinstance(meth,type(None)) and isinstance(unmeth,type(None)): #type(meth) is None and type(unmeth) is None:
+    elif isinstance(meth,type(None)) and isinstance(unmeth,type(None)):
         try:
             if compare:
-                meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare)
+                meth, unmeth, _meth, _unmeth = _get_data(data_containers, path, compare=compare, noob=noob)
             else:
-                meth, unmeth = _get_data(data_containers, path, compare=compare)
+                meth, unmeth = _get_data(data_containers, path, compare=compare, noob=noob)
         except Exception as e:
             print(e)
             print("No processed data found.")
             return
 
     # 2. load poobah_df if exists
-    if isinstance(poobah,pd.DataFrame):
+    if isinstance(poobah,bool) and poobah == False:
+        poobah_df = None
+    elif isinstance(poobah, pd.DataFrame):
         poobah_df = poobah
         poobah = True
     else:
         poobah_df = None
-        if poobah is not False and isinstance(path, Path) and 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
+        if isinstance(path, Path) and 'poobah_values.pkl' in [i.name for i in list(path.rglob('poobah_values.pkl'))]:
             poobah_df = pd.read_pickle(list(path.rglob('poobah_values.pkl'))[0])
             poobah=True
         else:
@@ -404,7 +424,10 @@ FIX:
 
     if poobah is not False and isinstance(poobah_df, pd.DataFrame) and not compare:
         if poobah_df.isna().sum().sum() > 0:
-            LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
+            if poobah_df.isna().equals(meth.isna()) and poobah_df.isna().equals(unmeth.isna()):
+                pass # not a problem if the SAME probes are excluded in all dataframes
+            else:
+                LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding will be inaccurate.")
         percent_failures = round(100*( poobah_df[poobah_df > 0.05].count() / poobah_df.count() ),1)
         percent_failures = percent_failures.rename('probe_failure (%)')
         meth_med = meth.median()
@@ -504,7 +527,7 @@ Plot the overall density distribution of beta values and the density distributio
 options:
     return_fig: (default False) if True, returns a list of figure objects instead of showing plots.
     """
-    mouse_probe_types = ['cg','ch']
+    mouse_probe_types = ['cg','ch','uk']
     probe_types = ['I', 'II', 'IR', 'IG', 'all'] # 'SnpI', 'Control' are in manifest, but not in the processed data
     if probe_type not in probe_types + mouse_probe_types:
         raise ValueError(f"Please specify an Infinium probe_type: ({probe_types}) to plot or, if mouse array, one of these ({mouse_probe_types}) or 'all'.")
@@ -519,9 +542,11 @@ options:
         try:
             from methylprep import Manifest, ArrayType
         except ImportError:
-            raise ImportError("this required methylprep")
+            raise ImportError("plot_betas_by_type() requires methylprep")
 
+        LOGGER.setLevel(logging.WARNING)
         manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
+        LOGGER.setLevel(logging.INFO)
     else:
         raise FileNotFoundError("manifest file not found.")
 
@@ -537,37 +562,37 @@ options:
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I probes', silent=silent, full_range=True)
     if probe_type in ('II', 'all'):
         subset = beta_df[beta_df['probe_type'] == 'II']
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type II probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type II probes', silent=silent, full_range=True)
     if probe_type in ('IR', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Red')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I Red (IR) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Red (IR) probes', silent=silent, full_range=True)
     if probe_type in ('IG', 'all'):
         subset = beta_df[(beta_df['probe_type'] == 'I') & (beta_df['Color_Channel'] == 'Grn')]
         subset = subset.drop('probe_type', axis='columns')
         subset = subset.drop('Color_Channel', axis='columns')
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', return_fig=True, silent=silent, full_range=True) )
         else:
             print(f'Found {subset.shape[0]} type I Green (IG) probes.')
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} type I Green (IG) probes', silent=silent, full_range=True)
     if str(array_type) != 'mouse':
         if return_fig:
             return figs
@@ -575,29 +600,30 @@ options:
 
     ############ MOUSE ONLY ################
     # TODO: control probe types #
-    # 'probe_type' are I, II, IR, IG and Probe_Type (mouse only) are 'cg','ch' | 'mu','rp','rs' are on control or mouse probes
-    mapper = manifest.data_frame.loc[:, ['Probe_Type']]
+    # 'probe_type' are I, II, IR, IG and probe_type (mouse only) are 'cg','ch','uk'. | 'rs' are in controls
+    # mouse_probe_types are 'ch','cg','rs','uk'
+    mapper = pd.DataFrame(data=manifest.data_frame.index.str[:2], index=manifest.data_frame.index)
+    mapper = mapper.rename(columns={'IlmnID':'mouse_probe_type'})
     beta_df = beta_df.merge(mapper, right_index=True, left_index=True)
 
-    if probe_type in ('cg','ch'):
-        subset = beta_df[beta_df['Probe_Type'] == probe_type]
-        subset = subset.drop('probe_type', axis='columns')
-        subset = subset.drop('Color_Channel', axis='columns')
-        subset = subset.drop('Probe_Type', axis='columns')
+    if probe_type in mouse_probe_types:
+        subset = beta_df[beta_df['mouse_probe_type'] == probe_type]
+        subset = subset.drop(columns=['probe_type','Color_Channel','mouse_probe_type'])
         if return_fig:
-            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', return_fig=True, silent=silent) )
+            figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', return_fig=True, silent=silent, full_range=True) )
         else:
-            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', silent=silent)
+            methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {probe_type} probes', silent=silent, full_range=True)
     if probe_type == 'all':
         for mouse_probe_type in mouse_probe_types:
-            subset = beta_df[beta_df['Probe_Type'] == mouse_probe_type]
-            subset = subset.drop('probe_type', axis='columns')
-            subset = subset.drop('Color_Channel', axis='columns')
-            subset = subset.drop('Probe_Type', axis='columns')
+            subset = beta_df[beta_df['mouse_probe_type'] == mouse_probe_type]
+            subset = subset.drop(columns=['probe_type','Color_Channel','mouse_probe_type'])
+            if subset.shape[0] == 0:
+                if not silent:
+                    LOGGER.warning("No {mouse_probe_type} probes found")
             if return_fig:
-                figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', return_fig=True, silent=silent) )
+                figs.append( methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', return_fig=True, silent=silent, full_range=True) )
             else:
-                methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', silent=silent)
+                methylcheck.beta_density_plot(subset, plot_title=f'{subset.shape[0]} {mouse_probe_type} probes', silent=silent, full_range=True)
 
     if return_fig:
         return figs
@@ -675,7 +701,7 @@ options:
         if stain_red.shape[1] == 0 or stain_green.shape[1] == 0:
             LOGGER.info("No staining probes found")
         else:
-            fig = _qc_plotter(stain_red, stain_green, color_dict, ymax=60000, title='Staining', return_fig=return_fig)
+            fig = _qc_plotter(stain_red, stain_green, color_dict, xticks=plotx, ymax=60000, title='Staining', return_fig=return_fig)
             if fig:
                 figs.append(fig)
 
@@ -783,7 +809,7 @@ options:
         if tar_red.shape[1] == 0 or tar_green.shape[1] == 0:
             LOGGER.info("No target-removal probes found")
         else:
-            fig = _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, title='Target Removal', return_fig=return_fig)
+            fig = _qc_plotter(tar_red, tar_green, color_dict, ymax=2000, xticks=plotx, title='Target Removal', return_fig=return_fig)
             if fig:
                 figs.append(fig)
 
@@ -827,7 +853,8 @@ options:
 todo:
 =====
     add a batch option that splits large datasets into multiple charts, so labels are readable on x-axis.
-        """
+    currently: if N>30, it suppresses the X-axis sample labels, which would be unreadable
+    """
     fig, (ax1,ax2) = plt.subplots(nrows=1,ncols=2,figsize=(10,8)) # was (12,10)
     plt.tight_layout(w_pad=15)
     plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90)
@@ -916,10 +943,14 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
     except ImportError:
         raise ImportError("this function requires methylprep")
     if Path.exists(man_filepath):
+        LOGGER.setLevel(logging.WARNING)
         manifest = Manifest(ArrayType(array_type), man_filepath, on_lambda=on_lambda)
+        LOGGER.setLevel(logging.INFO)
     else:
         # initialize and force download with filepath=None
+        LOGGER.setLevel(logging.WARNING)
         manifest = Manifest(ArrayType(array_type), filepath_or_buffer=None, on_lambda=on_lambda)
+        LOGGER.setLevel(logging.INFO)
 
     # want meth channel data; 89203 probes
     oobG_mask = set(manifest.data_frame[(manifest.data_frame['Infinium_Design_Type'] == 'I') & (manifest.data_frame['Color_Channel'] == 'Red')].index)
