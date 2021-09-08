@@ -9,9 +9,8 @@ methylcheck documentation
    :caption: Contents:
 
    Loading Data <docs/loading-data.ipynb>
-   Quality Control <docs/quality-control-example.ipynb>
-   Bead Array Controls Reporter <docs/bead-array.md>
    Filtering Probes <docs/filtering-probes.ipynb>
+   Quality Control <docs/quality-control-example.ipynb>
    Examples <docs/example_notebooks/examples.md>
    docs/source/modules
    methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
