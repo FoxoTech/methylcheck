@@ -9,8 +9,9 @@ import methylcheck
 
 class TestLoadProcessed():
     epic_df = Path(TESTPATH,'test_epic_filter.pkl')
+    epic_df2 = Path(TESTPATH,'test_epic_filter.pkl.gz')
     test_450k = Path('docs/example_data/GSE69852')
-    test_alt_450k = Path('docs/example_data/GSE105018') # not used here
+    test_alt_450k = Path('docs/example_data/GSE105018')
 
     def test_load_beta_pickle(self):
         df = methylcheck.load(self.epic_df)
@@ -112,6 +113,11 @@ class TestLoadProcessed():
 
     def test_load_both(self):
         (df,meta) = methylcheck.load_both(self.test_450k)
+
+    def test_load_both_returns_probes_in_rows(self):
+        (df,meta) = methylcheck.load_both(self.test_alt_450k)
+        if df.shape[0] < df.shape[1]:
+            raise AssertionError("load_both returned probes in columns")
 
     def test_load_containers_and_container_to_pkl(self):
         containers = methylcheck.load(self.test_450k, 'meth')
