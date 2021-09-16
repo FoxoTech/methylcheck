@@ -481,6 +481,8 @@ Arguments:
             LOGGER.warning(f'Columns in sample sheet meta data files does not match for these files and cannot be combined:'
                            f'{[str(i) for i in meta_files]}')
             meta = pd.read_pickle(meta_files[0])
+            if any(meta.columns.duplicated()):
+                meta = meta.loc[:, ~meta.columns.duplicated()]            
             partial_meta = True
         else:
             meta = pd.concat(frames, axis=0, sort=False)
@@ -488,6 +490,8 @@ Arguments:
 
     if len(meta_files) == 1:
         meta = pd.read_pickle(meta_files[0])
+        if any(meta.columns.duplicated()):
+            meta = meta.loc[:, ~meta.columns.duplicated()]
     elif multiple_metas:
         if partial_meta:
             LOGGER.info("Multiple meta_data found. Only loading the first file.")

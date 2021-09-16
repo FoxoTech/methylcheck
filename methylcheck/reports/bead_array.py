@@ -2,7 +2,7 @@
 from pathlib import Path
 from io import StringIO
 import logging
-
+import fnmatch
 # calcs
 import warnings
 import math
@@ -39,11 +39,14 @@ class BeadArrayControlsReporter():
     input_filenames = {
         'control_probes.pkl': 'control',
         'poobah_values.pkl': 'poobah',
-        'sample_sheet_meta_data.pkl': 'samplesheet',
         # FUTURE?? load these separately, and only if there is a reason to run a sex prediction. But sex done by default.
-        # sex_prediction_files = {
         'noob_meth_values.pkl': 'noob_meth',
         'noob_unmeth_values.pkl': 'noob_unmeth',
+    }
+    samplesheet_patterns = {
+        '*samplesheet*.csv': 'samplesheet',
+        '*sample_sheet*.csv': 'samplesheet',
+        '*meta_data*.pkl': 'samplesheet',
     }
     # does NOT use m_values or 'beta_values.pkl'
 
@@ -108,21 +111,36 @@ class BeadArrayControlsReporter():
         self.pval = pval # whether to include poobah in tests
         self.pval_sig = pval_sig # significance level to define a failed probe
         self.passing = passing # fraction of tests that all need to pass for sample to pass
+        self.filepath
         # if outfilepath is not provided, saves to the same folder where the pickled dataframes are located.
         if not outfilepath:
             self.outfilepath = filepath
         else:
             self.outfilepath = outfilepath
+
         for filename in Path(filepath).rglob('*.pkl'):
             if filename.name in self.input_filenames.keys():
-                #vars()[self.input_filenames[filename.name]] = pd.read_pickle(filename)
                 setattr(self, self.input_filenames[filename.name], pd.read_pickle(filename))
+        # fuzzy matching samplesheet
+        for filename in Path(filepath).rglob('*'):
+            if any([fnmatch.fnmatch(filename.name, samplesheet_pattern) for samplesheet_pattern in self.samplesheet_patterns.keys()]):
+                #label = next(label for (patt,label) in samplesheet_patterns.items() if fnmatch.fnmatch(filename.name, patt))
+                if '.pkl' in filename.suffixes:
+                    setattr(self, 'samplesheet', pd.read_pickle(filename))
+                elif '.csv' in filename.suffixes:
+                    setattr(self, 'samplesheet', pd.read_csv(filename))
+                break
+
         if not hasattr(self,'control'):
             raise FileNotFoundError(f"Could not locate control_probes.pkl file in {filepath}")
         if not hasattr(self,'poobah') and self.pval is True:
             raise FileNotFoundError(f"Could not locate poobah_values.pkl file in {filepath}; re-run and set 'pval=False' to skip calculating probe failures.")
         if hasattr(self,'samplesheet'):
             if isinstance(self.samplesheet, pd.DataFrame):
+                # methylprep v1.5.4-6 was creating meta_data files with two Sample_ID columns. Check and fix here:
+                if any(self.samplesheet.columns.duplicated()):
+                    self.samplesheet = self.samplesheet.loc[:, ~self.samplesheet.columns.duplicated()]
+                    LOGGER.info("Removed a duplicate Sample_ID column in samplesheet")
                 if 'Sample_ID' in self.samplesheet:
                     self.samplesheet = self.samplesheet.set_index('Sample_ID')
                 elif 'Sentrix_ID' in self.samplesheet and 'Sentrix_Position' in self.samplesheet:
@@ -157,7 +175,6 @@ class BeadArrayControlsReporter():
             self.cpass = '#F26C64'
             self.cmid =  '#FFDD71'
             self.cfail = '#69B764'
-
 
     def process_sample(self, sample, con):
         """ process() will run this throug all samples, since structure of control data is a dict of DFs
@@ -622,9 +639,6 @@ target removal
         for sample,con in self.control.items():
             self.process_sample(sample, con) # saves everything on top of last sample, for now. testing.
 
-        #print(self.gct_scores)
-        #import pdb;pdb.set_trace()
-
         # predicted_sex, x_median, y_median, x_fail_percent, y_fail_percent,
         if isinstance(self.samplesheet, pd.DataFrame) and hasattr(self, 'noob_meth') and hasattr(self, 'noob_unmeth'):
             if self.predict_sex:
@@ -632,7 +646,7 @@ target removal
             else:
                 LOGGER.info("Predicting Sex...")
             try:
-                print(self.noob_meth.shape, self.noob_unmeth.shape)
+                #print(self.noob_meth.shape, self.noob_unmeth.shape)
                 sex_df = methylcheck.get_sex((self.noob_meth, self.noob_unmeth), array_type=None, verbose=False, plot=False, on_lambda=False, median_cutoff= -2, include_probe_failure_percent=False)
             except ValueError as e:
                 if str(e).startswith('Unsupported Illumina array type'):
@@ -642,25 +656,26 @@ target removal
                 else:
                     LOGGER.warning(e)
                     sex_df = pd.DataFrame()
-            # merge into processed output (self.report and self.data)
+            # merge into processed output (self.report and self.data); merge CORRECTED actual sex values, as M or F
+            sex_df = methylcheck.predict.sex._fetch_actual_sex_from_sample_sheet_meta_data(self.filepath, sex_df)
+
             # row index values are sample names
             for row in sex_df.itertuples():
                 try:
                     item_order = [idx for idx,item in enumerate(self.report) if item['Sample'] == row.Index][0]
                 except IndexError:
                     # in tests, this happens if samplesheet has data that isn't in process results
-                    print("report and sex_df not matching")
-                    import pdb;pdb.set_trace()
+                    raise IndexError("651: Report and sex_df not matching. This can happen if the samplesheet contains samples that aren't in processed results.")
 
                 self.data[row.Index].append({'col': 'Predicted Sex', 'val': row.predicted_sex, 'formula': f"X/Y probes"})
                 self.report[item_order]['Predicted Sex'] = row.predicted_sex
                 if self.predict_sex:
-                    # implies sample sheet exists and has Sex or Gender column; case WILL match now, because fixed when loaded.
-                    actual_sex = (self.samplesheet.loc[row.Index].get('Sex') or self.samplesheet.loc[row.Index].get('Gender'))
-                    sex_match = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
-                    self.data[row.Index].append({'col': 'Sex Match', 'val': sex_match,
-                        'formula': f"Sample sheet M/F", 'min':0, 'med':0.5, 'max':1.0})
-                    self.report[item_order]['Sex Match'] = sex_match
+                    self.data[row.Index].append({
+                        'col': 'Sex Match',
+                        'val': row.sex_matches,
+                        'formula': f"Sample sheet M/F",
+                        'min':0, 'med':0.5, 'max':1.0})
+                    self.report[item_order]['Sex Match'] = row.sex_matches
                     self.formulas['Sex Match'] = "Sample sheet M/F"
                 self.formulas['Predicted Sex'] = "X/Y probes"
                 # next attrib is not used in XLSX report, but saved to object in case others want to extend this.
