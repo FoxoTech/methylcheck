@@ -64,5 +64,5 @@ If you are new to DNA methylation analysis, we recommend reading through this [i
 - [load processed methylation data](docs/loading-data.ipynb)
 - [filter unreliable probes from your data](docs/filtering-probes.ipynb)
 - [run array-level quality control reports](docs/quality-control-example.ipynb)
-- [detect outlier samples]() <!-- LINK TO MDS SECTION -->
+- [detect outlier samples]() (docs/mds-example.ipynb)
 - [predict the sex of human samples](docs/quality-control-example.ipynb#predicting-sex)

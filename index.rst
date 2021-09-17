@@ -11,9 +11,9 @@ methylcheck documentation
    Loading Data <docs/loading-data.ipynb>
    Filtering Probes <docs/filtering-probes.ipynb>
    Quality Control <docs/quality-control-example.ipynb>
-   Examples <docs/example_notebooks/examples.md>
+   Outlier Detection <docs/mds-example.ipynb>
    docs/source/modules
-   methylprep package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
+   methylprep (preprocessing) package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>
    methylize (analysis) package <https://life-epigenetics-methylize.readthedocs-hosted.com/en/latest/>
    Release History <docs/release-history.md>
 
