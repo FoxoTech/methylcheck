@@ -68,3 +68,18 @@ class TestReadGeo():
             df = methylcheck.read_geo(Path(TESTPATH,infile), verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[TXT] {infile} failed to return a dataframe")
+
+
+    def test_read_series_matrix(self):
+        test_file = Path('docs/example_data/GSE158089/test_series_matrix.txt')
+        data = methylcheck.read_geo_processed.read_series_matrix(test_file, include_headers_df=True)
+        if  data['df'].shape != (6, 14):
+            raise AssertionError("dummy data mismatch data['df']")
+        if len(data['series_dict']) != 26:
+            raise AssertionError("dummy data mismatch data['series_dict']")
+        if data['headers_df'].shape != (34, 14):
+            raise AssertionError("dummy data mismatch data['headers_df']")
+
+        result = methylprep.files.sample_sheets.sample_names_from_matrix(Path('docs/example_data/GSE158089/'))
+        if result != ['iPSC_1', 'iPSC_2', 'NPC_1', 'NPC_2', 'NPC_3', 'NPC_4', 'Neuron_D37_1', 'Neuron_D37_2', 'Neuron_D37_3', 'Neuron_D37_4', 'Neuron_D58_1', 'Neuron_D58_2', 'Neuron_D58_3', 'Neuron_D58_4']:
+            raise AssertionError("sample_names_from_matrix failed to parse test_series_matrix.txt")

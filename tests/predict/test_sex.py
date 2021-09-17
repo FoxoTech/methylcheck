@@ -52,13 +52,19 @@ def test_get_sex_plot_label_compare_with_actual_mouse(mock):
 
 def test_get_actual_sex():
     LOCAL = 'docs/example_data/GSE147391'
-    df = pd.read_pickle(Path(LOCAL,'sample_sheet_meta_data.pkl'))
-    df = df.loc[:, ~df.columns.duplicated()]
-    df = df.set_index('Sample_ID')
-    df2 = methylcheck.predict.sex._fetch_actual_sex_from_sample_sheet_meta_data(LOCAL,df)
-    print(df2[['gender','actual_sex','sex_matches']], df2.columns)
-    assert set(list(df2.columns)) & set(['gender','actual_sex','sex_matches']) == set(['gender','actual_sex','sex_matches'])
-    df3 = df.reset_index()
-    with pytest.raises(KeyError) as excinfo:
-        df4 = methylcheck.predict.sex._fetch_actual_sex_from_sample_sheet_meta_data(LOCAL,df3)
-        assert excinfo.value.message == "Could not read actual sex from meta data to compare."
+    files = ['sample_sheet_meta_data.pkl', 'GSE147391_GPL21145_meta_data.pkl', 'GSE147391_GPL21145_samplesheet.csv']
+    for _file in files:
+        local_file = Path(LOCAL,_file)
+        if '.csv' in local_file.suffixes:
+            df = pd.read_csv(local_file)
+        if '.pkl' in local_file.suffixes:
+            df = pd.read_pickle(local_file)
+        df = df.loc[:, ~df.columns.duplicated()]
+        df = df.set_index('Sample_ID')
+        df2 = methylcheck.predict.sex._fetch_actual_sex_from_sample_sheet_meta_data(LOCAL,df)
+        print(df2[['gender','actual_sex','sex_matches']], df2.columns)
+        assert set(list(df2.columns)) & set(['gender','actual_sex','sex_matches']) == set(['gender','actual_sex','sex_matches'])
+        df3 = df.reset_index()
+        with pytest.raises(KeyError) as excinfo:
+            df4 = methylcheck.predict.sex._fetch_actual_sex_from_sample_sheet_meta_data(LOCAL,df3)
+            assert excinfo.value.message == "Could not read actual sex from meta data to compare."

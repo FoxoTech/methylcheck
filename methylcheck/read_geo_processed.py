@@ -25,7 +25,7 @@ try:
     read_geo = methylprep.read_geo
 except ImportError as error:
     # if user doesn't have methylprep installed for the canonical version of this function, import this copy below
-'''
+
 
 def read_geo_v1(filepath, verbose=False, debug=False):
     """VERSION 1.0 DEPRECATED June 2020 for v3, called "read_geo"
@@ -226,7 +226,7 @@ notes:
             print(f"Converted {num_converted} samples from string to float16.")
         print(f"Found {len(samples)} samples and dropped {len(raw.columns) - len(samples)} meta data columns.")
     return df
-
+'''
 
 def read_geo(filepath, verbose=False, debug=False, as_beta=True, column_pattern=None, test_only=False, rename_probe_column=True, decimals=3):
     """Use to load preprocessed GEO data into methylcheck. Attempts to find the sample beta/M_values
