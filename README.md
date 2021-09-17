@@ -52,7 +52,7 @@ You should install all three components, as they work together. The parts includ
 >>> pip install methylcheck
 ```
 
-or if you want to install all three packages at once:
+or if you want to install all three packages at once (recommended):
 ```shell
 >>> pip install methylsuite
 ```
@@ -61,8 +61,8 @@ or if you want to install all three packages at once:
 
 If you are new to DNA methylation analysis, we recommend reading through this [introduction](https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/introduction/introduction.md) from the `methylprep` documentation. Otherwise, you are ready to use `methylcheck` to:
 
-- load processed methylation data
-- filter unreliable probes from your data
-- run array-level quality control reports
-- detect outlier samples
-- predict the sex of human samples
+- [load processed methylation data](docs/loading-data.ipynb)
+- [filter unreliable probes from your data](docs/filtering-probes.ipynb)
+- [run array-level quality control reports](docs/quality-control-example.ipynb)
+- [detect outlier samples]() <!-- LINK TO MDS SECTION -->
+- [predict the sex of human samples](docs/quality-control-example.ipynb#predicting-sex)
