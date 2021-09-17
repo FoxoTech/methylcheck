@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+import fnmatch
 import numpy as np
 import re # for sesame filename extraction
 import pandas as pd
@@ -482,7 +483,7 @@ Arguments:
                            f'{[str(i) for i in meta_files]}')
             meta = pd.read_pickle(meta_files[0])
             if any(meta.columns.duplicated()):
-                meta = meta.loc[:, ~meta.columns.duplicated()]            
+                meta = meta.loc[:, ~meta.columns.duplicated()]
             partial_meta = True
         else:
             meta = pd.concat(frames, axis=0, sort=False)
@@ -805,9 +806,27 @@ def load_sesame(filepath='.',
 def load_all_betas(path):
     """ loads methylprep processed data and returns a single dataframe of all non-control probe betas, similar
     to sesame 3.13+ standard export format. Path should contain all of the pickled output files to merge. """
-    cg = Path(path, 'beta_values.pkl').expanduser()
-    con = Path(path, 'control_probes.pkl').expanduser()
-    mouse = Path(path, 'mouse_probes.pkl').expanduser()
+    extra_files_found = []
+    patterns = {
+        'beta': '*beta_values*.pkl',
+        'con': '*control_probes*.pkl',
+        'mouse': '*mouse_probes*.pkl',
+    }
+    found = [str(file.name) for file in Path(path).rglob(patterns['beta'])]
+    if found:
+        cg = Path(path, found[0]).expanduser()
+    if len(found) > 1:
+        extra_files_found.append(found[1:])
+    found = [str(file.name) for file in Path(path).rglob(patterns['beta'])]
+    if found:
+        con = Path(path, found[0]).expanduser()
+    if len(found) > 1:
+        extra_files_found.append(found[1:])
+    found = [str(file.name) for file in Path(path).rglob(patterns['beta'])]
+    if found:
+        mouse = Path(path, found[0]).expanduser()
+    if len(found) > 1:
+        extra_files_found.append(found[1:])
     if mouse.exists() and mouse.is_file():
         ms = pd.read_pickle(mouse)
     else:
@@ -827,4 +846,6 @@ def load_all_betas(path):
             df3 = pd.DataFrame()
         one_col = pd.concat([df1[[sample]], df2, df3])
         col_data.append(one_col)
+    if extra_files_found:
+        LOGGER.info("Found extra files and ignored them: {extra_files_found}")
     return pd.concat(col_data, axis='columns')

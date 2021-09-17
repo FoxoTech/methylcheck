@@ -18,20 +18,25 @@ pytest-runner = "*"
 pytest-mock = "*"
 coverage = "*"
 nbsphinx = "*"
+sphinx = "*"
 # xlrd = ">=1.0.0" (after Dec 2020 xlsx not supported; use openpyxl)
+sphinxcontrib-apidoc = "*"
+m2r = "*"
+ipykernel = "*"
 
 [packages]
-numpy = "*" # "==1.16.3"
-pandas = ">=1.0.0"
-statsmodels = "==0.9.0"
-scipy = "==1.2.1"
-seaborn = "*"
+numpy = "*"
+pandas = ">=1.2,<1.3.0"
+statsmodels = "*" #"==0.9.0"
+scipy = "*" # "==1.2.1"
 matplotlib = "*"
+seaborn = "*"
 tqdm = "*"
+joblib = "*"
 # scikit-learn = "*" #<--- MDS is embedded in this package, but it will use sklearn if present.
 # methylcheck = {editable = true,extras = ["dev"],path = "."}
 xlsxwriter = "*"
 openpyxl = "*"
 
 [requires]
-python_version = "3.7"
+python_version = "3.8"
