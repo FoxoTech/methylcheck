@@ -587,7 +587,7 @@ notes
                     color_num += 1
                 except IndexError as e:
                     # if the dict passed in doesn't map perfectly to the data, you'll see this error.
-                    LOGGER.error(f"Failed to assign legend group {legend_group} to plot: {e}")
+                    LOGGER.error(f"Failed to assign legend group {legend_group} to plot: {e}; Double check that your labels dict matches the shape of your data exactly.")
             ax.legend(title="Sample Categories")
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX
