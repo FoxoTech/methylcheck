@@ -1,5 +1,6 @@
 import time
 from pathlib import Path
+import fnmatch
 import numpy as np
 import re # for sesame filename extraction
 import pandas as pd
@@ -481,6 +482,8 @@ Arguments:
             LOGGER.warning(f'Columns in sample sheet meta data files does not match for these files and cannot be combined:'
                            f'{[str(i) for i in meta_files]}')
             meta = pd.read_pickle(meta_files[0])
+            if any(meta.columns.duplicated()):
+                meta = meta.loc[:, ~meta.columns.duplicated()]
             partial_meta = True
         else:
             meta = pd.concat(frames, axis=0, sort=False)
@@ -488,6 +491,8 @@ Arguments:
 
     if len(meta_files) == 1:
         meta = pd.read_pickle(meta_files[0])
+        if any(meta.columns.duplicated()):
+            meta = meta.loc[:, ~meta.columns.duplicated()]
     elif multiple_metas:
         if partial_meta:
             LOGGER.info("Multiple meta_data found. Only loading the first file.")
@@ -798,23 +803,48 @@ def load_sesame(filepath='.',
     else:
         LOGGER.info("No sesame files found.")
 
+
+'''
 def load_all_betas(path):
     """ loads methylprep processed data and returns a single dataframe of all non-control probe betas, similar
-    to sesame 3.13+ standard export format. Path should contain all of the pickled output files to merge. """
-    cg = Path(path, 'beta_values.pkl').expanduser()
-    con = Path(path, 'control_probes.pkl').expanduser()
-    mouse = Path(path, 'mouse_probes.pkl').expanduser()
-    if mouse.exists() and mouse.is_file():
-        ms = pd.read_pickle(mouse)
+    to sesame 3.13+ standard export format. Path should contain all of the pickled output files to merge.
+    (combines CpG probes, SNPs, and mouse-experimental probes in on dataframe)
+
+    THIS IS NOT CALLED ANYWHERE"""
+    extra_files_found = []
+    patterns = {
+        'beta': '*beta_values*.pkl',
+        'con': '*control_probes*.pkl',
+        'mouse': '*mouse_probes*.pkl',
+    }
+    foundb = [str(file.name) for file in Path(path).rglob(patterns['beta'])]
+    if foundb:
+        cg = Path(path, foundb[0]).expanduser()
+        df1 = pd.read_pickle(cg)
+    if len(foundb) > 1:
+        extra_files_found.append(foundb[1:])
+
+    foundc = [str(file.name) for file in Path(path).rglob(patterns['con'])]
+    if foundc:
+        con = Path(path, foundc[0]).expanduser()
+        dfcon = pd.read_pickle(con) # a list of dicts
+    if len(foundc) > 1:
+        extra_files_found.append(foundc[1:])
+
+    foundm = [str(file.name) for file in Path(path).rglob(patterns['mouse'])]
+    if foundm:
+        mouse = Path(path, foundm[0]).expanduser()
+        if mouse.exists() and mouse.is_file():
+            ms = pd.read_pickle(mouse)
     else:
         ms = None
-    if cg.exists() and con.exists():
-        df1 = pd.read_pickle(cg)
-        dfcon = pd.read_pickle(con) # a list of dicts
+    if len(foundm) > 1:
+        extra_files_found.append(foundm[1:])
+
     samples = list(df1.columns)
     col_data = []
     for sample in samples:
-        df2 = dfcon[sample].loc[ ~mcon.snp_beta.isna() ][['snp_beta']]
+        df2 = dfcon[sample].loc[ ~dfcon[sample]['snp_beta'].isna() ][['snp_beta']]
         df2 = df2.rename(columns={'snp_beta':sample})
         if isinstance(ms, dict):
             df3 = ms[sample][['beta_value']]
@@ -823,4 +853,7 @@ def load_all_betas(path):
             df3 = pd.DataFrame()
         one_col = pd.concat([df1[[sample]], df2, df3])
         col_data.append(one_col)
+    if extra_files_found:
+        LOGGER.info("Found extra files and ignored them: {extra_files_found}")
     return pd.concat(col_data, axis='columns')
+'''

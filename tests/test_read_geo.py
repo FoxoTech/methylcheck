@@ -68,3 +68,14 @@ class TestReadGeo():
             df = methylcheck.read_geo(Path(TESTPATH,infile), verbose=False)
             if not hasattr(df,'shape'):
                 raise AssertionError(f"[TXT] {infile} failed to return a dataframe")
+
+
+    def test_read_series_matrix(self):
+        test_file = Path('docs/example_data/GSE158089/test_series_matrix.txt')
+        data = methylcheck.read_geo_processed.read_series_matrix(test_file, include_headers_df=True)
+        if  data['df'].shape != (6, 14):
+            raise AssertionError("dummy data mismatch data['df']")
+        if len(data['series_dict']) != 26:
+            raise AssertionError("dummy data mismatch data['series_dict']")
+        if data['headers_df'].shape != (34, 14):
+            raise AssertionError("dummy data mismatch data['headers_df']")

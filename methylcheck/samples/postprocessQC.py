@@ -580,10 +580,14 @@ notes
             ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, c=COLORSET.get(color_num,'black'))
             color_num = 0
             for legend_group in legend_order:
-                this_x = mds_transformed[color_lookup[legend_group], 0]
-                this_y = mds_transformed[color_lookup[legend_group], 1]
-                ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num,'black'), label=legend_group)
-                color_num += 1
+                try:
+                    this_x = mds_transformed[color_lookup[legend_group], 0]
+                    this_y = mds_transformed[color_lookup[legend_group], 1]
+                    ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num,'black'), label=legend_group)
+                    color_num += 1
+                except IndexError as e:
+                    # if the dict passed in doesn't map perfectly to the data, you'll see this error.
+                    LOGGER.error(f"Failed to assign legend group {legend_group} to plot: {e}")
             ax.legend(title="Sample Categories")
 
         x_range_min = PSF*old_X_range[0] if PSF*old_X_range[0] < minX else PSF*minX

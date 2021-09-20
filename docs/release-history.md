@@ -18,6 +18,10 @@
 - plot_M_vs_U now loads the noob_meth_values.pkl files if noob=True and files are found; otherwise it uses whatever meth/unmeth data is available.
 - Methylcheck.qc_plot.qc_signal_intensity returns a dictionary of data about good/bad samples based on signal intensity.
   Previously it was only returning this if 'plot' was False.
+- BeadArray controls bug fixed: methylprep was producing samplesheet meta data pickles that contained Sample_ID twice,
+  because the GEO series_matrix files had this data appear twice. This broke the report, but this case is caught and avoided now.
+  BeadArray will recognize a wider array of samplesheet filenames now; anything with 'samplesheet' or 'meta_data' in the filename.
+
 
 ## v0.7.5
 - added 'methylcheck report' CLI option to create a ReportPDF

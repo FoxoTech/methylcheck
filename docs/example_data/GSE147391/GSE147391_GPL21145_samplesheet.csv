@@ -1,0 +1,17 @@
+GSM_ID,Sample_Name,Sentrix_ID,Sentrix_Position,source,histological diagnosis,gender,description,Sample_ID
+GSM4429896,Grade II rep1,203175700025,R01C01,Resected glioma,Diffuse astrocytoma (II),Female,Glioma,203175700025_R01C01
+GSM4429897,Grade II rep2,203175700025,R02C01,Resected glioma,Diffuse astrocytoma (II),Male,Glioma,203175700025_R02C01
+GSM4429898,Grade II rep3,203163220027,R01C01,Resected glioma,Diffuse astrocytoma (II),Female,Glioma,203163220027_R01C01
+GSM4429899,Grade III rep1,203163220027,R02C01,Resected glioma,Anaplastic astrocytoma (III),Male,Glioma,203163220027_R02C01
+GSM4429900,Grade II rep4,203175700025,R05C01,Resected glioma,Oligodendroglioma (II),Female,Glioma,203175700025_R05C01
+GSM4429901,Grade II rep5,203175700025,R06C01,Resected glioma,Oligodendroglioma (II),Male,Glioma,203175700025_R06C01
+GSM4429902,Grade II rep6,203163220027,R05C01,Resected glioma,Oligodendroglioma (II),Male,Glioma,203163220027_R05C01
+GSM4429903,Grade III rep2,203163220027,R06C01,Resected glioma,Anaplastic oligodendroglioma (III),Male,Glioma,203163220027_R06C01
+GSM4429904,Grade IV rep1,203175700025,R03C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203175700025_R03C01
+GSM4429905,Grade IV rep2,203175700025,R04C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203175700025_R04C01
+GSM4429906,Grade IV rep3,203175700025,R07C01,Resected glioma,Glioblastoma (IV),Male,Glioma,203175700025_R07C01
+GSM4429907,Grade IV rep4,203175700025,R08C01,Resected glioma,Glioblastoma (IV),Male,Glioma,203175700025_R08C01
+GSM4429908,Grade IV rep5,203163220027,R03C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203163220027_R03C01
+GSM4429909,Grade IV rep6,203163220027,R07C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203163220027_R07C01
+GSM4429910,Grade IV rep7,203163220027,R08C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203163220027_R08C01
+GSM4429911,Grade IV rep8,203163220027,R04C01,Resected glioma,Glioblastoma (IV),Female,Glioma,203163220027_R04C01

@@ -43,7 +43,7 @@ setup(
         'seaborn',
         'tqdm',
         'joblib', # used by MDS only
-        'sklearn', # used by MDS only
+        'scikit-learn', # used by MDS only
         'xlsxwriter', # bead array
         'openpyxl', # pandas xlsx support changed to use this
     ],

@@ -102,7 +102,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             data_containers=data_source, path=None,
             compare=False, noob=False, verbose=False)
 
-    elif data_source_type is 'meth_unmeth_tuple':
+    elif data_source_type == 'meth_unmeth_tuple':
         (meth, unmeth) = data_source
 
     if len(meth) != len(unmeth):
@@ -120,7 +120,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     if verbose:
         LOGGER.debug(array_type)
     LOGGER.setLevel(logging.WARNING)
-    manifest = Manifest(array_type, on_lambda=on_lambda)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
+    manifest = Manifest(array_type, on_lambda=on_lambda, verbose=verbose)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
     LOGGER.setLevel(logging.INFO)
     x_probes = manifest.index[manifest['CHR']=='X']
     y_probes = manifest.index[manifest['CHR']=='Y']
@@ -314,6 +314,10 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                 loaded_files['meta'] = pd.read_csv(filename)
                 break
     if len(loaded_files) == 1:
+        # methylprep v1.5.4-6 was creating meta_data files with two Sample_ID columns. Check and fix here:
+        if any(loaded_files['meta'].columns.duplicated()):
+            loaded_files['meta'] = loaded_files['meta'].loc[:, ~loaded_files['meta'].columns.duplicated()]
+            LOGGER.info("Removed a duplicate Sample_ID column in samplesheet")
         if 'Sample_ID' in loaded_files['meta'].columns:
             loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
         elif 'Sentrix_ID' in loaded_files['meta'].columns and 'Sentrix_Position' in loaded_files['meta'].columns:
@@ -338,6 +342,7 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
         if renamed_column is not None:
             # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; beadarray does NOT do this step, but should.
             sex_values = set(loaded_files['meta'][renamed_column].unique())
+            #print('sex_values', sex_values)
             if not sex_values.issubset(set(['M','F'])): # subset, because samples might only contain one sex
                 if 'Male' in sex_values and 'Female' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'Male':'M', 'Female':'F'})
@@ -349,18 +354,22 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'m':'M', 'f':'F'})
                 else:
                     raise ValueError(f"Cannot compare with predicted sex because actual sexes listed in your samplesheet are not M or F: (found {sex_values})")
-
             output['actual_sex'] = None
             output['sex_matches'] = None
             for row in output.itertuples():
                 try:
                     actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
                 except KeyError:
+                    if 'Sample_ID' in output.columns:
+                        LOGGER.warning("Sample_ID was another column in your output DataFrame; Set that to the index when you pass it in.")
                     raise KeyError("Could not read actual sex from meta data to compare.")
                 if isinstance(actual_sex, pd.Series):
                     LOGGER.warning(f"Multiple samples matched actual sex for {row.Index}, because Sample_ID repeats in sample sheets. Only using first match, so matches may not be accurate.")
                     actual_sex = actual_sex[0]
-                sex_matches = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
+                if hasattr(row,'predicted_sex'):
+                    sex_matches = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
+                else:
+                    sex_matches = np.nan
                 output.loc[row.Index, 'actual_sex'] = actual_sex
                 output.loc[row.Index, 'sex_matches'] = sex_matches
         else:
