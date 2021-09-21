@@ -960,14 +960,25 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
         oobG_mask = set([probe.split('_')[0] for probe in oobG_mask]) # these probe names have extra crap on end
         meth = meth.rename(index=lambda x: x.split('_')[0])
 
-    from importlib import resources # py3.7+
+    try:
+        from importlib import resources # py3.7+
+    except ImportError:
+        import pkg_resources
     pkg_namespace = 'methylcheck.data_files'
-    with resources.path(pkg_namespace, f'{array_type}_extC.csv') as probe_filepath:
+    try:
+        with resources.path(pkg_namespace, f'{array_type}_extC.csv') as probe_filepath:
+            ext_C_probes = pd.read_csv(probe_filepath)
+            ext_C_probes = ext_C_probes['x'].values # simple, flat list of probe cgXXX names
+        with resources.path(pkg_namespace, f'{array_type}_extT.csv') as probe_filepath:
+            ext_T_probes = pd.read_csv(probe_filepath)
+            ext_T_probes = ext_T_probes['x'].values
+    except:
+        probe_filepath = pkg_resources.resource_filename(pkg_namespace, f'{array_type}_extC.csv')
         ext_C_probes = pd.read_csv(probe_filepath)
         ext_C_probes = ext_C_probes['x'].values # simple, flat list of probe cgXXX names
-    with resources.path(pkg_namespace, f'{array_type}_extT.csv') as probe_filepath:
+        probe_filepath = pkg_resources.resource_filename(pkg_namespace, f'{array_type}_extT.csv')
         ext_T_probes = pd.read_csv(probe_filepath)
-        ext_T_probes = ext_T_probes['x'].values
+        ext_T_probes = ext_T_probes['x'].values        
     ext_C = set(ext_C_probes).intersection(oobG_mask)
     ext_T = set(ext_T_probes).intersection(oobG_mask)
     # GCT: mean (C) / mean (T), after removing NaNs

@@ -4,7 +4,10 @@ import fnmatch
 import numpy as np
 import re # for sesame filename extraction
 import pandas as pd
-from importlib import resources # py3.7+
+try:
+    from importlib import resources # py >= 3.7
+except ImportError: # py < 3.7
+    import pkg_resources
 #app
 from .progress_bar import * # context tqdm
 
@@ -123,7 +126,11 @@ Use cases and format:
     poobah_parts = []
     #1c: import meta data
     PROBE_FILE = 'illumina_sketchy_probes_996.npy'
-    with resources.path(pkg_namespace, PROBE_FILE) as probe_filepath:
+    try:
+        with resources.path(pkg_namespace, PROBE_FILE) as probe_filepath:
+            sketchy_probes = np.load(probe_filepath)
+    except:
+        probe_filepath = pkg_resources.resource_filename(pkg_namespace, PROBE_FILE)
         sketchy_probes = np.load(probe_filepath)
 
     #2a: return some simpler data formats, before trying betas/m_values and processed_csvs.

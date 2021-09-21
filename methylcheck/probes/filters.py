@@ -1,6 +1,9 @@
 # -*- coding: utf-8 -*-
-#import pkg_resources
-from importlib import resources # py3.7+
+try:
+    from importlib import resources # py3.7+
+except ImportError:
+    import pkg_resources #py < 3.7
+
 import numpy as np
 import pandas as pd
 # app
@@ -13,7 +16,11 @@ LOGGER = logging.getLogger(__name__)
 #LOGGER.setLevel(logging.DEBUG)
 pkg_namespace = 'methylcheck.data_files'
 
-with resources.path(pkg_namespace, 'illumina_sketchy_probes_996.npy') as probe_filepath:
+try:
+    with resources.path(pkg_namespace, 'illumina_sketchy_probes_996.npy') as probe_filepath:
+        illumina_sketchy_probes = np.load(probe_filepath)
+except:
+    probe_filepath = pkg_resources.resource_filename(pkg_namespace, 'illumina_sketchy_probes_996.npy')
     illumina_sketchy_probes = np.load(probe_filepath)
 # "If the first 8 numbers of Sentrix_ID (i.e. xxxxxxxx0001) are greater or equal to 20422033,
 # then the BeadChip originates from production batches using the new manufacturing process."
@@ -37,8 +44,12 @@ def _import_probe_filter_list(array):
     else:
         raise ValueError(f"Did not recognize array type {array}. Please specify 'IlluminaHumanMethylation450k' or 'IlluminaHumanMethylationEPIC'.")
         return
-    with resources.path(pkg_namespace, filename) as filepath:
-        filter_options = pd.read_csv(filepath)
+    try:
+        with resources.path(pkg_namespace, filename) as probe_filepath:
+            filter_options = pd.read_csv(probe_filepath)
+    except:
+        probe_filepath = pkg_resources.resource_filename(pkg_namespace, PROBE_FILE)
+        filter_options = pd.read_csv(probe_filepath)
     return filter_options
 
 def _import_probe_exclusion_list(array, _type):
@@ -289,9 +300,12 @@ def problem_probe_reasons(array, criteria=None):
             filename = '450k_Sesame.txt.gz'
         elif array in ('IlluminaHumanMethylationEPIC', 'EPIC', 'EPIC+', 'epic', 'epic+'):
             filename = 'EPIC_Sesame.txt.gz'
-        with resources.path(pkg_namespace, filename) as this_filepath:
+        try:
+            with resources.path(pkg_namespace, filename) as this_filepath:
+                sesame = pd.read_csv(this_filepath, header=None)[0] # Series / list
+        except:
+            this_filepath = pkg_resources.resource_filename(pkg_namespace, filename)
             sesame = pd.read_csv(this_filepath, header=None)[0] # Series / list
-
     if type(criteria) == str:
         criteria = [criteria]
 
