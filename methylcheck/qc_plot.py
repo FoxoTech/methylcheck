@@ -188,7 +188,8 @@ TODO:
             # edge case where meth/unmeth medians loses sample sentrix_ids, but poobah pkl retains them - proceed with merging assuming order is retained
             tempA = medians.reset_index(drop=True)
             tempB = percent_failures_hues.reset_index(drop=True)
-            qc = pd.merge(left=tempA,right=tempB,left_on=tempA.index,right_on=tempB.index,how='inner')
+            #qc = pd.merge(left=tempA,right=tempB,left_on=tempA.index,right_on=tempB.index,how='inner')
+            qc = pd.concat([tempA, tempB], axis='columns') # pandas 1.3x needs this. Above .merge fails when inner-joining on range-indeces.
         hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
         this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
             palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
@@ -978,7 +979,7 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
         ext_C_probes = ext_C_probes['x'].values # simple, flat list of probe cgXXX names
         probe_filepath = pkg_resources.resource_filename(pkg_namespace, f'{array_type}_extT.csv')
         ext_T_probes = pd.read_csv(probe_filepath)
-        ext_T_probes = ext_T_probes['x'].values        
+        ext_T_probes = ext_T_probes['x'].values
     ext_C = set(ext_C_probes).intersection(oobG_mask)
     ext_T = set(ext_T_probes).intersection(oobG_mask)
     # GCT: mean (C) / mean (T), after removing NaNs
