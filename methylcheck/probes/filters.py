@@ -211,9 +211,9 @@ SESAME probe exclusion lists were pulled using these R commands:
     post_overlap = len(set(array_probes) & set(probe_list))
 
     if pre_overlap != post_overlap:
-        print("matching probes: {0} vs {1} after name fix, yielding {2} probes.".format(pre_overlap, post_overlap, len(df)-post_overlap))
+        print(f"matching probes: {pre_overlap} vs {post_overlap} after name fix, yielding {len(df)-post_overlap} probes.")
     else:
-        print("Of {len(df.index)} probes, {post_overlap} matched, yielding {len(df.index)-post_overlap} probes after filtering.")
+        print(f"Of {len(df.index)} probes, {post_overlap} matched, yielding {len(df.index)-post_overlap} probes after filtering.")
     if post_overlap >= pre_overlap:
         # match which probes to drop from array.
         array_probes_lookup = {str(probe).split('_')[0]: probe for probe in list(ARRAY)}

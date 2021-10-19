@@ -26,7 +26,7 @@ author = 'FOXO Technologies, inc.'
 # The short X.Y version
 version = '0.7'
 # The full version, including alpha/beta/rc tags
-release = '0.7.4'
+release = '0.7.6'
 
 
 # -- General configuration ---------------------------------------------------
@@ -45,6 +45,8 @@ extensions = [
     'nbsphinx',
     'sphinx.ext.autosummary'
 ]
+
+autosummary_generate = True # new in sphinx 3.1 2020
 
 # instead of CLI "sphinx-autodoc . _build/html" you write this
 apidoc_module_dir = '.'
@@ -96,7 +98,7 @@ html_theme =  'sphinx_rtd_theme' #'alabaster'
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_sphinx_static']
+# html_static_path = ['_sphinx_static']
 
 # Custom sidebar templates, must be a dictionary that maps document names
 # to template names.
@@ -161,9 +163,11 @@ man_pages = [
 #  dir menu entry, description, category)
 texinfo_documents = [
     (master_doc, 'methylcheck', 'methylcheck Documentation',
-     author, 'methylcheck', 'One line description of project.',
+     author, 'methylcheck', 'Methylation array quality control and filtering.',
      'Miscellaneous'),
 ]
 
 
 # -- Extension configuration -------------------------------------------------
+
+# numpydoc_show_class_members = False
