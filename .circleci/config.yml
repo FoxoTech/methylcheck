@@ -8,34 +8,32 @@ jobs:
       - run: sudo chown -R circleci:circleci /usr/local/bin
       - run: sudo chown -R circleci:circleci /usr/local/lib/python3.8/site-packages
       - restore_cache:
+          # projectname can be anything, so long as it matches save_cache below.
           key: deps0-{{ .Branch }}-{{ checksum "requirements.txt" }}
       - run:
           command: |
             pip3 install pipenv
-            # BRANCH specific testing of methylprep:
-            # pipenv install -e git+https://github.com/FoxoTech/methylprep.git@feature/v1.4.0-bugs#egg=methylprep --skip-lock
             pipenv install -e .[dev] --skip-lock
             pipenv graph
-            # This ^^^ installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
-            # pytest recommends this: install your package in "editable" mode by running this from the same directory.
+            # The -e .[dev] installs all the regular required packages and those listed in the dev section of `extras_require` in setup.py.
       - save_cache:
-          key: deps1-{{ .Branch }}-{{ checksum "requirements.txt" }}
+          key: deps0-{{ .Branch }}-{{ checksum "requirements.txt" }}
           paths:
             - ".venv"
             - "/usr/local/bin"
             - "/usr/local/lib/python3.8/site-packages"
       - run:
           name: Running tests
+          #pipenv install methylprep --skip-lock
           command: |
-            pipenv install methylprep --skip-lock
             pipenv install coveralls --skip-lock
             pipenv run coverage run setup.py test
       - run:
           name: Coverage
-          command: |
-            # pipenv run pytest tests --junit-xml=htmlcov/junit.xml # rerun tests to collect test-results | see setup.cfg
-            pipenv run coverage report
-            pipenv run coverage html
+          # pipenv run pytest tests --junit-xml=htmlcov/junit.xml # rerun tests to collect test-results | see setup.cfg
+          command: |            
+            pipenv run coverage report -i
+            pipenv run coverage html -i
             pipenv run coveralls # -- pushes report to coveralls.io
       - store_test_results:
           path: htmlcov

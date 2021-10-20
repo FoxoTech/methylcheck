@@ -37,7 +37,7 @@ setup(
     include_package_data=True,
     install_requires=[
         'numpy',
-        'pandas>=1.2.0,<1.3.0',
+        'pandas >=1.3.0',
         'statsmodels',
         'matplotlib',
         'seaborn',

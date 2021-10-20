@@ -625,6 +625,9 @@ target removal
                 # and mouse is not supported...
 
         row.update({k['col']:k['val'] for k in self.data[sample]})
+        # DEBUG: everything is rounding OKAY at this point
+        #if any([ (len(str(v).split(".")[1]) if '.' in str(v) else 0) > self.roundoff for k,v in row.items()]):
+        #    print('ERROR', [len(str(v).split(".")[1]) if '.' in str(v) else 0 for k,v in row.items()] )
         self.report.append(row) # this is converted to excel sheet, but self.data is used to format the data in save()
         self.formulas.update( {k['col']:k['formula'] for k in list(self.data.values())[0]} )
         # process() adds predicted sex and result column
@@ -778,7 +781,7 @@ target removal
         # fetch the folder parent name and append to file (usually this is the project name)
         project_name = Path(self.filepath).resolve().name
         writer = pd.ExcelWriter(Path(self.outfilepath, f"{project_name}_QC_Report.xlsx"), engine='xlsxwriter')
-        report_df= pd.DataFrame(self.report)
+        report_df= pd.DataFrame(self.report) #<---- here in pandas 1.3x the decimal places get messed up.
         report_df = report_df.round(self.roundoff)
         report_df.to_excel(writer, sheet_name='QC_REPORT', startcol=0, startrow=(2 if not self.legacy else 1), header=False, index=False)
         # Get the xlsxwriter objects from the dataframe writer object.
