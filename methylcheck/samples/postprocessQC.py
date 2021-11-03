@@ -3,6 +3,7 @@
 import logging
 import os
 import datetime
+from itertools import cycle
 
 # package
 import pandas as pd
@@ -10,6 +11,7 @@ import numpy as np
 import seaborn as sns
 import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+from matplotlib.cm import get_cmap
 from pathlib import Path
 
 # because sklearn is a HUGE library and we're only using a single function from it,
@@ -295,7 +297,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette="spectral", labels=None):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette=None, labels=None):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
@@ -529,7 +531,18 @@ notes
             [(0.275191, 0.194905, 0.496005), (0.212395, 0.359683, 0.55171), (0.153364, 0.497, 0.557724), (0.122312, 0.633153, 0.530398), (0.288921, 0.758394, 0.428426), (0.626579, 0.854645, 0.223353)]
         ))
         }
-        sb_palette = poobah_palettes.get(palette, poobah_palettes.get("magma"))
+        # good options: gist_earth_r, CMRmap_r, coolwarm, hot_r, nipy_spectral
+        if palette is not None and palette not in poobah_palettes:
+            try:
+                sb_palette = {}
+                linear_segmented_cmap = get_cmap(palette)
+                for i in range(7):
+                    sb_palette[i] = linear_segmented_cmap((i+1)/8.0) # adding 1 because zero-end can be all white in some palettes
+            except ValueError:
+                LOGGER.warning(f"{palette} not a valid seaborn/matplotlib colormap name, defaulting to 'magma'.")
+                sb_palette = poobah_palettes.get("magma")
+        else:
+            sb_palette = poobah_palettes.get(palette, poobah_palettes.get("magma"))
 
         if multi_params.get('fig') == None:
             fig = plt.figure(figsize=(12, 9))
@@ -560,7 +573,7 @@ notes
             for legend_group in legend_order:
                 this_x = mds_transformed[color_lookup[legend_group], 0]
                 this_y = mds_transformed[color_lookup[legend_group], 1]
-                ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num,'black'), label=legend_group)
+                ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num, 'black'), label=legend_group)
                 color_num += 1
             ax.legend(title="p-value failure (%)")
         else:

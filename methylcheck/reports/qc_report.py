@@ -262,6 +262,8 @@ kwargs:
   - qc_signal_intensity
   - controls (A batter of ported Genome Studio plots)
   - probe_types
+- customizing plots
+  - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
 
 --------------
 custom tables:
@@ -377,6 +379,8 @@ Pre-processing pipeline:
             LOGGER.info(f"Found custom_tables and inserted into order: {self.order}")
             #LOGGER.info(self.custom)
 
+        self.poobah_colormap = kwargs.get('poobah_colormap', None)
+
         if self.__dict__.get('runme') == True:
             self.run_qc()
             self.pdf.close()
@@ -458,20 +462,9 @@ Pre-processing pipeline:
         except FileNotFoundError:
             raise FileNotFoundError("Could not load pickle files")
 
-        '''
-        self.functions = { # NOT USED --  needed to provide different conditions for each function below. #
-            'detection_poobah': detection_poobah,
-            'mds': methylcheck.beta_mds_plot,
-            'auto_qc': None,
-            'beta_density_plot': methylcheck.beta_density_plot,
-            'M_vs_U': methylcheck.plot_M_vs_U,
-            'controls': methylcheck.plot_controls,
-            'qc_signal_intensity': methylcheck.qc_signal_intensity,
-        }
-        '''
         if 'mds' in self.tests and len(beta_df.columns) > 1:
             # some things must be calculated ahead of time, because used twice
-            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
+            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True}, palette=self.poobah_colormap)
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
             print(mds_passing)
             include_mds = True

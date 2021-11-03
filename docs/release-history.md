@@ -1,5 +1,11 @@
 # Release History
 
+## v0.7.8
+- beta_mds_plot `palette` can now be any matplotlib colormap name. Defaults to 'magma' if not specified. The palette
+is only used to color-code poobah failure rates, if the poobah file path is specified.
+- ReportPDF accepts 'poobah_colormap' kwarg to feed in beta_mds_plot colormap.
+- ReportPDF custom tables: You can insert your custom table on the first page by specifying 'order_after' == None.
+
 ## v0.7.6
 - Reading IDATs loading bar didn't work correctly, showed up after loading.
 - Fixed error/logging messages:
