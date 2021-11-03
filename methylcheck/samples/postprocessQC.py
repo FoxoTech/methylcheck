@@ -536,8 +536,9 @@ Notes
             try:
                 sb_palette = {}
                 linear_segmented_cmap = get_cmap(palette)
-                for i in range(7):
-                    sb_palette[i] = linear_segmented_cmap((i+1)/8.0) # adding 1 because zero-end can be all white in some palettes
+                N_colors = 7 if extend_poobah_range else 5
+                for i in range(N_colors):
+                    sb_palette[i] = linear_segmented_cmap((i+1)/float(N_colors+1)) # adding 1 to N fixes colors, because zero-end can be all white in some palettes
             except ValueError:
                 LOGGER.warning(f"{palette} not a valid seaborn/matplotlib colormap name, defaulting to 'magma'.")
                 sb_palette = poobah_palettes.get("magma")
@@ -718,7 +719,7 @@ def _add_poobah(poobah, extended=True):
         percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
         legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
     else:
-        percent_failures_hues.where(~(percent_failures_hues > 20), 6, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 20), 4, inplace=True)
         percent_failures_hues = percent_failures_hues.astype(int)
         percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'>20'})
         legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','>20']
