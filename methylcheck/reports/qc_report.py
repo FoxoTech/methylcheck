@@ -219,57 +219,52 @@ def detection_poobah(poobah_df, pval_cutoff=0.05):
 class ReportPDF:
     """ReportPDF allows you to build custom QC reports.
 
--------
 To use:
--------
 
-- First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
-- Next, run ```myReport.run_qc()`` to fill it in.
-- Third, you must run ``myReport.pdf.close()`` after ``run_qc()`` to save the file to disk.
-- You can supply kwargs to specify which QC plots to include
-  - and supply a list of chart names to control the order of objects in the report.
-  - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
-  - You may pass in a custom table to override one of the built-in pages.
-- include 'path' with the path to your processed pickle files.
-- include an optional 'outpath' for where to save the pdf report.
+    - First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
+    - Next, run ```myReport.run_qc()`` to fill it in.
+    - Third, you must run ``myReport.pdf.close()`` after ``run_qc()`` to save the file to disk.
+    - You can supply kwargs to specify which QC plots to include
+      - and supply a list of chart names to control the order of objects in the report.
+      - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
+      - You may pass in a custom table to override one of the built-in pages.
+    - include 'path' with the path to your processed pickle files.
+    - include an optional 'outpath' for where to save the pdf report.
 
--------
 kwargs:
--------
 
-- processing params
-  - filename
-  - poobah_min_percent (e.g. at least 80% of probes must pass for sample to pass)
-  - pval_cutoff (e.g. set alpha at 0.05)
-  - outpath
-  - path
-  - runme: Default is not to actually generate all the parts of PDF with report.run_qc() then report.pdf.close(), but setting this to True will do everything at once.
-- front page text
-  - title
-  - author
-  - subject
-  - keywords
-- if 'debug=True' is in kwargs,
-  - then it will return a report without any parts that failed.
-- tests
-  - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
-  - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
-  - mds: performs multidimensional scaling to identify and report on sample outliers
-- plots
-  - beta_density_plot
-  - M_vs_U (default False)
-  - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
-  - qc_signal_intensity
-  - controls (A batter of ported Genome Studio plots)
-  - probe_types
-- customizing plots
-  - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
+    - processing params
+      - filename
+      - poobah_min_percent (e.g. at least 80% of probes must pass for sample to pass)
+      - pval_cutoff (e.g. set alpha at 0.05)
+      - outpath
+      - path
+      - runme: Default is not to actually generate all the parts of PDF with report.run_qc() then report.pdf.close(), but setting this to True will do everything at once.
+    - front page text
+      - title
+      - author
+      - subject
+      - keywords
+    - if 'debug=True' is in kwargs,
+      - then it will return a report without any parts that failed.
+    - tests
+      - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
+      - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
+      - mds: performs multidimensional scaling to identify and report on sample outliers
+    - plots
+      - beta_density_plot
+      - M_vs_U (default False)
+      - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
+      - qc_signal_intensity
+      - controls (A batter of ported Genome Studio plots)
+      - probe_types
+    - customizing plots
+      - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
+      - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
 
---------------
 custom tables:
---------------
 
-pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
+    pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
 
 ```python
 custom_tables=[
@@ -290,9 +285,7 @@ If there are multiple custom tables and all have 'order_after' set to None, the 
 in the list gets inserted, then the next one, sequentially, so that the last table inserted
 will be the first table to appear.
 
-------------------------
 Pre-processing pipeline:
-------------------------
 
     Probe-level (w/explanations of suggested exclusions)
         - Links to recommended probe exclusion lists/files/papers
@@ -380,6 +373,7 @@ Pre-processing pipeline:
             #LOGGER.info(self.custom)
 
         self.poobah_colormap = kwargs.get('poobah_colormap', None)
+        self.extend_poobah_range = kwargs.get('extend_poobah_range', False)
 
         if self.__dict__.get('runme') == True:
             self.run_qc()
@@ -464,7 +458,7 @@ Pre-processing pipeline:
 
         if 'mds' in self.tests and len(beta_df.columns) > 1:
             # some things must be calculated ahead of time, because used twice
-            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True}, palette=self.poobah_colormap)
+            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True}, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
             print(mds_passing)
             include_mds = True

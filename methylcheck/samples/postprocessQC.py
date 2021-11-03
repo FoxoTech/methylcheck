@@ -297,11 +297,11 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
     return df.drop(outliers, axis=0)
 
 
-def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False, nafill='quick', poobah=None, palette=None, labels=None):
+def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False,
+    nafill='quick', poobah=None, palette=None, labels=None, extend_poobah_range=False):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
----------
 
     ``df``:
         dataframe of beta values for a batch of samples (rows are probes; cols are samples)
@@ -310,6 +310,22 @@ Arguments
         the fraction of samples to include, based on the standard deviation of this batch of samples.
         So using the default value of 1.5 means that all samples whose MDS-transformed beta sort_values
         are within +/- 1.5 standard deviations of the average beta are retained in the data returned.
+    ``plot_removed``:
+        if True, displays a plot of samples' beta-distributions that were removed by MDS filtering.
+        ignored if silent=True.
+    ``nafill``: ('quick' | 'impute')
+        by default, most samples will contain missing values where probes failed the signal-noise detection
+        in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
+        with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
+    ``poobah``:
+        path to poobah_values.pkl file. Default is None. If supplied, this will color code dots according to
+        percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
+    ``labels``:
+        pass in a dictionary with sample names found in ``df`` columns and a (number or string) representing the groups to assign samples to.
+        Use this to color-code the samples against a known classification scheme, such as cell type, and observe whether the MDS clustering
+        pattern aligns with this input parameter. This feature is not compatible with ``poobah`` or ``multi_params``.
+    ``extend_poobah_range``:
+        True means 7 colors appear covering 0-30%. False means 5 colors and 0-20%. Default is True.
     ``multi_params``:
         is a dict, passed into this function from a multi-compare-MDS wrapper function, containing:
         {return_plot_obj=True,
@@ -319,21 +335,8 @@ Arguments
         xy_lim=None,
         color_num=0,
         PSF=1.2 -- plot scale factor (margin beyond points to display)}
-    ``plot_removed``:
-        if True, displays a plot of samples' beta-distributions that were removed by MDS filtering.
-        ignored if silent=True.
-    ``nafill``: ('quick' | 'impute')
-        by default, most samples will contain missing values where probes failed the signal-noise detection
-        in methylprep. By default, it will use the fastest method of filling in samples from adjacent sample's probe values
-        with the 'quick' method. Or, if you want it to use the average value for all samples for each probe, use 'impute', which will be much slower.
-    ``poobah``: path to poobah_values.pkl file. Default is None. If supplied, this will color code dots according to
-        percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
-    ``labels``: pass in a dictionary with sample names found in ``df`` columns and a (number or string) representing the groups to assign samples to.
-        Use this to color-code the samples against a known classification scheme, such as cell type, and observe whether the MDS clustering
-        pattern aligns with this input parameter. This feature is not compatible with ``poobah`` or ``multi_params``.
 
 Options
---------
 
     ``verbose``:
         If True, provides additional messages
@@ -343,18 +346,15 @@ Options
         - In this case, whatever `filter_stdev` you assign is the final value, and a file will be processed with that param.
         - Silent also suppresses plots (images) from being generated. only files are returned.
 
-returns
--------
+Returns
 
     Returns a filtered dataframe. If ``return_plot_obj`` is True, it returns the plot, for making overlays in ``methylize``.
 
-requires
---------
+Requires
 
     pandas, numpy, pyplot, sklearn.manifold.MDS
 
-notes
------
+Notes
 
     this will remove probes from ALL samples in batch from consideration if any samples contain NaN (missing values) for that probe.
 
@@ -562,7 +562,7 @@ notes
             ax = multi_params.get('ax')
 
         if isinstance(poobah, pd.DataFrame):
-            percent_failures_hues, legend_order = _add_poobah(poobah)
+            percent_failures_hues, legend_order = _add_poobah(poobah, extended=extend_poobah_range)
             poobah_color_lookup = list(enumerate(percent_failures_hues)) # list of tuples with (0, '5 to 10') data. numbers should match md2
             color_lookup = {legend_group:[] for legend_group in legend_order}
             for N,legend_group in poobah_color_lookup:
@@ -696,8 +696,10 @@ notes
     return df_out
 
 
-def _add_poobah(poobah):
-    """ used by beta_MDS_plot """
+def _add_poobah(poobah, extended=True):
+    """ used by beta_MDS_plot to categorize poobah failure ranges for colormap.
+    - Default returns 7 groups (0-30%). But 5 groups (0-20%) also an option with 'extended=False'.
+    - Returns: a df with sample names in index and failure % in a column. """
     #if poobah.isna().sum().sum() > 0:
     #    LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
     # this happens normally with qualityMask True
@@ -708,16 +710,19 @@ def _add_poobah(poobah):
     percent_failures_hues.where(~percent_failures_hues.between(5,10), 1, inplace=True)
     percent_failures_hues.where(~percent_failures_hues.between(10,15), 2, inplace=True)
     percent_failures_hues.where(~percent_failures_hues.between(15,20), 3, inplace=True)
-    percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
-    percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
-    percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
-    percent_failures_hues = percent_failures_hues.astype(int)
-    percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
-    legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
-    #hues_palette = sb.color_palette("twilight", n_colors=7, desat=0.8) if palette is None else sb.color_palette(palette, n_colors=7, desat=0.8)
-    #this = sb.scatterplot(data=qc, x="mMed", y="uMed", hue="probe_failure_(%)",
-    #    palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
-    return percent_failures_hues, legend_order # a df with sample names in index and failure % in a column.
+    if extended:
+        percent_failures_hues.where(~percent_failures_hues.between(20,25), 4, inplace=True)
+        percent_failures_hues.where(~percent_failures_hues.between(25,30), 5, inplace=True)
+        percent_failures_hues.where(~(percent_failures_hues > 30), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'20 to 25', 5:'25 to 30', 6:'>30'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','20 to 25','25 to 30','>30']
+    else:
+        percent_failures_hues.where(~(percent_failures_hues > 20), 6, inplace=True)
+        percent_failures_hues = percent_failures_hues.astype(int)
+        percent_failures_hues = percent_failures_hues.replace({0:'0 to 5', 1:'5 to 10', 2:'10 to 15', 3:'15 to 20', 4:'>20'})
+        legend_order = ['0 to 5','5 to 10','10 to 15','15 to 20','>20']
+    return percent_failures_hues, legend_order
 
 
 def mean_beta_compare(df1, df2, save=False, verbose=False, silent=False):
