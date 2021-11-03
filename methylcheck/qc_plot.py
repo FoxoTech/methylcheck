@@ -934,7 +934,7 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
     except Exception as e: # cannot unpack NoneType
         print(e)
         print("No data.")
-        return
+        return {}
     if not found_meth:
         raise FileNotFoundError("this requires methylated intensities in a pickle file.")
     # using the number of probes in meth df to determine array

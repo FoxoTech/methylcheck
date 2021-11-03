@@ -283,6 +283,11 @@ custom_tables=[
 ]
 ```
 
+If 'order_after' is None, the custom table will be inserted at the beginning of the report.
+If there are multiple custom tables and all have 'order_after' set to None, the first table
+in the list gets inserted, then the next one, sequentially, so that the last table inserted
+will be the first table to appear.
+
 ------------------------
 Pre-processing pipeline:
 ------------------------
@@ -390,12 +395,16 @@ Pre-processing pipeline:
                 if i not in table:
                     raise KeyError("Your custom table must contain these keys: {required_attributes} (row_names is optional)")
             #1 place order -- refer to this later in self.custom
-            try:
-                _index = self.order.index(table['order_after']) + 1
-                self.order.insert(_index, table['title'])
-                self.custom[table['title']] = table
-            except ValueError:
-                raise ValueError(f"Your custom table's 'order_after' label is not in this list of chart objects, so could not be ordered: {self.order}")
+            if table['order_after'] == None: # key must be present and set to None
+                _index = 0 # insert the table at start of report.
+            else:
+                try:
+                    _index = self.order.index(table['order_after']) + 1
+                except ValueError:
+                    raise ValueError(f"Your custom table's 'order_after' label is not in this list of chart objects, so could not be ordered: {self.order}")
+            self.order.insert(_index, table['title'])
+            self.custom[table['title']] = table
+
             if not isinstance(table['col_names'], list):
                 raise TypeError(f"Your custom table 'col_names' must be a list.")
             if table.get('row_names') and not isinstance(table['row_names'], list):

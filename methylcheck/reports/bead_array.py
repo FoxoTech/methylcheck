@@ -102,8 +102,8 @@ class BeadArrayControlsReporter():
         'Predicted Sex']
 
     def __init__(self, filepath, outfilepath=None, bg_offset=3000, cutoff_adjust=1.0, colorblind=False,
-        roundoff=2, legacy=False, pval=True, pval_sig=0.05, passing=0.7):
-        self.filepath = filepath
+        roundoff=2, legacy=False, pval=True, pval_sig=0.05, passing=0.7, project_name=None):
+        self.filepath = filepath # folder with methyprep processed data
         self.bg_offset = bg_offset
         self.cut = cutoff_adjust # for adjusting minimum passing per test
         self.legacy = legacy # how output XLSX should be formatted
@@ -111,7 +111,7 @@ class BeadArrayControlsReporter():
         self.pval = pval # whether to include poobah in tests
         self.pval_sig = pval_sig # significance level to define a failed probe
         self.passing = passing # fraction of tests that all need to pass for sample to pass
-        self.filepath
+        self.project_name = project_name # used to name the QC report, if defined.
         # if outfilepath is not provided, saves to the same folder where the pickled dataframes are located.
         if not outfilepath:
             self.outfilepath = filepath
@@ -643,7 +643,7 @@ target removal
             self.process_sample(sample, con) # saves everything on top of last sample, for now. testing.
 
         # predicted_sex, x_median, y_median, x_fail_percent, y_fail_percent,
-        if isinstance(self.samplesheet, pd.DataFrame) and hasattr(self, 'noob_meth') and hasattr(self, 'noob_unmeth'):
+        if hasattr(self, 'samplesheet') and isinstance(self.samplesheet, pd.DataFrame) and hasattr(self, 'noob_meth') and hasattr(self, 'noob_unmeth'):
             if self.predict_sex:
                 LOGGER.info("Predicting Sex and comparing with sample meta data...")
             else:
@@ -779,8 +779,9 @@ target removal
 
 
         # fetch the folder parent name and append to file (usually this is the project name)
-        project_name = Path(self.filepath).resolve().name
-        writer = pd.ExcelWriter(Path(self.outfilepath, f"{project_name}_QC_Report.xlsx"), engine='xlsxwriter')
+        if self.project_name == None:
+            self.project_name = Path(self.filepath).resolve().name
+        writer = pd.ExcelWriter(Path(self.outfilepath, f"{self.project_name}_QC_Report.xlsx"), engine='xlsxwriter')
         report_df= pd.DataFrame(self.report) #<---- here in pandas 1.3x the decimal places get messed up.
         report_df = report_df.round(self.roundoff)
         report_df.to_excel(writer, sheet_name='QC_REPORT', startcol=0, startrow=(2 if not self.legacy else 1), header=False, index=False)
@@ -899,6 +900,8 @@ Optional Arguments:
         Note that this calculation also weights failures by how badly the miss the threshold value,
         so if any tests is a massive failure, the sample fails. Also, if pval(poobah) is included, and
         over 20% of probes fail, the sample fails regardless of other tests.
+    project_name (str, default None)
+        If defined, will be used to name the QC report file.
     """
     if len(args) > 0:
         raise AttributeError("This function takes 0 arguments. Specify the filepath using filepath=<path>.")
