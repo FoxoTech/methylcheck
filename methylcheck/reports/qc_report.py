@@ -373,7 +373,7 @@ Pre-processing pipeline:
             #LOGGER.info(self.custom)
 
         self.poobah_colormap = kwargs.get('poobah_colormap', None)
-        self.extend_poobah_range = kwargs.get('extend_poobah_range', False)
+        self.extend_poobah_range = kwargs.get('extend_poobah_range', True)
 
         if self.__dict__.get('runme') == True:
             self.run_qc()

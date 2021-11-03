@@ -298,7 +298,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
 
 
 def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False,
-    nafill='quick', poobah=None, palette=None, labels=None, extend_poobah_range=False):
+    nafill='quick', poobah=None, palette=None, labels=None, extend_poobah_range=True):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
