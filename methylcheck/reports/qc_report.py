@@ -460,9 +460,10 @@ Pre-processing pipeline:
 
         if 'mds' in self.tests and len(beta_df.columns) > 1:
             # some things must be calculated ahead of time, because used twice
-            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True}, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
+            poobah_path = path if 'detection_poobah' in self.order else None
+            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True},
+                poobah=poobah_path, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
-            print(mds_passing)
             include_mds = True
         else:
             beta_mds_fig = None
