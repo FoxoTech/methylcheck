@@ -217,7 +217,21 @@ def detection_poobah(poobah_df, pval_cutoff=0.05):
 
 
 class ReportPDF:
-    """ReportPDF allows you to build custom QC reports.
+    # larger font
+    # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
+    # MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
+    # MAXLINES = 26
+    # FONTSIZE = 16
+    # ORIGIN = (0.1, 0.1) # achored on page in lower left
+    #
+    # normal font -- for 12pt font: use 100 x 44 lines
+    MAXWIDTH = 100
+    MAXLINES = 44
+    FONTSIZE = 12
+    ORIGIN = (0.1, 0.05) # achored on page in lower left
+
+    def __init__(self, **kwargs):
+        """ReportPDF allows you to build custom QC reports.
 
 To use:
 
@@ -266,8 +280,8 @@ custom tables:
 
     pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
 
-```python
-custom_tables=[
+    ```python
+    custom_tables=[
     {
     'title': "some title, optional", # NOTE: chart titles must be unique!
     'col_names': ["<list of strings>"],
@@ -277,13 +291,13 @@ custom_tables=[
     'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
     },
     {"<...second table here...>"}
-]
-```
+    ]
+    ```
 
-If 'order_after' is None, the custom table will be inserted at the beginning of the report.
-If there are multiple custom tables and all have 'order_after' set to None, the first table
-in the list gets inserted, then the next one, sequentially, so that the last table inserted
-will be the first table to appear.
+    If 'order_after' is None, the custom table will be inserted at the beginning of the report.
+    If there are multiple custom tables and all have 'order_after' set to None, the first table
+    in the list gets inserted, then the next one, sequentially, so that the last table inserted
+    will be the first table to appear.
 
 Pre-processing pipeline:
 
@@ -292,29 +306,17 @@ Pre-processing pipeline:
         - Background subtraction and normalization ('noob')
         - Detection p-value ('neg' vs 'oob')
         - Dye-bias correction (from SeSAMe)
+
     Sample-level (w/explanations of suggested exclusions)
         Detection p-value (% failed probes)
         - custom detection (% failed, of those in a user-defined-list supplied to function)
         MDS
-        Suggested for customer to do on their own
+
+    Suggested for customer to do on their own
         - Sex check
         - Age check
         - SNP check
-    """
-    # larger font
-    # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
-    # MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
-    # MAXLINES = 26
-    # FONTSIZE = 16
-    # ORIGIN = (0.1, 0.1) # achored on page in lower left
-    #
-    # normal font -- for 12pt font: use 100 x 44 lines
-    MAXWIDTH = 100
-    MAXLINES = 44
-    FONTSIZE = 12
-    ORIGIN = (0.1, 0.05) # achored on page in lower left
-
-    def __init__(self, **kwargs):
+        """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False
