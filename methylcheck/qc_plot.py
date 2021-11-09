@@ -323,7 +323,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
 
 
 def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None, poobah=None,
-    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None):
+    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None,
+    cutoff_line=True):
     """plot methylated vs unmethylated probe intensities
 
 input (choose one of these):
@@ -497,12 +498,13 @@ TODO:
         plt.ylabel('Median Unmethylated Intensity')
 
         # add diagonal line
-        line = {'y': this.axes.get_ylim(), 'x': this.axes.get_xlim()}
-        sx = []
-        sy = []
-        for i in range(1000):
-            sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
-            sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
+        if cutoff_line:
+            line = {'y': this.axes.get_ylim(), 'x': this.axes.get_xlim()}
+            sx = []
+            sy = []
+            for i in range(1000):
+                sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
+                sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
         #if return_fig:
         #    sns_scatterplot = sb.scatterplot(x=sx, y=sy, s=3)
         #    return sns_scatterplot.get_figure()

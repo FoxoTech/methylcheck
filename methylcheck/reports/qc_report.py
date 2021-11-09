@@ -274,6 +274,7 @@ kwargs:
       - probe_types
     - customizing plots
       - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
+        This also overrides the default colormap used in M_vs_U plot.
       - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
 
 custom tables:
@@ -463,7 +464,7 @@ Pre-processing pipeline:
             poobah_path = Path(path,'poobah_values.pkl') if 'detection_poobah' in self.order else None
             beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True},
                 poobah=poobah_path, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
-            LOGGER.info("DEBUG: mds poobah: {poobah_path} {path} {self.order}")
+            LOGGER.info(f"DEBUG: mds poobah: {poobah_path} {path} {self.order}")
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
             include_mds = True
         else:
@@ -491,7 +492,7 @@ Pre-processing pipeline:
                         if include_mds:
                             col_names=['Sample_ID', 'MDS', 'Percent', 'Pass/Fail']
                         if self.tests['gct_score'] and include_mds:
-                            col_names=['Sample_ID', 'GCT score', 'MDS', 'Poobah (%)', 'Poobah Pass/Fail']
+                            col_names=['Sample_ID', 'GCT score', 'MDS', 'Passing Probes (%)', 'Pass/Fail']
 
                         for sample_id,percent in sample_percent_failed_probes_dict.items():
                             if self.tests['gct_score'] and sample_id in sample_gct_percent_dict:
@@ -536,7 +537,8 @@ Pre-processing pipeline:
                         self.plt.close()
                     elif part == 'M_vs_U':
                         LOGGER.info(f"M_vs_U plot")
-                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True, poobah=poobah_df)
+                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True,
+                            compare=False, return_fig=True, poobah=poobah_df, palette=self.poobah_colormap, cutoff_line=False)
                         self.pdf.savefig(fig)
                         self.plt.close()
                         # if not plotting, it will return dict with meth median and unmeth median.

@@ -320,6 +320,8 @@ Arguments
     ``poobah``:
         path to poobah_values.pkl file. Default is None. If supplied, this will color code dots according to
         percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
+    ``palette``:
+        Optional - Specify a matplotlib/seaborn palette name, such as 'CMRmap_r', 'coolwarm', or 'nipy_spectral'.
     ``labels``:
         pass in a dictionary with sample names found in ``df`` columns and a (number or string) representing the groups to assign samples to.
         Use this to color-code the samples against a known classification scheme, such as cell type, and observe whether the MDS clustering
