@@ -322,6 +322,7 @@ Arguments
         percent of failed probes for each sample as a second dimension of QC on the plot. Does not filter or affect the output dataframe returned.
     ``palette``:
         Optional - Specify a matplotlib/seaborn palette name, such as 'CMRmap_r', 'coolwarm', or 'nipy_spectral'.
+        Default is 'twilight'.
     ``labels``:
         pass in a dictionary with sample names found in ``df`` columns and a (number or string) representing the groups to assign samples to.
         Use this to color-code the samples against a known classification scheme, such as cell type, and observe whether the MDS clustering
@@ -522,6 +523,7 @@ Notes
                                    'xkcd:olive', 'xkcd:lavender', 'xkcd:indigo', 'xkcd:black', 'xkcd:azure', 'xkcd:brown', 'xkcd:aquamarine', 'xkcd:darkblue']))
 
         # these are used with poobah as a scale of failure rate
+        """
         poobah_palettes = {
         "magma": dict(enumerate(
             [(0.15, 0.6, 0.4), (0.3, 0.25, 0.60), (0.44, 0.25, 0.5), (0.7, 0.2, 0.2), (0.973, 0.462, 0.36), (0.68, 0.60, 0.25), (0.9, 0.8, 0.2)]
@@ -534,6 +536,7 @@ Notes
         ))
         }
         # good options: gist_earth_r, CMRmap_r, coolwarm, hot_r, nipy_spectral
+
         if palette is not None and palette not in poobah_palettes:
             try:
                 sb_palette = {}
@@ -542,10 +545,18 @@ Notes
                 for i in range(N_colors):
                     sb_palette[i] = linear_segmented_cmap((i+1)/float(N_colors+1)) # adding 1 to N fixes colors, because zero-end can be all white in some palettes
             except ValueError:
-                LOGGER.warning(f"{palette} not a valid seaborn/matplotlib colormap name, defaulting to 'magma'.")
-                sb_palette = poobah_palettes.get("magma")
+                LOGGER.warning(f"{palette} not a valid seaborn/matplotlib colormap name, defaulting to 'twilight'.")
+                sb_palette = poobah_palettes.get("twilight")
         else:
-            sb_palette = poobah_palettes.get(palette, poobah_palettes.get("magma"))
+            sb_palette = poobah_palettes.get(palette, poobah_palettes.get("twilight"))
+        """
+        sb_palette = dict(enumerate(sns.color_palette("twilight", n_colors=7 if extend_poobah_range else 5, desat=0.8)))
+        if palette:
+            try:
+                sb_palette = dict(enumerate(sns.color_palette(palette, n_colors=7 if extend_poobah_range else 5, desat=0.8)))
+            except ValueError:
+                LOGGER.warning(f"{palette} not a valid seaborn/matplotlib colormap name, defaulting to 'twilight'.")
+
 
         if multi_params.get('fig') == None:
             fig = plt.figure(figsize=(12, 9))
@@ -578,7 +589,7 @@ Notes
                 this_y = mds_transformed[color_lookup[legend_group], 1]
                 ax.scatter(this_x, this_y, s=DOTSIZE, color=sb_palette.get(color_num, 'black'), label=legend_group)
                 color_num += 1
-            ax.legend(title="p-value failure (%)")
+            ax.legend(title="Probe failure rate (%)")
         else:
             ax.scatter(mds_transformed[:, 0], mds_transformed[:, 1], s=DOTSIZE, color='xkcd:ivory', edgecolor='black', linewidth=0.4) # EXCLUDED
             ax.scatter(md2[:, 0], md2[:, 1], s=DOTSIZE, color=COLORSET.get(color_num,'black'), edgecolor='black', linewidth=0.4) # RETAINED

@@ -276,6 +276,7 @@ kwargs:
       - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
         This also overrides the default colormap used in M_vs_U plot.
       - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
+      - cutoff_line -- False to disable cutoff line on qc_signal_intensity and M_vs_U plots
 
 custom tables:
 
@@ -360,13 +361,13 @@ Pre-processing pipeline:
             'gct_score': self.__dict__.get('gct',True), # part of detection_poobah table
         }
         self.plots = {
-            'beta_density_plot': self.__dict__.get('beta_density_plot',True),
-            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True),
-            'M_vs_U_compare': self.__dict__.get('M_vs_U_compare',False),
-            'M_vs_U': self.__dict__.get('M_vs_U',False),
-            'predict_sex': self.__dict__.get('predict_sex',False),
-            'controls': self.__dict__.get('controls',True), # genome studio plots
-            'probe_types': self.__dict__.get('probe_types',True),
+            'beta_density_plot': self.__dict__.get('beta_density_plot', True),
+            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity', True),
+            'M_vs_U_compare': self.__dict__.get('M_vs_U_compare', False),
+            'M_vs_U': self.__dict__.get('M_vs_U', False),
+            'predict_sex': self.__dict__.get('predict_sex', False),
+            'controls': self.__dict__.get('controls', True), # genome studio plots
+            'probe_types': self.__dict__.get('probe_types', True),
         }
 
         self.custom = {}
@@ -377,6 +378,7 @@ Pre-processing pipeline:
 
         self.poobah_colormap = kwargs.get('poobah_colormap', None)
         self.extend_poobah_range = kwargs.get('extend_poobah_range', True)
+        self.cutoff_line = kwargs.get('cutoff_line', True)
 
         if self.__dict__.get('runme') == True:
             self.run_qc()
@@ -464,7 +466,6 @@ Pre-processing pipeline:
             poobah_path = Path(path,'poobah_values.pkl') if 'detection_poobah' in self.order else None
             beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True},
                 poobah=poobah_path, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
-            LOGGER.info(f"DEBUG: mds poobah: {poobah_path} {path} {self.order}")
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
             include_mds = True
         else:
@@ -537,8 +538,8 @@ Pre-processing pipeline:
                         self.plt.close()
                     elif part == 'M_vs_U':
                         LOGGER.info(f"M_vs_U plot")
-                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True,
-                            compare=False, return_fig=True, poobah=poobah_df, palette=self.poobah_colormap, cutoff_line=False)
+                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=False, verbose=True, plot=True,
+                            compare=False, return_fig=True, poobah=poobah_df, palette=self.poobah_colormap, cutoff_line=self.cutoff_line)
                         self.pdf.savefig(fig)
                         self.plt.close()
                         # if not plotting, it will return dict with meth median and unmeth median.
@@ -550,7 +551,7 @@ Pre-processing pipeline:
                         # if not plotting, it will return dict with meth median and unmeth median.
                     elif part == 'qc_signal_intensity':
                         LOGGER.info(f"QC signal intensity plot")
-                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True, poobah=poobah_df)
+                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True, poobah=poobah_df, cutoff_line=self.cutoff_line, palette=self.poobah_colormap)
                         self.pdf.savefig(fig)
                         self.plt.close()
                     elif part == 'controls':
@@ -646,7 +647,7 @@ Pre-processing pipeline:
     def page_of_text(self, text, pdf):
         """text is a single big string of text, with whitespace for line breaks.
         https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
-        print([len(i.split('\n')) for i in [text]])
+        #print([len(i.split('\n')) for i in [text]])
         firstPage = self.plt.figure(figsize=(11,8.5))
         firstPage.clf()
         wrapped_txt = self.textwrap.fill(text, width=self.MAXWIDTH)

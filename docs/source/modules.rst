@@ -52,7 +52,7 @@ Loading Data
 QC pipeline functions
 ---------------------
 
-.. automodule:: methylcheck.qc_report
+.. automodule:: methylcheck.reports.qc_report
     :members:
     :undoc-members:
     :show-inheritance:
@@ -81,11 +81,8 @@ sex prediction
 .. automodule:: methylcheck.predict
     :members:
 
-.. automodule:: methylcheck.p_value_probe_detection
-    :members:
-
 ``ReportPDF`` Report Builder class
 ----------------------------------
 
-.. automodule:: methylcheck.qc_report.ReportPDF
+.. automodule:: methylcheck.reports.ReportPDF
     :members:
