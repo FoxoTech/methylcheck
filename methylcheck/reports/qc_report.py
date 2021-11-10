@@ -217,6 +217,94 @@ def detection_poobah(poobah_df, pval_cutoff=0.05):
 
 
 class ReportPDF:
+    """ReportPDF allows you to build custom QC reports.
+
+To use:
+
+- First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
+- Next, run ```myReport.run_qc()`` to fill it in.
+- Third, you must run ``myReport.pdf.close()`` after ``run_qc()`` to save the file to disk.
+- You can supply kwargs to specify which QC plots to include
+  - and supply a list of chart names to control the order of objects in the report.
+  - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
+  - You may pass in a custom table to override one of the built-in pages.
+- include 'path' with the path to your processed pickle files.
+- include an optional 'outpath' for where to save the pdf report.
+
+kwargs:
+
+- processing params
+  - filename
+  - poobah_min_percent (e.g. at least 80% of probes must pass for sample to pass)
+  - pval_cutoff (e.g. set alpha at 0.05)
+  - outpath
+  - path
+  - runme: Default is not to actually generate all the parts of PDF with report.run_qc() then report.pdf.close(), but setting this to True will do everything at once.
+- front page text
+  - title
+  - author
+  - subject
+  - keywords
+- if 'debug=True' is in kwargs,
+  - then it will return a report without any parts that failed.
+- tests
+  - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
+  - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
+  - mds: performs multidimensional scaling to identify and report on sample outliers
+- plots
+  - beta_density_plot
+  - M_vs_U (default False)
+  - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
+  - qc_signal_intensity
+  - controls (A batter of ported Genome Studio plots)
+  - probe_types
+- customizing plots
+  - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
+    This also overrides the default colormap used in M_vs_U plot.
+  - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
+  - cutoff_line -- False to disable cutoff line on qc_signal_intensity and M_vs_U plots
+
+custom tables:
+
+pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
+
+```python
+custom_tables=[
+{
+'title': "some title, optional", # NOTE: chart titles must be unique!
+'col_names': ["<list of strings>"],
+'row_names': ["<list of strings, optional>"],
+'data': ["<list of lists, with order matching col_names>"],
+'order_after': "string name of the plot this should come after. It cannot appear first in list.",
+'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
+},
+{"<...second table here...>"}
+]
+```
+
+If 'order_after' is None, the custom table will be inserted at the beginning of the report.
+If there are multiple custom tables and all have 'order_after' set to None, the first table
+in the list gets inserted, then the next one, sequentially, so that the last table inserted
+will be the first table to appear.
+
+Pre-processing pipeline:
+
+Probe-level (w/explanations of suggested exclusions)
+    - Links to recommended probe exclusion lists/files/papers
+    - Background subtraction and normalization ('noob')
+    - Detection p-value ('neg' vs 'oob')
+    - Dye-bias correction (from SeSAMe)
+
+Sample-level (w/explanations of suggested exclusions)
+    Detection p-value (% failed probes)
+    - custom detection (% failed, of those in a user-defined-list supplied to function)
+    MDS
+
+Suggested for customer to do on their own
+    - Sex check
+    - Age check
+    - SNP check
+    """
     # larger font
     # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
     # MAXWIDTH = 80 # based on 16pt with 0.1 (10% of page) margins around it
@@ -231,94 +319,6 @@ class ReportPDF:
     ORIGIN = (0.1, 0.05) # achored on page in lower left
 
     def __init__(self, **kwargs):
-        """ReportPDF allows you to build custom QC reports.
-
-To use:
-
-    - First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
-    - Next, run ```myReport.run_qc()`` to fill it in.
-    - Third, you must run ``myReport.pdf.close()`` after ``run_qc()`` to save the file to disk.
-    - You can supply kwargs to specify which QC plots to include
-      - and supply a list of chart names to control the order of objects in the report.
-      - if you pass in 'order' in kwargs, any page you omit in the order will be omitted from the final report.
-      - You may pass in a custom table to override one of the built-in pages.
-    - include 'path' with the path to your processed pickle files.
-    - include an optional 'outpath' for where to save the pdf report.
-
-kwargs:
-
-    - processing params
-      - filename
-      - poobah_min_percent (e.g. at least 80% of probes must pass for sample to pass)
-      - pval_cutoff (e.g. set alpha at 0.05)
-      - outpath
-      - path
-      - runme: Default is not to actually generate all the parts of PDF with report.run_qc() then report.pdf.close(), but setting this to True will do everything at once.
-    - front page text
-      - title
-      - author
-      - subject
-      - keywords
-    - if 'debug=True' is in kwargs,
-      - then it will return a report without any parts that failed.
-    - tests
-      - poobah: includes a table with each sample and percent of probes that passed p-value signal detection
-      - gct: includes GCT scores (bisulfite conversion completeness) in poobah table
-      - mds: performs multidimensional scaling to identify and report on sample outliers
-    - plots
-      - beta_density_plot
-      - M_vs_U (default False)
-      - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
-      - qc_signal_intensity
-      - controls (A batter of ported Genome Studio plots)
-      - probe_types
-    - customizing plots
-      - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
-        This also overrides the default colormap used in M_vs_U plot.
-      - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
-      - cutoff_line -- False to disable cutoff line on qc_signal_intensity and M_vs_U plots
-
-custom tables:
-
-    pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
-
-    ```python
-    custom_tables=[
-    {
-    'title': "some title, optional", # NOTE: chart titles must be unique!
-    'col_names': ["<list of strings>"],
-    'row_names': ["<list of strings, optional>"],
-    'data': ["<list of lists, with order matching col_names>"],
-    'order_after': "string name of the plot this should come after. It cannot appear first in list.",
-    'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
-    },
-    {"<...second table here...>"}
-    ]
-    ```
-
-    If 'order_after' is None, the custom table will be inserted at the beginning of the report.
-    If there are multiple custom tables and all have 'order_after' set to None, the first table
-    in the list gets inserted, then the next one, sequentially, so that the last table inserted
-    will be the first table to appear.
-
-Pre-processing pipeline:
-
-    Probe-level (w/explanations of suggested exclusions)
-        - Links to recommended probe exclusion lists/files/papers
-        - Background subtraction and normalization ('noob')
-        - Detection p-value ('neg' vs 'oob')
-        - Dye-bias correction (from SeSAMe)
-
-    Sample-level (w/explanations of suggested exclusions)
-        Detection p-value (% failed probes)
-        - custom detection (% failed, of those in a user-defined-list supplied to function)
-        MDS
-
-    Suggested for customer to do on their own
-        - Sex check
-        - Age check
-        - SNP check
-        """
         # https://stackoverflow.com/questions/8187082/how-can-you-set-class-attributes-from-variable-arguments-kwargs-in-python
         self.__dict__.update(kwargs)
         self.debug = True if self.__dict__.get('debug') == True else False

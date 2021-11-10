@@ -49,10 +49,18 @@ Loading Data
     :members:
 
 
-QC pipeline functions
----------------------
+``ReportPDF`` Report Builder class
+----------------------------------
 
-.. automodule:: methylcheck.reports.qc_report
+.. autoclass:: methylcheck.reports.qc_report.ReportPDF
+    :members:
+
+    .. automethod:: __init__
+
+Run QC pipeline
+---------------
+
+.. automodule:: methylcheck.reports.qc_report.run_pipeline
     :members:
     :undoc-members:
     :show-inheritance:
@@ -80,11 +88,3 @@ sex prediction
 
 .. automodule:: methylcheck.predict
     :members:
-
-``ReportPDF`` Report Builder class
-----------------------------------
-
-.. automodule:: methylcheck.reports.ReportPDF
-    :members:
-
-    .. automethod:: __init__
