@@ -86,3 +86,5 @@ sex prediction
 
 .. automodule:: methylcheck.reports.ReportPDF
     :members:
+
+    .. automethod:: __init__
