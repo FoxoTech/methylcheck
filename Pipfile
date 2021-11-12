@@ -26,9 +26,9 @@ ipykernel = "*"
 
 [packages]
 numpy = "*"
-pandas = ">=1.3.0" #">=1.2,<1.3.0"
-statsmodels = "*" #"==0.9.0"
-scipy = "*" # "==1.2.1"
+pandas = ">=1.3.0"
+statsmodels = "*"
+scipy = "*"
 matplotlib = "*"
 seaborn = "*"
 tqdm = "*"
