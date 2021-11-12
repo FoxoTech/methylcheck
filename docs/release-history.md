@@ -1,6 +1,6 @@
 # Release History
 
-## v0.7.8
+## v0.7.9
 - `ReportPDF` accepts 'poobah_colormap' kwarg to feed in beta_mds_plot colormap.
 - `ReportPDF` custom tables: You can insert your custom table on the first page by specifying 'order_after' == None.
 - `beta_mds_plot` `palette` can now be any matplotlib colormap name. Defaults to 'magma' if not specified. The palette
