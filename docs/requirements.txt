@@ -1,0 +1,1 @@
+docutils<0.18 # needed for readthedocs, until they support sphinx v3.0 and above.

@@ -1,5 +1,12 @@
 # Release History
 
+## v0.7.8
+- `ReportPDF` accepts 'poobah_colormap' kwarg to feed in beta_mds_plot colormap.
+- `ReportPDF` custom tables: You can insert your custom table on the first page by specifying 'order_after' == None.
+- `beta_mds_plot` `palette` can now be any matplotlib colormap name. Defaults to 'magma' if not specified. The palette
+is only used to color-code poobah failure rates, if the poobah file path is specified.
+- `beta_mds_plot` new kwarg `extend_poobah_range`: Default (True) shows 7 colors for poobah failure rates. If False, will show only 5.
+
 ## v0.7.6
 - Reading IDATs loading bar didn't work correctly, showed up after loading.
 - Fixed error/logging messages:

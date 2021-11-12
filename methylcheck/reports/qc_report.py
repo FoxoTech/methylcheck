@@ -219,9 +219,7 @@ def detection_poobah(poobah_df, pval_cutoff=0.05):
 class ReportPDF:
     """ReportPDF allows you to build custom QC reports.
 
--------
 To use:
--------
 
 - First, initialize the report and pass in kwargs, like ``myReport = ReportPDF(**kwargs)``
 - Next, run ```myReport.run_qc()`` to fill it in.
@@ -233,9 +231,7 @@ To use:
 - include 'path' with the path to your processed pickle files.
 - include an optional 'outpath' for where to save the pdf report.
 
--------
 kwargs:
--------
 
 - processing params
   - filename
@@ -262,44 +258,52 @@ kwargs:
   - qc_signal_intensity
   - controls (A batter of ported Genome Studio plots)
   - probe_types
+- customizing plots
+  - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
+    This also overrides the default colormap used in M_vs_U plot.
+  - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
+  - cutoff_line -- False to disable cutoff line on qc_signal_intensity and M_vs_U plots
 
---------------
 custom tables:
---------------
 
 pass in arbitrary data using kwarg ``custom_tables`` as list of dictionaries with this structure:
 
 ```python
 custom_tables=[
-    {
-    'title': "some title, optional", # NOTE: chart titles must be unique!
-    'col_names': ["<list of strings>"],
-    'row_names': ["<list of strings, optional>"],
-    'data': ["<list of lists, with order matching col_names>"],
-    'order_after': "string name of the plot this should come after. It cannot appear first in list.",
-    'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
-    },
-    {"<...second table here...>"}
+{
+'title': "some title, optional", # NOTE: chart titles must be unique!
+'col_names': ["<list of strings>"],
+'row_names': ["<list of strings, optional>"],
+'data': ["<list of lists, with order matching col_names>"],
+'order_after': "string name of the plot this should come after. It cannot appear first in list.",
+'font_size': <can be None, int, 'auto' (shrink to page), or 'truncate' (chop of long values to make fit)>
+},
+{"<...second table here...>"}
 ]
 ```
 
-------------------------
-Pre-processing pipeline:
-------------------------
+If 'order_after' is None, the custom table will be inserted at the beginning of the report.
+If there are multiple custom tables and all have 'order_after' set to None, the first table
+in the list gets inserted, then the next one, sequentially, so that the last table inserted
+will be the first table to appear.
 
-    Probe-level (w/explanations of suggested exclusions)
-        - Links to recommended probe exclusion lists/files/papers
-        - Background subtraction and normalization ('noob')
-        - Detection p-value ('neg' vs 'oob')
-        - Dye-bias correction (from SeSAMe)
-    Sample-level (w/explanations of suggested exclusions)
-        Detection p-value (% failed probes)
-        - custom detection (% failed, of those in a user-defined-list supplied to function)
-        MDS
-        Suggested for customer to do on their own
-        - Sex check
-        - Age check
-        - SNP check
+Pre-processing pipeline:
+
+Probe-level (w/explanations of suggested exclusions)
+    - Links to recommended probe exclusion lists/files/papers
+    - Background subtraction and normalization ('noob')
+    - Detection p-value ('neg' vs 'oob')
+    - Dye-bias correction (from SeSAMe)
+
+Sample-level (w/explanations of suggested exclusions)
+    Detection p-value (% failed probes)
+    - custom detection (% failed, of those in a user-defined-list supplied to function)
+    MDS
+
+Suggested for customer to do on their own
+    - Sex check
+    - Age check
+    - SNP check
     """
     # larger font
     # based on 16pt with 0.1 (10% of page) margins around it: use 80, 26, 16
@@ -357,13 +361,13 @@ Pre-processing pipeline:
             'gct_score': self.__dict__.get('gct',True), # part of detection_poobah table
         }
         self.plots = {
-            'beta_density_plot': self.__dict__.get('beta_density_plot',True),
-            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity',True),
-            'M_vs_U_compare': self.__dict__.get('M_vs_U_compare',False),
-            'M_vs_U': self.__dict__.get('M_vs_U',False),
-            'predict_sex': self.__dict__.get('predict_sex',False),
-            'controls': self.__dict__.get('controls',True), # genome studio plots
-            'probe_types': self.__dict__.get('probe_types',True),
+            'beta_density_plot': self.__dict__.get('beta_density_plot', True),
+            'qc_signal_intensity': self.__dict__.get('qc_signal_intensity', True),
+            'M_vs_U_compare': self.__dict__.get('M_vs_U_compare', False),
+            'M_vs_U': self.__dict__.get('M_vs_U', False),
+            'predict_sex': self.__dict__.get('predict_sex', False),
+            'controls': self.__dict__.get('controls', True), # genome studio plots
+            'probe_types': self.__dict__.get('probe_types', True),
         }
 
         self.custom = {}
@@ -371,6 +375,10 @@ Pre-processing pipeline:
             self.parse_custom_tables(self.__dict__['custom_tables'])
             LOGGER.info(f"Found custom_tables and inserted into order: {self.order}")
             #LOGGER.info(self.custom)
+
+        self.poobah_colormap = kwargs.get('poobah_colormap', None)
+        self.extend_poobah_range = kwargs.get('extend_poobah_range', True)
+        self.cutoff_line = kwargs.get('cutoff_line', True)
 
         if self.__dict__.get('runme') == True:
             self.run_qc()
@@ -390,12 +398,16 @@ Pre-processing pipeline:
                 if i not in table:
                     raise KeyError("Your custom table must contain these keys: {required_attributes} (row_names is optional)")
             #1 place order -- refer to this later in self.custom
-            try:
-                _index = self.order.index(table['order_after']) + 1
-                self.order.insert(_index, table['title'])
-                self.custom[table['title']] = table
-            except ValueError:
-                raise ValueError(f"Your custom table's 'order_after' label is not in this list of chart objects, so could not be ordered: {self.order}")
+            if table['order_after'] == None: # key must be present and set to None
+                _index = 0 # insert the table at start of report.
+            else:
+                try:
+                    _index = self.order.index(table['order_after']) + 1
+                except ValueError:
+                    raise ValueError(f"Your custom table's 'order_after' label is not in this list of chart objects, so could not be ordered: {self.order}")
+            self.order.insert(_index, table['title'])
+            self.custom[table['title']] = table
+
             if not isinstance(table['col_names'], list):
                 raise TypeError(f"Your custom table 'col_names' must be a list.")
             if table.get('row_names') and not isinstance(table['row_names'], list):
@@ -449,22 +461,12 @@ Pre-processing pipeline:
         except FileNotFoundError:
             raise FileNotFoundError("Could not load pickle files")
 
-        '''
-        self.functions = { # NOT USED --  needed to provide different conditions for each function below. #
-            'detection_poobah': detection_poobah,
-            'mds': methylcheck.beta_mds_plot,
-            'auto_qc': None,
-            'beta_density_plot': methylcheck.beta_density_plot,
-            'M_vs_U': methylcheck.plot_M_vs_U,
-            'controls': methylcheck.plot_controls,
-            'qc_signal_intensity': methylcheck.qc_signal_intensity,
-        }
-        '''
         if 'mds' in self.tests and len(beta_df.columns) > 1:
             # some things must be calculated ahead of time, because used twice
-            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True})
+            poobah_path = Path(path,'poobah_values.pkl') if 'detection_poobah' in self.order else None
+            beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True},
+                poobah=poobah_path, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]
-            print(mds_passing)
             include_mds = True
         else:
             beta_mds_fig = None
@@ -491,7 +493,7 @@ Pre-processing pipeline:
                         if include_mds:
                             col_names=['Sample_ID', 'MDS', 'Percent', 'Pass/Fail']
                         if self.tests['gct_score'] and include_mds:
-                            col_names=['Sample_ID', 'GCT score', 'MDS', 'Poobah (%)', 'Poobah Pass/Fail']
+                            col_names=['Sample_ID', 'GCT score', 'MDS', 'Passing Probes (%)', 'Pass/Fail']
 
                         for sample_id,percent in sample_percent_failed_probes_dict.items():
                             if self.tests['gct_score'] and sample_id in sample_gct_percent_dict:
@@ -536,7 +538,8 @@ Pre-processing pipeline:
                         self.plt.close()
                     elif part == 'M_vs_U':
                         LOGGER.info(f"M_vs_U plot")
-                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=True, verbose=False, plot=True, compare=False, return_fig=True, poobah=poobah_df)
+                        fig = methylcheck.plot_M_vs_U(meth=meth_df, unmeth=unmeth_df, noob=True, silent=False, verbose=True, plot=True,
+                            compare=False, return_fig=True, poobah=poobah_df, palette=self.poobah_colormap, cutoff_line=self.cutoff_line)
                         self.pdf.savefig(fig)
                         self.plt.close()
                         # if not plotting, it will return dict with meth median and unmeth median.
@@ -548,7 +551,7 @@ Pre-processing pipeline:
                         # if not plotting, it will return dict with meth median and unmeth median.
                     elif part == 'qc_signal_intensity':
                         LOGGER.info(f"QC signal intensity plot")
-                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True, poobah=poobah_df)
+                        fig = methylcheck.qc_signal_intensity(meth=meth_df, unmeth=unmeth_df, silent=True, return_fig=True, poobah=poobah_df, cutoff_line=self.cutoff_line, palette=self.poobah_colormap)
                         self.pdf.savefig(fig)
                         self.plt.close()
                     elif part == 'controls':
@@ -644,7 +647,7 @@ Pre-processing pipeline:
     def page_of_text(self, text, pdf):
         """text is a single big string of text, with whitespace for line breaks.
         https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
-        print([len(i.split('\n')) for i in [text]])
+        #print([len(i.split('\n')) for i in [text]])
         firstPage = self.plt.figure(figsize=(11,8.5))
         firstPage.clf()
         wrapped_txt = self.textwrap.fill(text, width=self.MAXWIDTH)

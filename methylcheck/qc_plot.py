@@ -148,17 +148,17 @@ TODO:
         }
     # set up figure
     fig,ax = plt.subplots(figsize=(10,10))
-    plt.grid()
-    plt.xlabel('Meth Median Intensity (log2)')
-    plt.ylabel('Unmeth Median Intensity (log2)')
+    plt.grid(color=(0.8, 0.8, 0.8), linestyle='dotted')
+    plt.xlabel('Meth Median Intensity (log2)', fontsize='large')
+    plt.ylabel('Unmeth Median Intensity (log2)', fontsize='large')
     if not isinstance(poobah, pd.DataFrame):
-        plt.title('M versus U plot')
+        plt.title('Log M versus U plot')
         # bad values
         plt.scatter(x='mMed',y='uMed',data=medians[medians.index.isin(bad_samples)],label='Bad Samples',c='red')
         # good values
         plt.scatter(x='mMed',y='uMed',data=medians[~medians.index.isin(bad_samples)],label="Good Samples",c='black')
     elif isinstance(poobah, pd.DataFrame):
-        plt.title('M versus U plot: Colors are the percent of probe failures per sample')
+        plt.title('Log M versus U plot: Colors are the percent of probe failures per sample')
         if poobah.isna().sum().sum() > 0:
             if poobah.isna().equals(meth.isna()) and poobah.isna().equals(unmeth.isna()):
                 pass # not a problem if the SAME probes are excluded in all dataframes
@@ -201,9 +201,10 @@ TODO:
     if cutoff_line:
         x = np.linspace(6,14)
         y = -1*x+(2*bad_sample_cutoff)
-        plt.plot(x, y, '--', lw=1, color='black', alpha=0.75, label='Cutoff')
+        plt.plot(x, y, '--', lw=1, color='lightgrey', alpha=0.75, label='Cutoff')
     # legend
-    plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1)
+    legend = plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1, fontsize='large')
+    legend.set_title("Probe failure rate (%)", prop={'size':'large'})
     # display plot
     if return_fig:
         return fig
@@ -323,7 +324,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
 
 
 def plot_M_vs_U(data_containers_or_path=None, meth=None, unmeth=None, poobah=None,
-    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None):
+    noob=True, silent=False, verbose=False, plot=True, compare=False, return_fig=False, palette=None,
+    cutoff_line=True):
     """plot methylated vs unmethylated probe intensities
 
 input (choose one of these):
@@ -455,10 +457,12 @@ TODO:
     if plot:
         # plot it
         fig,ax = plt.subplots(figsize=(10,10))
-        plt.grid()
+        plt.grid(color=(0.8, 0.8, 0.8), linestyle='dotted')
         if poobah and not compare:
             this = sb.scatterplot(data=df, x="meth", y="unmeth", hue="probe_failure (%)",
                 palette=hues_palette, hue_order=legend_order, legend="full") # size="size"
+            legend = plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1, fontsize='large')
+            legend.set_title("Probe failure rate (%)", prop={'size':'large'})
         elif not poobah and not compare:
             this = sb.scatterplot(x=meth.median(),y=unmeth.median(),s=75)
         elif compare:
@@ -493,24 +497,24 @@ TODO:
             plt.title('M versus U plot: Showing effect of processing fluorescence intensities')
         else:
             plt.title('M versus U plot')
-        plt.xlabel('Median Methylated Intensity')
-        plt.ylabel('Median Unmethylated Intensity')
+        plt.xlabel('Median Methylated Intensity', fontsize='large')
+        plt.ylabel('Median Unmethylated Intensity', fontsize='large')
 
         # add diagonal line
-        line = {'y': this.axes.get_ylim(), 'x': this.axes.get_xlim()}
-        sx = []
-        sy = []
-        for i in range(1000):
-            sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
-            sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
-        #if return_fig:
-        #    sns_scatterplot = sb.scatterplot(x=sx, y=sy, s=3)
-        #    return sns_scatterplot.get_figure()
-        #else:
-        #    sb.scatterplot(x=sx, y=sy, s=3)
-        this = sb.scatterplot(x=sx, y=sy, s=3)
+        if cutoff_line:
+            line = {'y': this.axes.get_ylim(), 'x': this.axes.get_xlim()}
+            sx = []
+            sy = []
+            for i in range(1000):
+                sx.append(line['x'][0] + i/1000*(line['x'][1] - line['x'][0]))
+                sy.append(line['y'][0] + i/1000*(line['y'][1] - line['y'][0]))
+            this = sb.scatterplot(x=sx, y=sy, s=3, color=(0.8, 0.8, 0.8))
+            if poobah:
+                # This is necessary because legend title disappears when adding cutoff-line for some reason.
+                legend = plt.legend(bbox_to_anchor=(0, 1), loc='upper left', ncol=1, fontsize='large')
+                legend.set_title("Probe failure rate (%)", prop={'size':'large'})
         if return_fig:
-            return this.get_figure() #sns_scatterplot.get_figure()
+            return this.get_figure()
         plt.show()
         plt.close('all')
     else:
@@ -858,10 +862,10 @@ todo:
     """
     fig, (ax1,ax2) = plt.subplots(nrows=1,ncols=2,figsize=(10,8)) # was (12,10)
     plt.tight_layout(w_pad=15)
-    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90)
-    plt.setp(ax2.xaxis.get_majorticklabels(), rotation=90)
-    ax1.grid(axis='both')
-    ax2.grid(axis='both')
+    plt.setp(ax1.xaxis.get_majorticklabels(), rotation=90, fontsize='small')
+    plt.setp(ax2.xaxis.get_majorticklabels(), rotation=90, fontsize='small')
+    ax1.grid(axis='both', linestyle='dotted')
+    ax2.grid(axis='both', linestyle='dotted')
     title = title + ' ' if title != '' else title
     ax1.set_title(f'{title}Green')
     ax2.set_title(f'{title}Red')
@@ -899,8 +903,8 @@ todo:
                  data=stain_red, label=c,
                  color=color_dict[c], linewidth=0, marker='o')
 
-    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5))
-    ax2.legend(loc='center left', bbox_to_anchor=(1, 0.5))
+    ax1.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='medium')
+    ax2.legend(loc='center left', bbox_to_anchor=(1, 0.5), fontsize='medium')
 
     if ymax != None:
         ax1.set_ylim([0,ymax])
@@ -934,7 +938,7 @@ def bis_conversion_control(path_or_df, use_median=False, on_lambda=False, verbos
     except Exception as e: # cannot unpack NoneType
         print(e)
         print("No data.")
-        return
+        return {}
     if not found_meth:
         raise FileNotFoundError("this requires methylated intensities in a pickle file.")
     # using the number of probes in meth df to determine array
