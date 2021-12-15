@@ -11,6 +11,7 @@ methylcheck documentation
    Loading Data <docs/loading-data.ipynb>
    Filtering Probes <docs/filtering-probes.ipynb>
    Quality Control <docs/quality-control-example.ipynb>
+   Custom QC with pOOBAH <docs/poobah_filtering_tutorial.ipynb>
    Outlier Detection <docs/mds-example.ipynb>
    docs/source/modules
    methylprep (preprocessing) package <https://life-epigenetics-methylprep.readthedocs-hosted.com/en/latest/>

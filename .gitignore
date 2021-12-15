@@ -124,3 +124,5 @@ docs/example_data/GSE69852/noob_unmeth_values.pkl
 docs/example_data/GSE69852/poobah_values.pkl
 docs/example_data/GSE69852/sample_sheet_meta_data.pkl
 docs/example_data/GSE69852/unmeth_values.pkl
+docs/data
+docs/data/*
