@@ -42,7 +42,7 @@ getLogger(__name__).addHandler(NullHandler())
 __all__ = [
     'assign',
     'plot_assigned_groups',
-    'BeadArrayControlsReporter',
+    'ControlsReporter',
     'beta_density_plot',
     'beta_mds_plot',
     'bis_conversion_control',

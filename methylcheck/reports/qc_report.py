@@ -256,13 +256,14 @@ kwargs:
   - M_vs_U (default False)
   - M_vs_U_compare (default False) -- shows the effect of all processing steps vs raw intensity
   - qc_signal_intensity
-  - controls (A batter of ported Genome Studio plots)
+  - controls (A battery of probe performance plots)
   - probe_types
 - customizing plots
   - poobah_colormap (pass in the matplotlib colormap name to override the meta_mds default colormap)
     This also overrides the default colormap used in M_vs_U plot.
   - extend_poobah_range (Default: True will show 7 colors for poobah failure range on beta_mds_plot, max 30%; False will show only 5, max 20%)
   - cutoff_line -- False to disable cutoff line on qc_signal_intensity and M_vs_U plots
+  - appendix_fontsize (default 12 point) -- specify an int for other fontsize
 
 custom tables:
 
@@ -366,7 +367,7 @@ Suggested for customer to do on their own
             'M_vs_U_compare': self.__dict__.get('M_vs_U_compare', False),
             'M_vs_U': self.__dict__.get('M_vs_U', False),
             'predict_sex': self.__dict__.get('predict_sex', False),
-            'controls': self.__dict__.get('controls', True), # genome studio plots
+            'controls': self.__dict__.get('controls', True),
             'probe_types': self.__dict__.get('probe_types', True),
         }
 
@@ -379,6 +380,7 @@ Suggested for customer to do on their own
         self.poobah_colormap = kwargs.get('poobah_colormap', None)
         self.extend_poobah_range = kwargs.get('extend_poobah_range', True)
         self.cutoff_line = kwargs.get('cutoff_line', True)
+        self.appendix_fontsize = kwargs.get('appendix_fontsize', None) # reverts to self.FONTSIZE if blank
 
         if self.__dict__.get('runme') == True:
             self.run_qc()
@@ -615,7 +617,7 @@ Suggested for customer to do on their own
             if rows_per_page <= 0:
                 LOGGER.error("couldn't write log messages to appendix")
                 break
-            self.page_of_paragraphs(para_list, self.pdf, line_height='single')
+            self.page_of_paragraphs(para_list, self.pdf, line_height='single', fontsize=self.appendix_fontsize)
             last_row += rows_per_page
         self.errors.close()
 
@@ -644,7 +646,7 @@ Suggested for customer to do on their own
         exec_summary_samples = [] # temp storage lookup
         pass
 
-    def page_of_text(self, text, pdf):
+    def page_of_text(self, text, pdf, fontsize=None):
         """text is a single big string of text, with whitespace for line breaks.
         https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right """
         #print([len(i.split('\n')) for i in [text]])
@@ -654,18 +656,21 @@ Suggested for customer to do on their own
         #wrapped_txt_list = textwrap.wrap(txt, width=80)
         # next, identify paragraph breaks here as strings of writespace, and wrap each part separately? then move onto page.
         #firstPage.text(0.5,0.5,txt, size=12, ha="left") # transform=firstPage.transFigure
-        firstPage.text(self.ORIGIN[0], self.ORIGIN[1], wrapped_txt, size=self.FONTSIZE)
+        fontsize = self.FONTSIZE if fontsize is None else fontsize
+        firstPage.text(self.ORIGIN[0], self.ORIGIN[1], wrapped_txt, size=fontsize)
         pdf.savefig()
         self.plt.close()
 
 
-    def page_of_paragraphs(self, para_list, pdf, line_height='double'):
+    def page_of_paragraphs(self, para_list, pdf, line_height='double', fontsize=None):
         """ https://matplotlib.org/3.1.1/api/_as_gen/matplotlib.pyplot.text.html (0,0) is lower left; (1,1) is upper right.
-        this version estimates the size of each paragraph and moves the origin downward accordingly.
-        tricky because the anchors are lower left, not upper left.
 
-        ok if a paragraph contains whitespace line breaks, OR each para is one long line to be wrapped here.
-        also - if a paragraph wraps, this accounts for it in total lines count"""
+        This version estimates the size of each paragraph and moves the origin downward accordingly.
+        Thsis is tricky because the anchors are lower left, not upper left.
+
+        It is ok if a paragraph contains whitespace line breaks, OR each paragraph is one long line to be wrapped here.
+        Also - if a paragraph wraps, this accounts for it in total lines count, so everything fits on a page.
+        The default fontsize is 12 if not specified."""
         #1 - finding the start points for each paragraph in page, counting backwards, so first paragraph is at top of page.
         para_lengths = [len(i.split('\n')) for i in para_list]
         extra_line_wraps = [max(len(self.textwrap.wrap(para, width=self.MAXWIDTH)) -1, 0) for para in para_list]
@@ -702,7 +707,8 @@ Suggested for customer to do on their own
                 extra_lines.append(wrapped_txt)
                 #print(current_y_position, wrapped_addtl_line_count, wrapped_txt)
             else:
-                firstPage.text(x_margin, current_y_position, wrapped_txt, size=self.FONTSIZE)
+                fontsize = self.FONTSIZE if fontsize is None else fontsize
+                firstPage.text(x_margin, current_y_position, wrapped_txt, size=fontsize)
         if extra_lines != []:
             print("WARNING: DID NOT FIT")
             for extra_line in extra_lines:

@@ -38,7 +38,7 @@ inputs:
         if not specified, it will load the data from data_source and determine the array for you.
     median_cutoff
         the minimum difference in the medians of X and Y probe copy numbers to assign male or female
-        (copied from the minif sex predict function)
+        (copied from the minfi sex predict function)
     include_probe_failure_percent:
         True: includes poobah percent per sample as column in the output table and on the plot.
         Note: you must supply a 'path' as data_source to include poobah in plots.
@@ -149,6 +149,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
 
     # median cutoff - can be manipulated by user --- default = -2 --- used to predict sex
     sex0 = ['F' if x < median_cutoff else 'M' for x in median_difference]
+    # NOTE for testing: GSE85566/GPL13534 (N=120) has 4 samples that are predicted as wrong sex when using -2, but work at -0.5.
 
     # populate dataframe with predicted sex
     output['predicted_sex'] = sex0
@@ -225,7 +226,7 @@ data columns: ['x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fai
 - omits labels for samples that have LOW failure rates, but shows IDs when failed
 - adds legend of sketchy samples and labels
 - show delta age on labels (using custom column dict)
-- unit tests with custom label and without, and check that beadarray report still works with this function
+- unit tests with custom label and without, and check that controls_report still works with this function
 - save_fig
 - return_labels, returns a lookup dict instead of plot
 
@@ -237,7 +238,6 @@ Dicts must match the data DF index.
     else:
         LOGGER.warning("sample_failure_percent index did not align with output data index")
     #sns.set_theme(style="white")
-    custom_palette = sns.set_palette(sns.color_palette(['#FE6E89','#0671B7']))
     show_mismatches = None if 'sex_matches' not in data.columns else "sex_matches"
     if show_mismatches:
         data["sex_matches"] = data["sex_matches"].map({0:"Mismatch", 1:"Match"})
@@ -248,6 +248,14 @@ Dicts must match the data DF index.
         if poobah_range < poobah_cutoff/2:
             show_failure = None
             sample_sizes = (40,40)
+
+    custom_palette = sns.set_palette(sns.color_palette(['#FE6E89','#0671B7']))
+    # if only one sex, make sure male is blue; female is pink
+    # if hasattr(output, 'actual_sex') and set(output.actual_sex) == set('M')
+    # if first value to be plotted is male, change palette
+    if hasattr(data, 'predicted_sex') and list(data.predicted_sex)[0] == 'M':
+        custom_palette = sns.set_palette(sns.color_palette(['#0671B7','#FE6E89']))
+
     fig = sns.relplot(data=data,
         x='x_median',
         y='y_median',
@@ -294,7 +302,7 @@ Dicts must match the data DF index.
 
 def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
     """output is a dataframe with Sample_ID in the index. This adds actual_sex as a column and returns it."""
-    # bead array does the same thing, and only calls get_sex() with the minimum of data to be fast, because these are already loaded. Just passes in meth/unmeth data
+    # controls_report() does the same thing, and only calls get_sex() with the minimum of data to be fast, because these are already loaded. Just passes in meth/unmeth data
     # Sample sheet should have 'M' or 'F' in column to match predicted sex.
 
     # merge actual sex into processed output, if available
@@ -315,6 +323,7 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                 break
     if len(loaded_files) == 1:
         # methylprep v1.5.4-6 was creating meta_data files with two Sample_ID columns. Check and fix here:
+        # methylcheck 0.7.9 / prep 1.6.0 meta_data lacking Sample_ID when sample_sheet uses alt column names and gets replaced.
         if any(loaded_files['meta'].columns.duplicated()):
             loaded_files['meta'] = loaded_files['meta'].loc[:, ~loaded_files['meta'].columns.duplicated()]
             LOGGER.info("Removed a duplicate Sample_ID column in samplesheet")
@@ -340,25 +349,25 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
             elif 'Sex' in renamed_columns.values():
                 renamed_column = 'Sex'
         if renamed_column is not None:
-            # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; beadarray does NOT do this step, but should.
+            # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; controls_report() does NOT do this step, but should.
             sex_values = set(loaded_files['meta'][renamed_column].unique())
             #print('sex_values', sex_values)
             if not sex_values.issubset(set(['M','F'])): # subset, because samples might only contain one sex
-                if 'Male' in sex_values and 'Female' in sex_values:
+                if 'Male' in sex_values or 'Female' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'Male':'M', 'Female':'F'})
-                elif 'male' in sex_values and 'female' in sex_values:
+                elif 'male' in sex_values or 'female' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'male':'M', 'female':'F'})
-                elif 'MALE' in sex_values and 'FEMALE' in sex_values:
+                elif 'MALE' in sex_values or 'FEMALE' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'MALE':'M', 'FEMALE':'F'})
                 elif 'm' in sex_values or 'f' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'m':'M', 'f':'F'})
                 else:
-                    raise ValueError(f"Cannot compare with predicted sex because actual sexes listed in your samplesheet are not M or F: (found {sex_values})")
+                    raise ValueError(f"Cannot compare with predicted sex because actual sexes listed in your samplesheet are not understood (expecting M or F): (found {sex_values})")
             output['actual_sex'] = None
             output['sex_matches'] = None
             for row in output.itertuples():
                 try:
-                    actual_sex = loaded_files['meta'].loc[row.Index].get(renamed_column)
+                    actual_sex = str(loaded_files['meta'].loc[row.Index].get(renamed_column))
                 except KeyError:
                     if 'Sample_ID' in output.columns:
                         LOGGER.warning("Sample_ID was another column in your output DataFrame; Set that to the index when you pass it in.")
@@ -367,7 +376,7 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                     LOGGER.warning(f"Multiple samples matched actual sex for {row.Index}, because Sample_ID repeats in sample sheets. Only using first match, so matches may not be accurate.")
                     actual_sex = actual_sex[0]
                 if hasattr(row,'predicted_sex'):
-                    sex_matches = 1 if actual_sex.upper() == row.predicted_sex.upper() else 0
+                    sex_matches = 1 if actual_sex.upper() == str(row.predicted_sex).upper() else 0
                 else:
                     sex_matches = np.nan
                 output.loc[row.Index, 'actual_sex'] = actual_sex

@@ -33,16 +33,17 @@ You should install all three components, as they work together. The parts includ
    - functions for filtering out unreliable probes, based on the published literature
       - Note that `methylprep process` will exclude a set of unreliable probes by default. You can disable that using the --no_quality_mask option from CLI.
    - sample outlier detection
-   - array level QC plots, based on Genome Studio functions
-   - a python clone of Illumina's Bead Array Controls Reporter software (QC)
+   - array level QC plots of staining, bisulfite conversion, hybridization, extension, negative, non-polymorphic, target removal, and specificity
+   - spreadsheet summary of control probe performance
    - data visualization functions based on `seaborn` and `matplotlib` graphic libraries.
    - predict sex of human samples from probes
    - interactive method for assigning samples to groups, based on array data, in a Jupyter notebook
 
 - `methylize` provides more analysis and interpretation functions
    - differentially methylated probe statistics (between treatment and control samples)
-   - volcano plots (which probes are the most different?)
-   - manhattan plots (where in genome are the differences?)
+   - differentially methylated regions, with gene annotation from the UCSC Human Genome Browser
+   - volcano plots (to identify probes that are the most different)
+   - manhattan plots (to identify clusters of probes associated with genomic regions that are different)
 
 ## Installation
 

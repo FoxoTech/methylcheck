@@ -522,7 +522,7 @@ TODO:
 
 
 def plot_beta_by_type(beta_df, probe_type='all', return_fig=False, silent=False, on_lambda=False):
-    """compare betas for type I and II probes -- (adopted from genome studio plotBetasByType(), p. 43)
+    """compare betas for type I and II probes -- (inspired by the plotBetasByType() function)
 
 Plot the overall density distribution of beta values and the density distributions of the Infinium I or II probe types
 1 distribution plot; user defines type (I or II infinium)
@@ -725,7 +725,7 @@ options:
         neg_red = neg_red.drop(columns=['Color']).set_index('Extended_Type')
         neg_red = neg_red.T
         neg_green = neg_green.T
-        # GenomeStudio appears to only do the first 16
+        # note: GenomeStudio appears to only do the first 16 negative control probes
         # Maybe user should be able to select which they want to see
         # There is a total of 600, which is too many to plot at once
         list_of_negative_controls_to_plot = ['Negative 1','Negative 2','Negative 3','Negative 4','Negative 5',
@@ -838,7 +838,7 @@ options:
 
 def _qc_plotter(stain_red, stain_green, color_dict=None, columns=None, ymax=None, xticks='show',
         title='', return_fig=False):
-    """ draft generic plotting function for all the genome studio QC functions.
+    """ draft generic plotting function for all the control intensity QC plots.
     used by plot_staining_controls()
 
 options:
