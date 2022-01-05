@@ -95,6 +95,11 @@ Use cases and format:
         Only those probes that pass the p-value cutoff will be included.
     format = beta_csv:
         for reading processed.csv files from methylprep, and forcing it NOT to load from the pickled beta dataframe file, if present.
+    format = poobah_csv:
+        similar to beta_csv, this pulls poobah p-values for all probes out of all processed CSV files into one dataframe.
+        These p-values will include failed probes and probes that would be filterd by quality_mask. 'poobah' excludes these.
+    format = poobah:
+        reads the 'poobah_values.pkl' file and returns a dataframe of p-values. Note failed / poor-quality probes are replaced with NaN.
 
 .. note::
    Science on p-value cutoff:
@@ -116,7 +121,7 @@ Use cases and format:
    - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
     """
     #1a: validate inputs
-    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'sesame', 'beta_csv')
+    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'poobah_csv', 'poobah', 'sesame')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
 
@@ -159,9 +164,12 @@ Use cases and format:
                 unmeth_dfs.append( pd.read_pickle(part) )
         if meth_dfs != [] and unmeth_dfs != []:
             tqdm.pandas()
-            meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            LOGGER.info(f"{meth_dfs.shape} {unmeth_dfs.shape}")
+            try:
+                meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+                unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+                LOGGER.info(f"{meth_dfs.shape} {unmeth_dfs.shape}")
+            except pd.errors.InvalidIndexError as e:
+                LOGGER.error(f"Your meth/unmeth data contains duplicate probes of the same name. Use pandas to load instead.")
             return meth_dfs, unmeth_dfs
 
     elif format == 'noob_df':
@@ -176,15 +184,18 @@ Use cases and format:
                 unmeth_dfs.append( pd.read_pickle(part) )
         if meth_dfs != [] and unmeth_dfs != []:
             tqdm.pandas()
-            meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-            LOGGER.info(f"{meth_dfs.shape}, {unmeth_dfs.shape}")
+            try:
+                meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+                unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
+                LOGGER.info(f"{meth_dfs.shape}, {unmeth_dfs.shape}")
+            except pd.errors.InvalidIndexError as e:
+                LOGGER.error(f"Your noob_meth/noob_unmeth data contains duplicate probes of the same name. Use pandas to load instead.")
             return meth_dfs, unmeth_dfs
 
     #2b: determine number of file parts
     # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
     # looking for multiple pickled files (beta/m)
-    if format in ('beta_value', 'm_value'):
+    if format in ('beta_value', 'm_value', 'poobah'):
         # .pkl or .pkl.gz OK
         total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl*'))
         # or specify one file by name instead of a folder.
@@ -217,9 +228,11 @@ Use cases and format:
                         columns = ['IlmnID', 'm_value']
                     elif format == 'meth':
                         columns = ['IlmnID', 'noob_meth', 'noob_unmeth']
+                    elif format == 'poobah_csv':
+                        columns = ['IlmnID','poobah_pval']
                     else:
                         raise ValueError(f"format {format} not supported. fix.")
-                    if no_poobah == False:
+                    if no_poobah == False and 'poobah_pval' not in columns:
                         columns.append('poobah_pval')
                     index_column = 'IlmnID' if 'IlmnID' in columns else columns[0] # fragile assumption: first column is index
                     sample = pd.read_csv(part,
@@ -239,6 +252,7 @@ Use cases and format:
                         # that will auto-set the index to 'illumina_id'
                         sample.rename_axis('IlmnID', inplace=True)
                 except ValueError as e:
+                    print(f"DEBUG - could not read csv parts; trying fallback method")
                     sample = pd.read_csv(part)
                     if 'IlmnID' in sample.columns:
                         sample.set_index('IlmnID', inplace=True)
@@ -289,6 +303,13 @@ Use cases and format:
                     sample_betas.append(col)
                     if verbose and not silent:
                         LOGGER.info(f'{sample_name}, {col.shape} --> {len(sample_betas)}')
+                elif format == 'poobah_csv' and 'poobah_pval' not in sample.columns:
+                    raise ValueError("Cannot read poobah_pval from processed CSVs; missing")
+                elif format == 'poobah_csv' and 'poobah_pval' in sample.columns:
+                    col = sample.loc[:, ['poobah_pval']]
+                    col.rename(columns={'poobah_pval': sample_name}, inplace=True)
+                    sample_names.append(sample_name)
+                    sample_betas.append(col)
                 elif (column_names is not None and
                     len(column_names) == 1 and
                     column_names[0] in sample.columns and
@@ -348,7 +369,11 @@ Use cases and format:
                 return data_containers
 
             LOGGER.info('merging...')
-            df = pd.concat(sample_betas, axis='columns', join='inner').progress_apply(lambda x: x)
+            try:
+                df = pd.concat(sample_betas, axis='columns', join='inner').progress_apply(lambda x: x)
+            except pd.errors.InvalidIndexError as e:
+                LOGGER.error(f"Merge Failed: ({e}) so returning each sample separately in a list")
+                return sample_betas
             ### HERE -- save the pieces of the DF and it merges 8X faster
             #npy = df.to_numpy()
             #parts.append(npy)
@@ -378,7 +403,7 @@ Use cases and format:
             probes_per_sample = int(sum([sub_df.shape[0] for sub_df in df.values()])/len(df.values()))
             if verbose: LOGGER.info(f"Reading a dictionary of dataframes with {len(df)} samples and {probes_per_sample} probes.")
             if verbose: LOGGER.info("No futher merging or poobah filtering applied to this file.")
-            return df
+            return df # e.g. beta_values, m_values, poobah_values from pickle
 
         # ensure probes are in rows.
         if df.shape[0] < df.shape[1]:

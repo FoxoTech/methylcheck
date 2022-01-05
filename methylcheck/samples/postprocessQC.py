@@ -243,7 +243,7 @@ def sample_plot(df, **kwargs):
 def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, silent=False):
     """Attempts to filter outlier samples based on the cumulative area under the curve
     exceeding a reasonable value (cutoff). This method only works on poor quality samples that are
-    better identified using BeadArrayControlReporter summary (CLI: 'methylcheck controls')
+    better identified using ControlReporter summary (CLI: 'methylcheck controls')
 
     Inputs:
         DataFrame -- wide format (probes in columns, samples in rows)
@@ -298,7 +298,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
 
 
 def beta_mds_plot(df, filter_stdev=1.5, verbose=False, save=False, silent=False, multi_params={'draw_box':True}, plot_removed=False,
-    nafill='quick', poobah=None, palette=None, labels=None, extend_poobah_range=True):
+    nafill='quick', poobah=None, palette=None, labels=None, extend_poobah_range=True, plot=True):
     """Performs multidimensional scaling on a dataframe of samples
 
 Arguments
@@ -347,7 +347,9 @@ Options
     ``silent``:
         - if running from command line in an automated process, you can run in `silent` mode to suppress any user interaction.
         - In this case, whatever `filter_stdev` you assign is the final value, and a file will be processed with that param.
-        - Silent also suppresses plots (images) from being generated. only files are returned.
+    ``plot``: (default True)
+        - plot is False, this suppresses plots (images) from being generated and shown on screen.
+        - .png files are still saved if ``save`` == True.
 
 Returns
 
@@ -634,7 +636,11 @@ Notes
 
         if save:
             saved_fig = plt.gcf()
-        if silent == True:
+        if plot:
+            plt.show()
+            plt.close(fig)
+        """
+        else:
             # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
             df.drop(df.index[df_indexes_to_exclude], inplace=True)
             image_name = df.index.name or f'beta_mds_n={len(df.index)}'
@@ -645,21 +651,21 @@ Notes
             plt.close(fig)
             # returning DataFrame in original structure: rows are probes; cols are samples.
             return df  # may need to transpose this first.
-        else:
-            plt.show()
-            plt.close(fig)
-
+        """
         ########## BEGIN INTERACTIVE MODE #############
-        print(f"{mds_transformed.shape[0]} original samples; {md2.shape[0]} after filtering")
-        print('Your scale factor was: {0}'.format(adj))
-        adj = input("Enter new scale factor, <enter> to accept and save: ")
-        if adj == '':
+        if not silent:
+            print(f"{mds_transformed.shape[0]} original samples; {md2.shape[0]} after filtering")
+            print('Your scale factor was: {0}'.format(adj))
+            adj = input("Enter new scale factor, <enter> to accept and save: ")
+            if adj == '':
+                break
+            try:
+                adj = float(adj)
+            except ValueError:
+                print("Not a valid number. Type a number with a decimal value, or Press <enter> to quit.")
+                continue
+        else:
             break
-        try:
-            adj = float(adj)
-        except ValueError:
-            print("Not a valid number. Type a number with a decimal value, or Press <enter> to quit.")
-            continue
 
     prev_df = len(df)
     # take the original dataframe (df) and remove samples that are outside the sample thresholds, returning a new dataframe
@@ -703,6 +709,7 @@ Notes
         plt.close(fig) # avoids displaying plot again in jupyter.
         if verbose:
             LOGGER.info("Saved {0}".format(outfile))
+
     # return DataFrame in original "long" format: rows are probes; cols are samples.
     df_out = original_df.drop(original_df.index[df_indexes_to_exclude])
     if df_out.shape[0] < df_out.shape[1]:
@@ -967,8 +974,12 @@ returns:
     retained_sample_dfs = []
     for i in range(0, 4*len(list_of_dfs), 1):
         DD = fig.axes[0].collections[i]
-        DD.set_offset_position('data')
-        #print(DD.get_offsets())
+        try:
+            DD.set_offset_position('data') # this was removed in matplotlib 3.5+ and replaced with 'screen'
+            # according to docs, but 'screen' attribute here
+            #print(DD.get_offsets())
+        except:
+            pass
         all_coords.extend(DD.get_offsets().tolist())
         #print(i, len(all_coords))
         if i % 4 == 0: # 0, 4, 8 -- this is the first data set applied to plot. (x,y plot coords)

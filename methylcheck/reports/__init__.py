@@ -1,6 +1,6 @@
 from .bead_array import (
     controls_report,
-    BeadArrayControlsReporter
+    ControlsReporter
 )
 from .qc_report import (
     run_pipeline,
@@ -9,7 +9,7 @@ from .qc_report import (
 
 __all__ = [
     'controls_report',
-    'BeadArrayControlsReporter',
+    'ControlsReporter',
     'run_pipeline',
     'ReportPDF',
 ]

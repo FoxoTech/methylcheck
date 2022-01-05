@@ -4,7 +4,7 @@ scipy
 matplotlib  # newer versions might break circleci `implement_array_function method already has a docstring` bug with later versions installed (on 2020-07-28)
 seaborn
 # xlrd>=1.0.0 (As of Dec 2020, xlsx not supported)
-tqdm
+tqdm>=4.61.2
 sphinxcontrib-apidoc
 m2r
 nbsphinx
