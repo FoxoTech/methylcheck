@@ -974,8 +974,12 @@ returns:
     retained_sample_dfs = []
     for i in range(0, 4*len(list_of_dfs), 1):
         DD = fig.axes[0].collections[i]
-        DD.set_offset_position('data')
-        #print(DD.get_offsets())
+        try:
+            DD.set_offset_position('data') # this was removed in matplotlib 3.5+ and replaced with 'screen'
+            # according to docs, but 'screen' attribute here
+            #print(DD.get_offsets())
+        except:
+            pass
         all_coords.extend(DD.get_offsets().tolist())
         #print(i, len(all_coords))
         if i % 4 == 0: # 0, 4, 8 -- this is the first data set applied to plot. (x,y plot coords)
