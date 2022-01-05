@@ -20,8 +20,8 @@ PROCESSED_450K = Path('docs/example_data/GSE69852')
 PROCESSED_MOUSE = Path('docs/example_data/mouse_test')
 PROCESSED_EPIC = Path('docs/example_data/epic')
 
-class TestBeadArrayControlsReporter450K():
-    r450 = methylcheck.reports.BeadArrayControlsReporter(PROCESSED_450K)
+class TestControlsReporter450K():
+    r450 = methylcheck.reports.ControlsReporter(PROCESSED_450K)
     r450.process()
     r450.save()
 
@@ -36,9 +36,9 @@ class TestBeadArrayControlsReporter450K():
         if not results['Result'].equals(pd.Series([float("NaN"), 'OK (0.96)', 'OK (0.98)', 'OK (0.97)', 'OK (0.98)', 'OK (0.97)', 'OK (0.97)'])):
             raise AssertionError(f"Values in result column differ: {results['Result'].values[1:3]}")
 
-class TestBeadArrayControlsReporterEpic(): #unittest.TestCase):
+class TestControlsReporterEpic(): #unittest.TestCase):
 
-    epic = methylcheck.reports.BeadArrayControlsReporter(PROCESSED_EPIC)
+    epic = methylcheck.reports.ControlsReporter(PROCESSED_EPIC)
     epic.process()
     epic.save()
 
@@ -58,7 +58,7 @@ class TestBeadArrayControlsReporterEpic(): #unittest.TestCase):
         # next, hide the poobah and run without it
         Path(PROCESSED_EPIC,'poobah_values.pkl').rename(Path(PROCESSED_EPIC,'_poobah_values.pkl'))
         try:
-            epic = methylcheck.reports.BeadArrayControlsReporter(PROCESSED_EPIC, pval=False)
+            epic = methylcheck.reports.ControlsReporter(PROCESSED_EPIC, pval=False)
             epic.process()
             epic.save()
             results = pd.read_excel(Path(PROCESSED_EPIC, expected_outfile))

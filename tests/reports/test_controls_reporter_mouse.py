@@ -19,9 +19,9 @@ PROCESSED_450K = Path('docs/example_data/GSE69852')
 PROCESSED_MOUSE = Path('docs/example_data/mouse_test')
 PROCESSED_EPIC = Path('docs/example_data/epic')
 
-class TestBeadArrayControlsReporterForMouse(): #unittest.TestCase):
+class TestControlsReporterForMouse(): #unittest.TestCase):
 
-    mouse = methylcheck.reports.BeadArrayControlsReporter(PROCESSED_MOUSE)
+    mouse = methylcheck.reports.ControlsReporter(PROCESSED_MOUSE)
     mouse.process()
     mouse.save()
 
