@@ -33,8 +33,9 @@ class TestControlsReporter450K():
         results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
         if results.shape != (7,31):
             raise AssertionError(f"Result file shape differs: {results.shape} vs (7,31)")
-        if not results['Result'].equals(pd.Series([float("NaN"), 'OK (0.96)', 'OK (0.98)', 'OK (0.97)', 'OK (0.98)', 'OK (0.97)', 'OK (0.97)'])):
-            raise AssertionError(f"Values in result column differ: {results['Result'].values[1:3]}")
+        #if not results['Result'].equals(pd.Series([float("NaN"), 'OK (0.96)', 'OK (0.98)', 'OK (0.97)', 'OK (0.98)', 'OK (0.97)', 'OK (0.97)'])): # pre version 0.8.1
+        if not results['Result'].equals(pd.Series([float("NaN"), 'OK', 'OK', 'OK', 'OK', 'OK', 'OK'])): # v > 0.8.1
+            raise AssertionError(f"Values in result column differ: {results['Result'].values}")
 
 class TestControlsReporterEpic(): #unittest.TestCase):
 
@@ -49,7 +50,7 @@ class TestControlsReporterEpic(): #unittest.TestCase):
         results = pd.read_excel(Path(PROCESSED_EPIC, expected_outfile))
         if results.shape != (2,30):
             raise AssertionError(f"Result file shape differs: {results.shape} vs (2,30)")
-        if not list(results.iloc[1].values) == ['202908430131_R07C01', 0.29, 70.18, 45.5, 41.57, 15.44, 1.78, 1.88, 8.07, 7.22, 12.42, 4.67, 7.07, 2.49, 6.13, 2.83, 7.67, 5.25, 19.46, 6.07, 9.18, 15.88, 495, 1700, 404, 354, 0.89, 0.87, 99.5, 'OK (0.98)']:
+        if not list(results.iloc[1].values) == ['202908430131_R07C01', 0.29, 70.18, 45.5, 41.57, 15.44, 1.78, 1.88, 8.07, 7.22, 12.42, 4.67, 7.07, 2.49, 6.13, 2.83, 7.67, 5.25, 19.46, 6.07, 9.18, 15.88, 495, 1700, 404, 354, 0.89, 0.87, 99.5, 'OK']:
             print('actual:', results.iloc[1].values)
             raise AssertionError(f"Values in result column differ: {list(results.iloc[1].values)}")
         if Path(PROCESSED_EPIC,expected_outfile).exists():
@@ -68,10 +69,10 @@ class TestControlsReporterEpic(): #unittest.TestCase):
                 raise AssertionError(f"Values in result column differ: {list(results.iloc[1].values)}")
             if Path(PROCESSED_EPIC,expected_outfile).exists():
                 Path(PROCESSED_EPIC,expected_outfile).unlink()
+            # UNhide the poobah
+            Path(PROCESSED_EPIC,'_poobah_values.pkl').rename(Path(PROCESSED_EPIC,'poobah_values.pkl'))
         except:
             Path(PROCESSED_EPIC,'_poobah_values.pkl').rename(Path(PROCESSED_EPIC,'poobah_values.pkl'))
-        # UNhide the poobah
-        Path(PROCESSED_EPIC,'_poobah_values.pkl').rename(Path(PROCESSED_EPIC,'poobah_values.pkl'))
 
 
 def test_controls_report_minimal():
@@ -107,8 +108,9 @@ def test_controls_report_kwargs_colorblind_bg_offset():
     results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
     # pandas 1.3x screws up the rounding in report. can't fix it easily (on 2021-09-27)
     test = [i if isinstance(i,str) else round(i,roundoff) for i in list(results.iloc[1].values)]
-    if not test == ['9247377093_R02C01', 0.671, 62.828, 99.465, 51.829, 10.852, 1.66,  1.894, 1.017, 0.716, 19.967, 0.66, 7.776, 1.97, 5.472, 0.361, 12.982, 5.929, 13.166, 0.902, 10.483, 14.944, 414, 1511, 294, 204, 0.85, 0.88, 99.8, 'M', 'OK (0.76)']:
+    if not test == ['9247377093_R02C01', 0.671, 62.828, 99.465, 51.829, 10.852, 1.66,  1.894, 1.017, 0.716, 19.967, 0.66, 7.776, 1.97, 5.472, 0.361, 12.982, 5.929, 13.166, 0.902, 10.483, 14.944, 414, 1511, 294, 204, 0.85, 0.88, 99.8, 'M', 'MARGINAL (0.66)', 'Target Removal Green 2, Bisulfite Conversion I Green bkg/U, Bisulfite Conversion II bkg/Green, Specificity II Bkg']:
         # pre v0.7.3 -->                  #['9247377093_R02C01', 0.671, 62.84,  99.475, 51.826, 10.854, 1.661, 1.894, 1.017, 0.716, 19.962, 0.66, 7.776, 1.97, 5.47, 0.361, 12.98, 5.932, 13.168, 0.902, 10.483, 14.944, 414, 1511, 294, 204, 0.85, 0.88, 99.6, 'M', 'OK (0.76)']:
+        # v0.8.1 'OK (0.76)' became 'MARGINAL (0.66)'
         raise AssertionError(f"--colorblind, outfilepath, bg_offset=0, roundoff=3, passing=0.5: Calculated Numbers don't match those stored in test: returned {list(results.iloc[1].values)}")
 
 def test_controls_report_kwargs_no_pval():
@@ -121,8 +123,9 @@ def test_controls_report_kwargs_no_pval():
         raise FileNotFoundError(f"QC Report file missing for folder: {PROCESSED_450K}")
     results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
     test = [i if isinstance(i,str) else round(i,roundoff) for i in list(results.iloc[1].values)]
-    if not test == ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 'M', 'OK (0.96)']:
+    if not test == ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 'M', 'OK']:
         # pre v0.7.3 -->                  #['9247377093_R02C01', 0.08, 62.84, 99.47, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.96, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 'M', 'OK (0.96)']:
+        # v0.8.1 'OK (0.96)' became 'OK'
         raise AssertionError(f"--pval=False: Calculated Numbers don't match those stored in test: returned {list(results.iloc[1].values)}")
 
 def test_controls_report_kwargs_pval_sig():
@@ -136,11 +139,12 @@ def test_controls_report_kwargs_pval_sig():
         raise FileNotFoundError(f"QC Report file missing for folder: {PROCESSED_450K}")
     results = pd.read_excel(Path(PROCESSED_450K, expected_outfile))
     test = [i if isinstance(i,str) else round(i,roundoff) for i in list(results.iloc[1].values)]
-    if not test == ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 85.2, 'M', 'OK (0.96)']:
+    if not test == ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 85.2, 'M', 'OK']:
         # version v0.7.5 -->               ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 85.2, 'M', 'OK (0.96)']:
         # this works locally -->           ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 69.1, 'M', 'FAIL (pval)']
         # pre v0.7.3 -->                   ['9247377093_R02C01', 0.08, 62.84, 99.47, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.96, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 40.8, 'M', 'FAIL (pval)']:
         # on circlci I get -->             ['9247377093_R02C01', 0.08, 62.83, 99.46, 51.83, 10.85, 1.66, 1.89, 8.39, 5.91, 19.97, 5.44, 7.78, 5.88, 5.47, 2.97, 12.98, 5.93, 13.17, 7.44, 10.48, 14.94, 414, 1511, 294, 204, 0.85, 0.88, 85.2, 'M', 'OK (0.96)']
+        # v0.8.1 'OK (0.96)' became 'OK'
         raise AssertionError(f"--pval=True pval_sig=0.001: Calculated Numbers don't match those stored in test: return {list(results.iloc[1].values)}")
     if Path(PROCESSED_450K,expected_outfile).exists():
         Path(PROCESSED_450K,expected_outfile).unlink()
