@@ -30,8 +30,8 @@ class TestControlsReporterForMouse(): #unittest.TestCase):
         if not Path(PROCESSED_MOUSE, expected_outfile).exists():
             raise FileNotFoundError(f"QC Report file missing for folder: {PROCESSED_MOUSE}")
         results = pd.read_excel(Path(PROCESSED_MOUSE, expected_outfile))
-        if results.shape != (7,32):
-            raise AssertionError(f"Result file shape differs: {results.shape} should be (7,32)")
+        if results.shape != (7,33):
+            raise AssertionError(f"Result file shape differs: {results.shape} should be (7,33)")
         if not all(results['Result'].values[1:5] == ['FAIL (0.62)', 'FAIL (0.56)', 'FAIL (0.46)', 'FAIL (0.47)']):
             print('v0.7.5', results['Result'].values[1:5], ['FAIL (0.62)', 'FAIL (0.56)', 'FAIL (0.46)', 'FAIL (0.47)'])
             #v0.7.4 --> print(results['Result'].values[1:5], ['FAIL (0.7)', 'FAIL (0.64)', 'FAIL (0.53)', 'MARGINAL (0.56)'])
