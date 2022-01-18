@@ -1,5 +1,9 @@
 # Release History
 
+## v0.8.2
+- added support for sample sheets with the legacy Illumina [Header] ... [Data] format. This requires `methylprep`
+be installed for the controls report to run now.
+
 ## v0.8.1
 - .load gives clearer error when loading beta values from CSVs ('beta_csv') if probe names are not unique,
 and returns a list of series for each sample when indeces fail to merge (pandas.concat)

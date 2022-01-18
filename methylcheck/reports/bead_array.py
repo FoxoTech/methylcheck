@@ -124,7 +124,13 @@ class ControlsReporter():
                 if '.pkl' in filename.suffixes:
                     setattr(self, 'samplesheet', pd.read_pickle(filename))
                 elif '.csv' in filename.suffixes:
-                    setattr(self, 'samplesheet', pd.read_csv(filename))
+                    try:
+                        from methylprep.files import SampleSheet
+                    except ImportError:
+                        raise ImportError("parsing a sample sheet CSV requires `methylprep` be installed first.")
+                    #uses methylprep.files.SampleSheet() instead of --- pd.read_csv(filename) --- to support legacy [header] format(s).
+                    sample_sheet = SampleSheet(filename, filepath)
+                    setattr(self, 'samplesheet', sample_sheet._SampleSheet__data_frame)
                 break
 
         if not hasattr(self,'control'):
