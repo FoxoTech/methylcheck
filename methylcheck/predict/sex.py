@@ -319,7 +319,13 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
                 loaded_files['meta'] = pd.read_pickle(filename)
                 break
             if '.csv' in filename.suffixes:
-                loaded_files['meta'] = pd.read_csv(filename)
+                try:
+                    from methylprep.files import SampleSheet
+                except ImportError:
+                    raise ImportError("parsing a sample sheet CSV requires `methylprep` be installed first.")
+                #uses methylprep.files.SampleSheet() instead of --- loaded_files['meta'] = pd.read_csv(filename) --- to support legacy [header] format(s).
+                sample_sheet = SampleSheet(filename, filepath)
+                loaded_files['meta'] = sample_sheet._SampleSheet__data_frame
                 break
     if len(loaded_files) == 1:
         # methylprep v1.5.4-6 was creating meta_data files with two Sample_ID columns. Check and fix here:
