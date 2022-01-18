@@ -16,18 +16,14 @@ import methylcheck
 
 LOGGER = logging.getLogger(__name__)
 
-__all__ = ['BeadArrayControlsReporter', 'controls_report']
+__all__ = ['ControlsReporter', 'controls_report']
 
 
-class BeadArrayControlsReporter():
-    """Class used by controls_report() to produce XLSX file similar to Illumina's Bead Array Controls Report software.
+class ControlsReporter():
+    """Class used by controls_report() to produce XLSX summary of control probe performance.
 
-    This will load all the methylprep control and raw output data, then perform all the calculations listed in
-    https://support.illumina.com/content/dam/illumina-support/documents/documentation/chemistry_documentation/infinium_assays/infinium_hd_methylation/beadarray-controls-reporter-user-guide-1000000004009-00.pdf
-    and then produce a tidy color-coded XLSX file with results.
-
-    This function is analogous to methylcheck.plot_controls() except that the output if a color-coded excel sheet instead of charts.
-
+    This will load all the methylprep control and raw output data, then perform the calculations recommended by manufacturer
+    then produce a tidy color-coded XLSX file with results. This function is analogous to methylcheck.plot_controls() except that the output if a color-coded excel sheet instead of charts.
     Last column "Result" will include OK (green), MARGINAL (yellow), or FAIL (RED) -- as a summary of all other tests.
 
     If there is a meta data pickle, and there's a Sex or Gender column, it will compare SEX.
@@ -44,9 +40,9 @@ class BeadArrayControlsReporter():
         'noob_unmeth_values.pkl': 'noob_unmeth',
     }
     samplesheet_patterns = {
+        '*meta_data*.pkl': 'samplesheet', # meta_data is used first, if both available
         '*samplesheet*.csv': 'samplesheet',
         '*sample_sheet*.csv': 'samplesheet',
-        '*meta_data*.pkl': 'samplesheet',
     }
     # does NOT use m_values or 'beta_values.pkl'
 
@@ -183,10 +179,8 @@ class BeadArrayControlsReporter():
             (applies to all background calculations, indicated with (bkg +x).)
 
 NEGATIVE control probes are used as the baseline for p-val calculations.
-    (but NEGATIVE and NORM_ not used in BeadArray)
 
-see also https://support.illumina.com/content/dam/illumina-support/documents/documentation/chemistry_documentation/infinium_assays/infinium_hd_methylation/infinium-hd-methylation-guide-15019519-01.pdf
-for list of expected intensity per type
+see also infinium-hd-methylation-guide-15019519-01.pdf for list of expected intensity per type
 
 MOUSE conversions (or proxy)
 baseline_G Extension -- missing -- use NEGATIVE Hairpin probes as proxy
@@ -288,7 +282,7 @@ target removal
         else:
             # BS min(C1, 2, or 3) / BS max(U1, 2, 3) > 1
             # META NOTE: BS Conversion I-C1 is "I C1" in 450k. U1 also differs.
-            # META NOTE: in order to match BeadArray, I had to ignore I-C3 and I-U3, as these always gave really low intensity outputs. The C1/U2 combo seems to work in practice.
+            # META NOTE: I had to ignore I-C3 and I-U3, as these always gave really low intensity outputs. The C1/U2 combo seems to work in practice.
             self.bisulfite_conversion_I_green_CU = round( min([
                 con[con['Extended_Type'].isin(['BS Conversion I-C1','BS Conversion I C1'])]['Mean_Value_Green'].values[0],
                 con[con['Extended_Type']=='BS Conversion I-C2']['Mean_Value_Green'].values[0],
@@ -325,7 +319,7 @@ target removal
                 con[con['Extended_Type']=='BS Conversion I-U5']['Mean_Value_Red'].values[0]
                 ]), self.roundoff)
 
-            #### min & max derived by comparing with BeadArray output, because guide PDF was unclear.
+            #### min & max derived by comparing with expected output, because guide manufacturer's reference guide was unclear here.
             # Bisulfite Conversion II min(Red) > C max(Green)
             self.bisulfite_conversion_II_red_ratio = round( min([
                 con[con['Extended_Type']=='BS Conversion II-1']['Mean_Value_Red'].values[0],
@@ -377,7 +371,7 @@ target removal
                 con[con['Extended_Type']=='Non_Specific_II_1_1']['Mean_Value_Green'].values[0],
                 ]), self.roundoff)
         else:
-            # ignoring controls 4,5,6 gave me the same output as BeadArray
+            # ignoring controls 4,5,6 gave me the expected output
             # Specificity I Green (min(PM)/max(MM)) > 1
             self.specificity_I_green = round( min([
                 con[con['Extended_Type']=='GT Mismatch 1 (PM)']['Mean_Value_Green'].values[0],
@@ -395,7 +389,7 @@ target removal
                 #con[con['Extended_Type']=='GT Mismatch 6 (MM)']['Mean_Value_Green'].values[0],
                 ]), self.roundoff)
 
-            # ignoring controls 1,2,3 here gave me the same output as BeadArray
+            # ignoring controls 1,2,3 here gave me the expected result
             # Specificity I Red (min(PM)/max(MM)) > 1
             self.specificity_I_red = round( min([
                 #con[con['Extended_Type']=='GT Mismatch 1 (PM)']['Mean_Value_Red'].values[0],
@@ -464,7 +458,7 @@ target removal
                 con[con['Extended_Type']=='NP (G)']['Mean_Value_Red'].values[0],
                 ]), self.roundoff)
 
-        # ADDITIONAL tests (not in BeadArray)
+        # ADDITIONAL tests
         self.negative_control_mean_green = round( np.mean(
         con[con['Control_Type'] == 'NEGATIVE']['Mean_Value_Green'].values,
         ))
@@ -600,8 +594,8 @@ target removal
             {'col': 'Baseline Red', 'val':baseline_R - self.bg_offset, 'formula': "max(Extension (C), Extension (G)) no offset", 'max':800, 'med':400, 'min':100},
             {'col': 'Negative Baseline G', 'val':self.negative_control_mean_green, 'formula': "mean NEGATIVE Green control probes"},
             {'col': 'Negative Baseline R', 'val':self.negative_control_mean_red, 'formula': "mean NEGATIVE Red control probes"},
-            {'col': 'Regression NORM_GA', 'val':self.regression_NORM_GA, 'formula': "NORM_G (grn) vs NORM_A (red)", 'max':0.9, 'med':0.9, 'min':0.9},
-            {'col': 'Regression NORM_CT', 'val':self.regression_NORM_CT, 'formula': "NORM_C (grn) vs NORM_T (red)", 'max':0.9, 'med':0.9, 'min':0.9},
+            {'col': 'Regression NORM_GA', 'val':self.regression_NORM_GA, 'formula': "NORM_G (grn) vs NORM_A (red)", 'max':0.8, 'med':0.8, 'min':0.8},
+            {'col': 'Regression NORM_CT', 'val':self.regression_NORM_CT, 'formula': "NORM_C (grn) vs NORM_T (red)", 'max':0.8, 'med':0.8, 'min':0.8},
             {'col': 'GCT score', 'val':self.gct_score, 'formula': "mean(oobG extC)/mean(oobG extT)", 'max':1.0, 'med':0.99, 'min':0.93},
             #{'col': 'NORM_A', 'val':self.norm_A_mean_green, 'formula': "mean NORM_A control probes Green)", 'max':600, 'med':300, 'min':100},
             #{'col': 'NORM_T', 'val':self.norm_T_mean_green, 'formula': "mean NORM_T control probes Green)", 'max':400, 'med':200, 'min':100},
@@ -700,22 +694,28 @@ target removal
         for col in self.data[sample]:
             if col['col'] in self.untestable_columns:
                 continue
+            if pd.isna(col['val']):
+                continue
             if col.get('max') is None:
                 print(f"WARNING: no threshold for {col['col']}")
                 continue
-            if pd.isna(col['val']):
-                continue
             passfail[col['col']] = 1 if col['val'] >= col['max'] else 0
-            missed_by_much[col['col']] = round(col['val'] / (col['max'] + 0.00000000001),2)
+            missed_by_amount = round(col['val'] / (col['max'] + 0.00000000001),2)
+            if missed_by_amount <= 0: # some tests can go negative, so setting a floor
+                # print(f"missed_by_amount: {missed_by_amount} col val {col['val']} col max {col['max']}")
+                missed_by_amount = 0.01
+            missed_by_much[col['col']] = missed_by_amount
 
 
         result = round( sum(passfail.values()) / sum(~np.isnan(list(passfail.values()))), 2) # fraction passing
         # average ratio of value to cutoff per failing test
+        failed_tests = [col for col,val in missed_by_much.items() if passfail[col] == 0]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", category=RuntimeWarning)
             how_close = round(np.nanmean(np.clip([val for col,val in missed_by_much.items() if passfail[col] == 0], 0, 100000)),2)
 
-        if result == 1.0:
+        # percent of columns that passed
+        if result >= 1.0:
             result = 'OK'
         elif result >= self.passing and (how_close == 0 or np.isnan(how_close)):
             result = 'MARGINAL (infinite values)'
@@ -734,6 +734,8 @@ target removal
         self.data[sample].append(result_col)
         report_row = min([idx for idx,row in enumerate(self.report) if row['Sample'] == sample])
         self.report[report_row]['Result'] = result_col['val']
+        if failed_tests != []:
+            self.report[report_row]['Why Failed'] = ', '.join(failed_tests)
 
     def save(self):
         if self.legacy:
@@ -833,7 +835,7 @@ target removal
                 worksheet.conditional_format(this_box, coloring)
                 # next: track if any values are longer than the column names, to adjust widths at end
                 if len(str(k['val'])) > col_widths[k['col']]:
-                    col_widths[k['col']] = len(str(k['val']))
+                    col_widths[k['col']] = int( len(str(k['val'])) * 1.5 )
 
         #worksheet.conditional_format('B2:B8', {'type': '3_color_scale', 'min_value':0, 'max_value':1, 'mid_value':0.5})
         # There is no way to specify “AutoFit” for a column in the Excel file format.
@@ -856,13 +858,11 @@ target removal
 
 
 def controls_report(*args, **kwargs):
-    """Run a clone of Illumina's Bead Array Controls Reporter to generate an excel QC Report.
+    """Generates a color-coded excel/csv QC Report.
 
 CLI: methylcheck controls
 
-    This will load the methylprep control_probes.pkl file and perform all the calculations listed in
-    https://support.illumina.com/content/dam/illumina-support/documents/documentation/chemistry_documentation/infinium_assays/infinium_hd_methylation/beadarray-controls-reporter-user-guide-1000000004009-00.pdf
-    then produce a tidy color-coded XLSX file with results.
+    This will load the methylprep control_probes.pkl file and perform all the calculations and produce a tidy color-coded XLSX file with results.
 
     Note: this function is analogous to methylcheck.plot_controls() except that the output if a color-coded excel sheet instead of image charts.
 
@@ -884,10 +884,9 @@ Optional Arguments:
         You can increase this number to apply more stringent benchmarks for what constitutes good
         data, typically in the range of 1.0 to 3.0 (as a 1X to 3X cutoff multiplier).
     legacy (False)
-        True: changes XLSX column names to match BeadArray output file exactly.
-        So columns are TitleCase instead of readable text; drops the formulas row;
+        True: changes XLSX column names; columns are TitleCase instead of readable text; drops the formulas row;
         splits sample column into two SentrixID columns. Rounds all numbers to 1 decimal
-        instead of 2. Use this if you have automation that uses the Illumina legacy format.
+        instead of 2.
         This will also exclude p-value poobah column and the result (interpretation) column from report.
     roundoff (2, int)
         Option to adjust the level of rounding in report output numbers.
@@ -903,10 +902,13 @@ Optional Arguments:
     project_name (str, default None)
         If defined, will be used to name the QC report file.
     """
-    if len(args) > 0:
-        raise AttributeError("This function takes 0 arguments. Specify the filepath using filepath=<path>.")
+    if len(args) == 1:
+        kwargs['filepath'] = args[0]
+        LOGGER.warning(f"Assigned argument 0 `{kwargs['filepath']}` to `filepath` kwarg. This function takes 0 arguments.")
+    elif len(args) > 1:
+        raise AttributeError("This function takes 0 arguments, but {len(args)} arguments found. Specify the filepath using filepath=<path>.")
     if 'filepath' not in kwargs:
         raise FileNotFoundError("No control probes file location specified.")
-    reporter = BeadArrayControlsReporter(**kwargs)
+    reporter = ControlsReporter(**kwargs)
     reporter.process()
     reporter.save()

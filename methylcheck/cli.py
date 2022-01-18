@@ -132,7 +132,7 @@ controls
     qc_parser = subparsers.add_parser('qc', help="Apply filters to exclude probes based on academic refs, or sex-linked, or control probes")
     qc_parser.set_defaults(func=cli_qc)
 
-    controls_parser = subparsers.add_parser('controls', help='Generate an XLSX QC report similar to Illumina Bead Array Controls Reporter')
+    controls_parser = subparsers.add_parser('controls', help='Generate an XLSX QC report of control probe performance')
     controls_parser.set_defaults(func=cli_controls_report)
 
     report_parser = subparsers.add_parser('report', help="Run methylcheck's ReportPDF pipeline and generate a PDF.")
@@ -294,7 +294,7 @@ Also see methylcheck.list_problem_probes for more details.',
 def cli_controls_report(cmd_args):
     parser = DefaultParser(
         prog='methylcheck controls',
-        description='Run the Illumina Bead Array QC pipeline on files in a given folder.',
+        description='Run the controls_report QC pipeline on files in a given folder.',
     )
 
     parser.add_argument(
@@ -347,7 +347,7 @@ def cli_controls_report(cmd_args):
 
     parser.add_argument(
         '-l', '--legacy',
-        help='Change XLSX column names to match Illumina BeadArray output file exactly.',
+        help='Change XLSX columns to exclude sex check and overall sample quality score, and match the format of Illumina quality control output files.',
         action='store_true',
         default=False,
     )
@@ -367,7 +367,7 @@ def cli_controls_report(cmd_args):
 def cli_ReportPDF(cmd_args):
     parser = DefaultParser(
         prog='methylcheck report',
-        description='Run the Genome Studio-based QC pipeline and generate a PDF Summary.',
+        description='Create a battery of control probe performance plots, saved as a PDF.',
     )
 
     parser.add_argument(

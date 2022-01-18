@@ -31,7 +31,7 @@ statsmodels = "*"
 scipy = "*"
 matplotlib = "*"
 seaborn = "*"
-tqdm = "*"
+tqdm = ">=4.61.2"
 joblib = "*"
 # scikit-learn = "*" #<--- MDS is embedded in this package, but it will use sklearn if present.
 # methylcheck = {editable = true,extras = ["dev"],path = "."}

@@ -1,5 +1,16 @@
 # Release History
 
+## v0.8.1
+- .load gives clearer error when loading beta values from CSVs ('beta_csv') if probe names are not unique,
+and returns a list of series for each sample when indeces fail to merge (pandas.concat)
+- .beta_mds_plot() can now suppress the interactive portion and still display plots, using `silent=True` and `plot=True`
+(`plot` is a new kwarg, and defaults to `True`). Previously `silent` mode would suppress both prompts and plot display.
+Change in behavior: `silent` mode will not disable plotting. Must also include `plot=False` for that.
+
+## v0.8.0
+- Fixed bug in `.load` that requires `tqdm` >= 4.61.2
+- Added more detailed error message on `.load`; it cannot load and merge two meth/unmeth dataframes with redundant probe names.
+
 ## v0.7.9
 - `ReportPDF` accepts 'poobah_colormap' kwarg to feed in beta_mds_plot colormap.
 - `ReportPDF` custom tables: You can insert your custom table on the first page by specifying 'order_after' == None.
@@ -25,9 +36,9 @@ is only used to color-code poobah failure rates, if the poobah file path is spec
 - plot_M_vs_U now loads the noob_meth_values.pkl files if noob=True and files are found; otherwise it uses whatever meth/unmeth data is available.
 - Methylcheck.qc_plot.qc_signal_intensity returns a dictionary of data about good/bad samples based on signal intensity.
   Previously it was only returning this if 'plot' was False.
-- BeadArray controls bug fixed: methylprep was producing samplesheet meta data pickles that contained Sample_ID twice,
+- controls_report() bug fixed: methylprep was producing samplesheet meta data pickles that contained Sample_ID twice,
   because the GEO series_matrix files had this data appear twice. This broke the report, but this case is caught and avoided now.
-  BeadArray will recognize a wider array of samplesheet filenames now; anything with 'samplesheet' or 'meta_data' in the filename.
+  controls_report() will recognize a wider array of samplesheet filenames now; anything with 'samplesheet' or 'meta_data' in the filename.
 
 
 ## v0.7.5
@@ -46,10 +57,10 @@ is only used to color-code poobah failure rates, if the poobah file path is spec
   - if fields are too long, it will truncate them or auto scale the font size smaller to fit on page.
 
 ## v0.7.2
-- added GCT score to BeadArray controls report, ReportDF
+- added GCT score to controls_report() used in the ReportPDF class.
 - ReportPDF changes
   - uses noob_meth/unmeth instead of raw, uncorrected meth/unmeth values for GCT and U vs M plot
-  - inverted poobah table to report percent passing (instead of failing) probes per sample, like BeadArray report
+  - inverted poobah table to report percent passing (instead of failing) probes per sample
   - this changed input from 'poobah_max_percent' (default 5%) to 'poobah_min_percent', (default 80%)
   - M_vs_U not included by default, because redundant with qc_signal_intensity
   - M_vs_U compare=True now labels each sample and has legend, so you can see effect of NOOB+dye correction on batch
@@ -59,7 +70,7 @@ is only used to color-code poobah failure rates, if the poobah file path is spec
   - save plots, or return fig, and more options now
 
 ## v0.7.1
-- Added a python clone of Illumina's BeadArray Controls Reporter software
+- Added a controls_report() function that creates a spreadsheet summary of control probe performance.
 - New unit test coverage. Note that because methylprep v1.4.0 changes processing, the results will change slightly
     to match `sesame` instead of `minfi`, with nonlinear-dye-bias correction and infer-type-I-probe-switching.
 - changed org name from FoxoBioScience to FoxoTech
