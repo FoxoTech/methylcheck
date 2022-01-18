@@ -20,16 +20,16 @@ methylcheck is a Python-based package for filtering and visualizing Illumina met
 
 You should install all three components, as they work together. The parts include:
 
-- `methylprep`: (this package) for processing `idat` files or downloading GEO datasets from NIH. Processing steps include
+- `methylprep`: for processing `idat` files or downloading GEO datasets from NIH. Processing steps include
    - infer type-I channel switch
    - NOOB (normal-exponential convolution on out-of-band probe data)
-   - poobah (p-value with out-of-band array hybridization, for filtering lose signal-to-noise probes)
+   - poobah (p-value with out-of-band array hybridization, for filtering low signal-to-noise probes)
    - qualityMask (to exclude historically less reliable probes)
    - nonlinear dye bias correction (AKA signal quantile normalization between red/green channels across a sample)
    - calculate beta-value, m-value, or copy-number matrix
    - large batch memory management, by splitting it up into smaller batches during processing
 
-- `methylcheck`: for quality control (QC) and analysis, including
+- `methylcheck`: (this package) for quality control (QC) and analysis, including
    - functions for filtering out unreliable probes, based on the published literature
       - Note that `methylprep process` will exclude a set of unreliable probes by default. You can disable that using the --no_quality_mask option from CLI.
    - sample outlier detection
