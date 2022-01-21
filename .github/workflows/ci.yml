@@ -33,10 +33,9 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install dependencies
         run: |
-            pip install pipenv pytest_cov
+            pip install pipenv
             # pipenv install pytest_cov
-            pipenv install --dev --skip-lock
-            pipenv install -e . --skip-lock
+            pipenv install -e .[dev] --skip-lock            
             # pipenv uses requirements.txt
 
       - name: Testing and coverage report
