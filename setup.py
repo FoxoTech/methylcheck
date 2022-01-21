@@ -2,6 +2,22 @@
 from setuptools import setup, find_packages
 exec(open('methylcheck/version.py').read())
 
+test_requirements = [
+    'methylprep', # this is not REQUIRED but some functions in unit testing do require it, so in extras.
+    'pytest',
+    'pytest-pep8',
+    'pytest-cov',
+    'flake8',
+    'coverage',
+    'xlrd',
+    'coveralls', # replaces python-coveralls. note that installing both in same environment will break it.
+    'sphinxcontrib-apidoc',
+    'm2r',
+    'nbsphinx',
+    'sphinx',
+    'ipykernel',
+]
+
 # note: ANY param must fit on a single line or twine breaks.
 setup(
     name='methylcheck',
@@ -48,24 +64,10 @@ setup(
         'openpyxl', # pandas xlsx support changed to use this
     ],
     extras_require={
-        'dev': [
-            'methylprep', # this is not REQUIRED but some functions in unit testing do require it, so in extras.
-            'pytest',
-            'pytest-pep8',
-            'pytest-cov',
-            'flake8',
-            'coverage',
-            'xlrd',
-            'coveralls', # replaces python-coveralls. note that installing both in same environment will break it.
-            'sphinxcontrib-apidoc',
-            'm2r',
-            'nbsphinx',
-            'sphinx',
-            'ipykernel',
-        ]
+        'dev': test_requirements
     },
     setup_requires=['pytest-runner'],
-    tests_require=['pytest'],
+    tests_require= test_requirements,
     entry_points={
         'console_scripts': [
             'methylcheck-cli = methylcheck.cli:cli_parser',
