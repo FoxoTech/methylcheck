@@ -36,7 +36,7 @@ inputs:
     array_type (string)
         enum: {'27k','450k','epic','epic+','mouse'}
         if not specified, it will load the data from data_source and determine the array for you.
-    median_cutoff
+    median_cutoff (default is -2)
         the minimum difference in the medians of X and Y probe copy numbers to assign male or female
         (copied from the minfi sex predict function)
     include_probe_failure_percent:
