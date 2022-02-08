@@ -1,4 +1,4 @@
-name: Run PyTest
+name: tests
 on:
   push:
     branches:
@@ -35,7 +35,7 @@ jobs:
         run: |
             pip install pipenv
             # pipenv install pytest_cov
-            pipenv install -e .[dev] --skip-lock            
+            pipenv install -e .[dev] --skip-lock
             # pipenv uses requirements.txt
 
       - name: Testing and coverage report

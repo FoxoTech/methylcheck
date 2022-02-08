@@ -163,13 +163,21 @@ Use cases and format:
             if 'unmeth_values' in part and 'noob' not in part:
                 unmeth_dfs.append( pd.read_pickle(part) )
         if meth_dfs != [] and unmeth_dfs != []:
-            tqdm.pandas()
+            tqdm.pandas(disable=silent)
             try:
                 meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
                 unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
                 LOGGER.info(f"{meth_dfs.shape} {unmeth_dfs.shape}")
-            except pd.errors.InvalidIndexError as e:
+            except pd.errors.InvalidIndexError as e: # doesn't always catch; must test explicitly next.
                 LOGGER.error(f"Your meth/unmeth data contains duplicate probes of the same name. Use pandas to load instead.")
+            if any(meth_dfs.index.duplicated()):
+                LOGGER.error(f"Your meth_df contains ({meth_dfs.index.duplicated().sum()} of {len(meth_dfs.index)}) duplicate probe names.")
+            if any(unmeth_dfs.index.duplicated()):
+                LOGGER.error(f"Your unmeth_df contains ({unmeth_dfs.index.duplicated().sum()} of {len(unmeth_dfs.index)}) duplicate probe names.")
+            if any(meth_dfs.columns.duplicated()):
+                LOGGER.error(f"Your meth_df contains ({meth_dfs.columns.duplicated().sum()} of {len(meth_dfs.columns)}) duplicate sample names.")
+            if any(unmeth_dfs.columns.duplicated()):
+                LOGGER.error(f"Your unmeth_df contains ({unmeth_dfs.columns.duplicated().sum()} of {len(unmeth_dfs.columns)}) duplicate sample names.")
             return meth_dfs, unmeth_dfs
 
     elif format == 'noob_df':
@@ -183,13 +191,21 @@ Use cases and format:
             if 'noob_unmeth_values' in part:
                 unmeth_dfs.append( pd.read_pickle(part) )
         if meth_dfs != [] and unmeth_dfs != []:
-            tqdm.pandas()
+            tqdm.pandas(disable=silent)
             try:
                 meth_dfs = pd.concat(meth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
                 unmeth_dfs = pd.concat(unmeth_dfs, axis='columns', join='inner').progress_apply(lambda x: x)
-                LOGGER.info(f"{meth_dfs.shape}, {unmeth_dfs.shape}")
-            except pd.errors.InvalidIndexError as e:
+                LOGGER.info(f"DEBUG {meth_dfs.shape}, {unmeth_dfs.shape}")
+            except pd.errors.InvalidIndexError as e: # doesn't always catch; must test explicitly next.
                 LOGGER.error(f"Your noob_meth/noob_unmeth data contains duplicate probes of the same name. Use pandas to load instead.")
+            if any(meth_dfs.index.duplicated()):
+                LOGGER.error(f"Your meth_df contains ({meth_dfs.index.duplicated().sum()} of {len(meth_dfs.index)}) duplicate probe names.")
+            if any(unmeth_dfs.index.duplicated()):
+                LOGGER.error(f"Your unmeth_df contains ({unmeth_dfs.index.duplicated().sum()} of {len(unmeth_dfs.index)}) duplicate probe names.")
+            if any(meth_dfs.columns.duplicated()):
+                LOGGER.error(f"Your noob_meth_df contains ({meth_dfs.columns.duplicated().sum()} of {len(meth_dfs.columns)}) duplicate sample names.")
+            if any(unmeth_dfs.columns.duplicated()):
+                LOGGER.error(f"Your noob_unmeth_df contains ({unmeth_dfs.columns.duplicated().sum()} of {len(unmeth_dfs.columns)}) duplicate sample names.")
             return meth_dfs, unmeth_dfs
 
     #2b: determine number of file parts

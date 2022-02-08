@@ -20,6 +20,7 @@ def _get_copy_number(meth,unmeth):
     return np.log2(meth+unmeth)
 
 
+
 def get_sex(data_source, array_type=None, verbose=False, plot=False, save=False,
         on_lambda=False, median_cutoff= -2, include_probe_failure_percent=True,
         poobah_cutoff=20, custom_label=None, return_fig=False, return_labels=False):
@@ -104,6 +105,8 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
 
     elif data_source_type == 'meth_unmeth_tuple':
         (meth, unmeth) = data_source
+        if any(meth.index != unmeth.index):
+            raise IndexError("The (row) indeces of your meth and unmeth tuples do not align.")
 
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")
@@ -184,7 +187,7 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     if data_source_type in ('path'):
         output = _fetch_actual_sex_from_sample_sheet_meta_data(data_source, output)
 
-    if plot == True:
+    if plot == True or return_fig == True:
         fig = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
             sample_failure_percent=sample_failure_percent,
             median_cutoff=median_cutoff,
