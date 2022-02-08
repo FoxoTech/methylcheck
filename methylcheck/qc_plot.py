@@ -313,7 +313,8 @@ def _get_data(data_containers=None, path=None, compare=False, noob=True, verbose
                         _unmeth = pd.merge(left=_unmeth, right=sample[f'{n2}unmeth'], left_on='IlmnID', right_on=sample['IlmnID'])
                         _unmeth = _unmeth.rename(columns={f'{n2}unmeth': sample_filenames[idx]})
             else:
-                print(f"{len(csvs)} processed samples found in {path} using NOOB: {noob}.")
+                if verbose:
+                    print(f"{len(csvs)} processed samples found in {path} using NOOB: {noob}.")
                 if files_found:
                     data_columns = "NOOB meth/unmeth" if noob else "non-NOOB-corrected meth/unmeth"
                     print(f"processed files found, but did not contain the right data ({data_columns})")

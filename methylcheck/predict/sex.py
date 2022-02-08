@@ -187,25 +187,33 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     if data_source_type in ('path'):
         output = _fetch_actual_sex_from_sample_sheet_meta_data(data_source, output)
 
-    if plot == True or return_fig == True:
-        fig = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
-            sample_failure_percent=sample_failure_percent,
-            median_cutoff=median_cutoff,
-            include_probe_failure_percent=include_probe_failure_percent,
-            verbose=verbose,
-            save=save,
-            poobah_cutoff=poobah_cutoff,
-            custom_label=custom_label,
-            data_source_type=data_source_type,
-            data_source=data_source,
-            return_fig=return_fig,
-            return_labels=return_labels,
-            )
-        if return_labels:
-            return fig # these are a lookup dictionary of labels
-    if return_fig:
-        return fig
-    return output
+    if plot == False and return_fig == False and return_labels == False:
+        return output
+
+    # plot, return_fig, or return_labels
+    fig_or_labels = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
+        sample_failure_percent=sample_failure_percent,
+        median_cutoff=median_cutoff,
+        include_probe_failure_percent=include_probe_failure_percent,
+        verbose=verbose,
+        save=save,
+        poobah_cutoff=poobah_cutoff,
+        custom_label=custom_label,
+        data_source_type=data_source_type,
+        data_source=data_source,
+        return_fig=return_fig,
+        return_labels=return_labels,
+        )
+    if return_labels:
+        return fig_or_labels # these are a lookup dictionary of labels, not the plt.gcf() figure
+    elif plot == False and return_fig == True:
+        return fig_or_labels # seaborn.axisgrid.FacetGrid object
+    elif plot == True and return_fig == True:
+        plt.show()
+        return fig_or_labels # seaborn.axisgrid.FacetGrid object
+    elif plot == True and return_fig == False:
+        return # already plotted if return_labels was false and return_fig was false
+
 
 
 def _plot_predicted_sex(data=pd.DataFrame(),
