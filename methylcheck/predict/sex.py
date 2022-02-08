@@ -20,6 +20,7 @@ def _get_copy_number(meth,unmeth):
     return np.log2(meth+unmeth)
 
 
+
 def get_sex(data_source, array_type=None, verbose=False, plot=False, save=False,
         on_lambda=False, median_cutoff= -2, include_probe_failure_percent=True,
         poobah_cutoff=20, custom_label=None, return_fig=False, return_labels=False):
@@ -36,7 +37,7 @@ inputs:
     array_type (string)
         enum: {'27k','450k','epic','epic+','mouse'}
         if not specified, it will load the data from data_source and determine the array for you.
-    median_cutoff
+    median_cutoff (default is -2)
         the minimum difference in the medians of X and Y probe copy numbers to assign male or female
         (copied from the minfi sex predict function)
     include_probe_failure_percent:
@@ -104,6 +105,8 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
 
     elif data_source_type == 'meth_unmeth_tuple':
         (meth, unmeth) = data_source
+        if any(meth.index != unmeth.index):
+            raise IndexError("The (row) indeces of your meth and unmeth tuples do not align.")
 
     if len(meth) != len(unmeth):
         raise ValueError(f"WARNING: probe count mismatch: meth {len(meth)} -- unmeth {len(unmeth)}")
@@ -184,25 +187,33 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     if data_source_type in ('path'):
         output = _fetch_actual_sex_from_sample_sheet_meta_data(data_source, output)
 
-    if plot == True:
-        fig = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
-            sample_failure_percent=sample_failure_percent,
-            median_cutoff=median_cutoff,
-            include_probe_failure_percent=include_probe_failure_percent,
-            verbose=verbose,
-            save=save,
-            poobah_cutoff=poobah_cutoff,
-            custom_label=custom_label,
-            data_source_type=data_source_type,
-            data_source=data_source,
-            return_fig=return_fig,
-            return_labels=return_labels,
-            )
-        if return_labels:
-            return fig # these are a lookup dictionary of labels
-    if return_fig:
-        return fig
-    return output
+    if plot == False and return_fig == False and return_labels == False:
+        return output
+
+    # plot, return_fig, or return_labels
+    fig_or_labels = _plot_predicted_sex(data=output, # 'x_median', 'y_median', 'predicted_sex', 'X_fail_percent', 'Y_fail_percent'
+        sample_failure_percent=sample_failure_percent,
+        median_cutoff=median_cutoff,
+        include_probe_failure_percent=include_probe_failure_percent,
+        verbose=verbose,
+        save=save,
+        poobah_cutoff=poobah_cutoff,
+        custom_label=custom_label,
+        data_source_type=data_source_type,
+        data_source=data_source,
+        return_fig=return_fig,
+        return_labels=return_labels,
+        )
+    if return_labels:
+        return fig_or_labels # these are a lookup dictionary of labels, not the plt.gcf() figure
+    elif plot == False and return_fig == True:
+        return fig_or_labels # seaborn.axisgrid.FacetGrid object
+    elif plot == True and return_fig == True:
+        plt.show()
+        return fig_or_labels # seaborn.axisgrid.FacetGrid object
+    elif plot == True and return_fig == False:
+        return # already plotted if return_labels was false and return_fig was false
+
 
 
 def _plot_predicted_sex(data=pd.DataFrame(),

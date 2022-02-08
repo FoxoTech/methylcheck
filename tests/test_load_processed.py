@@ -2,16 +2,58 @@
 import pytest
 from pathlib import Path
 import pandas as pd
+import shutil
+import logging
 TESTPATH = 'tests'
 #app
 import methylcheck
 
 
 class TestLoadProcessed():
+
     epic_df = Path(TESTPATH,'test_epic_filter.pkl')
     epic_df2 = Path(TESTPATH,'test_epic_filter.pkl.gz')
     test_450k = Path('docs/example_data/GSE69852')
     test_alt_450k = Path('docs/example_data/GSE105018')
+    mouse_test = Path('docs/example_data/mouse_test')
+
+    pytest.fixture()
+    def test_load_noob_tuple_pickles(self, caplog):
+        workdir = Path(self.mouse_test,'temp')
+        if workdir.exists():
+            shutil.rmtree(workdir)
+        (meth,unmeth) = methylcheck.load(self.mouse_test, format='noob_df', verbose=False, silent=True)
+
+        # (1) scramble, save, and confirm you get errors with duplicate samples
+        workdir.mkdir(parents=True, exist_ok=True)
+        bad_meth = pd.concat([meth, meth], axis='columns')
+        bad_meth.to_pickle(Path(workdir,'noob_meth_values.pkl'))
+        unmeth.to_pickle(Path(workdir,'noob_unmeth_values.pkl'))
+        (bad_meth,bad_unmeth) = methylcheck.load(workdir, format='noob_df', verbose=False, silent=True)
+        errors = [record for record in caplog.get_records('call') if record.levelno >= logging.ERROR]
+        relevant_msg = [record.msg for record in errors if 'duplicate sample names' in record.msg]
+        if len(relevant_msg) == 0:
+            shutil.rmtree(workdir)
+            raise AssertionError(f"Did not detect ERROR message when loading noob_meth with duplicate sample names.")
+        else:
+            print(f"OK: mouse_test (meth, unmeth) tuple with duplicate samples yields ERROR message: {relevant_msg[-1]}")
+        shutil.rmtree(workdir)
+
+        # (2) duplicate probes
+        workdir.mkdir(parents=True, exist_ok=True)
+        bad_meth = pd.concat([meth, meth], axis='index')
+        bad_meth.to_pickle(Path(workdir,'noob_meth_values.pkl'))
+        unmeth.to_pickle(Path(workdir,'noob_unmeth_values.pkl'))
+        (bad_meth,bad_unmeth) = methylcheck.load(workdir, format='noob_df', verbose=False, silent=True)
+        errors = [record for record in caplog.get_records('call') if record.levelno >= logging.ERROR]
+        relevant_msg = [record.msg for record in errors if 'duplicate probe names' in record.msg]
+        if len(relevant_msg) == 0:
+            shutil.rmtree(workdir)
+            raise AssertionError(f"Did not detect ERROR message when loading noob_meth with duplicate probe names.")
+        else:
+            print(f"OK: mouse_test (meth, unmeth) tuple with duplicate probes yields ERROR message: {relevant_msg[-1]}")
+        shutil.rmtree(workdir)
+
 
     def test_load_beta_pickle(self):
         df = methylcheck.load(self.epic_df)

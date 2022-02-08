@@ -1,5 +1,10 @@
 # Release History
 
+## v0.8.3
+- get_sex bug fixes; supports plots, returning figure, returning labels, or returning predicted sex dataframe
+- add testing via github actions
+- updated documentation
+
 ## v0.8.2
 - added support for sample sheets with the legacy Illumina [Header] ... [Data] format. This requires `methylprep`
 be installed for the controls report to run now.

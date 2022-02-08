@@ -2,7 +2,7 @@ import methylcheck
 import pandas as pd
 import methylprep # for manifest support
 from pathlib import Path
-PATH = Path('docs/example_data/mouse')
+PATH = Path('docs/example_data/mouse/')
 
 class TestProcessedSample():
     manifest = methylprep.Manifest(methylprep.ArrayType('mouse'))
