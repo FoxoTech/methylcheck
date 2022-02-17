@@ -390,12 +390,13 @@ Notes
         elif Path(poobah,'poobah_values.pkl').is_file():
             poobah = pd.read_pickle(Path(poobah,'poobah_values.pkl'))
 
-    try: #tries to cast the dataframe to floats to prevent an error.
-        df = df.astype(float)
-        if verbose:
-            LOGGER.info('Dataframe is being casted to floats.')
-    except ValueError:
-        LOGGER.warning('Your dataframe has non numeric values and cannot be casted to a float.')
+    if not ((df.dtypes == 'float64') | (df.dtypes == 'float32') | (df.dtypes == 'float16')).all(): #checks to see if the dataframe is already all floats and casts it if it's not
+        try: #tries to cast the dataframe to floats to prevent an error.
+            df = df.astype(float)
+            if verbose:
+                LOGGER.info('Dataframe is being casted to floats.')
+        except ValueError:
+            LOGGER.warning('Your dataframe has non numeric values and cannot be casted to a float.')
 
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
