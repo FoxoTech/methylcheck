@@ -390,7 +390,7 @@ Notes
         elif Path(poobah,'poobah_values.pkl').is_file():
             poobah = pd.read_pickle(Path(poobah,'poobah_values.pkl'))
 
-    if not ((df.dtypes == 'float64') | (df.dtypes == 'float32') | (df.dtypes == 'float16')).all(): #checks to see if the dataframe is already all floats and casts it if it's not
+    if not ((df.dtypes == 'float64') | (df.dtypes == 'float32')).all(): #checks to see if the dataframe is already all floats and casts it if it's not
         try: #tries to cast the dataframe to floats to prevent an error.
             df = df.astype(float)
             if verbose:
