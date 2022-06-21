@@ -1,6 +1,11 @@
 # Release History
 
-## v0.8.3
+## v0.8.5
+- consistent flexible function inputs: Any function that accepted a filepath or dataframe as first parameter
+now accepts either of these interchangeably, except for loading functions and Report classes; these cannot handle dataframe inputs: `ControlsReport`; `ReportPDF`; `load()`; `load_both()`; `combine_mds()`.
+- improved .load speed
+
+## v0.8.4
 - get_sex bug fixes; supports plots, returning figure, returning labels, or returning predicted sex dataframe
 - add testing via github actions
 - updated documentation

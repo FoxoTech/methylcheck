@@ -24,13 +24,19 @@ class TestPostProcessQC(unittest.TestCase):
         df = pd.read_pickle('docs/test_betas.pkl')
         if df.shape != (485512, 6):
             raise AssertionError()
+
+    def test_extended_function_inputs(self):
+        list_of_dfs = methylcheck.samples.postprocessQC._load_data(['docs/test_betas.pkl'], progress_bar=True)
+        if list_of_dfs[0].shape != (485512, 6):
+            raise AssertionError("._load_data returned wrong size test pkl")
+
+
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot(self, mock):
         methylcheck.mean_beta_plot(self.df, verbose=False, save=False)
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_plot_transposed(self, mock):
         methylcheck.mean_beta_plot(self.df.transpose(), verbose=False, save=False)
-
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare(self, mock):
         methylcheck.mean_beta_compare(self.df, self.df, verbose=False, save=False)
@@ -40,24 +46,28 @@ class TestPostProcessQC(unittest.TestCase):
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_2(self, mock):
         methylcheck.mean_beta_compare(self.df, self.df.transpose(), verbose=False, save=False)
-
     @patch("methylcheck.samples.postprocessQC.plt.show")
     def test_mean_beta_compare_transposed_both(self, mock):
         methylcheck.mean_beta_compare(self.df.transpose(), self.df.transpose(), verbose=False, save=False)
-
-    def test_cumulative_sum_beta_distribution(self):
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_cumulative_sum_beta_distribution(self, mock):
         df2 = methylcheck.cumulative_sum_beta_distribution(self.df, cutoff=0.7, verbose=False, save=False, silent=True)
-    def test_cumulative_sum_beta_distribution_transposed(self):
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_cumulative_sum_beta_distribution_transposed(self, mock):
         df2 = methylcheck.cumulative_sum_beta_distribution(self.df.transpose(), cutoff=0.7, verbose=False, save=False, silent=True)
 
-    def test_beta_mds_plot(self):
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_beta_mds_plot(self, mock):
+        print("*** MDS 1 ***")
         #df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, save=False, verbose=True)
         df2 = methylcheck.beta_mds_plot(self.df, filter_stdev=2, save=False, verbose=False, silent=True)
-
-    def test_beta_mds_plot_transposed(self):
-        df2 = methylcheck.beta_mds_plot(self.df.transpose(), filter_stdev=2, verbose=False, save=False, silent=True)
-
-    def test_combine_mds(self):
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_beta_mds_plot_transposed(self, mock):
+        print("*** MDS 2 ***")
+        df2 = methylcheck.beta_mds_plot(self.df.transpose(), filter_stdev=2, save=False, verbose=False, silent=True)
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_combine_mds(self, mock):
+        print("*** MDS 3 ***")
         df2 = methylcheck.combine_mds(self.df, self.df,
             save=False, silent=True, verbose=False)
 
@@ -76,7 +86,9 @@ class TestPostProcessQC(unittest.TestCase):
         if len(df2) != 474929:
             raise AssertionError()
 
-    def test_cli_all_plots_silent(self):
+    @patch("methylcheck.samples.postprocessQC.plt.show")
+    def test_cli_all_plots_silent(self, mock):
+        # NOTE: this still shows MDS plots even though silent ON, because verbose ON too?
         testargs = ["__program__", 'qc', '-d', 'docs/test_betas.pkl', '--exclude_all', '--silent', '--verbose']
         with patch.object(sys, 'argv', testargs):
             results = methylcheck.cli.cli_app()

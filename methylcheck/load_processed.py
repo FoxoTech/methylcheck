@@ -4,6 +4,7 @@ import fnmatch
 import numpy as np
 import re # for sesame filename extraction
 import pandas as pd
+import pickle
 try:
     from importlib import resources # py >= 3.7
 except ImportError: # py < 3.7
@@ -33,7 +34,7 @@ If no arguments are supplied, it will load all files in current directory that h
 
 Arguments:
     filepath:
-        Where to look for all the pickle files of processed data.
+        Filename or folder where the pickle/parquet processed data files are found.
 
     format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'sesame')
         This also allows processed.csv file data to be loaded.
@@ -126,8 +127,10 @@ Use cases and format:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
 
     #1c: set meta flags
-    processed_csv = False # whether to use individual sample files, or beta pkl files.
+    processed_files = False # whether to use individual sample files, or beta pkl files.
+    file_format = None # auto-detects csv, pkl, or parquet
     total_parts = []
+    total_parquet = []
     poobah_parts = []
     #1c: import meta data
     PROBE_FILE = 'illumina_sketchy_probes_996.npy'
@@ -138,7 +141,7 @@ Use cases and format:
         probe_filepath = pkg_resources.resource_filename(pkg_namespace, PROBE_FILE)
         sketchy_probes = np.load(probe_filepath)
 
-    #2a: return some simpler data formats, before trying betas/m_values and processed_csvs.
+    #2a: return some simpler data formats, before trying betas/m_values and processed_files.
     if format == 'sesame':
         df = load_sesame(
             filepath=filepath,
@@ -154,14 +157,21 @@ Use cases and format:
 
     elif format == 'meth_df':
         # this needs to deal with batches too, for backwards (pre v1.3) compatability
-        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl*')])
+        suffixes = ['.pkl', '.parquet']
+        test_parts = [str(_file) for _file in Path(filepath).rglob(f'{file_stem}*_values*') if _file.suffix in suffixes]
         meth_dfs = []
         unmeth_dfs = []
         for part in test_parts:
+            if '.pkl' in Path(part).suffix:
+                read_func = pd.read_pickle
+            elif '.parquet' in Path(part).suffix:
+                read_func = pd.read_parquet
+            else:
+                raise NotImplementedError(f"reading {Path(part.suffix)} not supported")
             if 'meth_values' in part and 'noob' not in part and 'unmeth_values' not in part:
-                meth_dfs.append( pd.read_pickle(part) )
+                meth_dfs.append( read_func(part) )
             if 'unmeth_values' in part and 'noob' not in part:
-                unmeth_dfs.append( pd.read_pickle(part) )
+                unmeth_dfs.append( read_func(part) )
         if meth_dfs != [] and unmeth_dfs != []:
             tqdm.pandas(disable=silent)
             try:
@@ -182,14 +192,21 @@ Use cases and format:
 
     elif format == 'noob_df':
         # this needs to deal with batches too, for backwards (pre v1.3) compatability
-        test_parts = list([str(file) for file in Path(filepath).rglob(f'{file_stem}*_values*.pkl*')])
+        suffixes = ['.pkl', '.parquet']
+        test_parts = [str(_file) for _file in Path(filepath).rglob(f'{file_stem}*_values*') if _file.suffix in suffixes]
         meth_dfs = []
         unmeth_dfs = []
         for part in test_parts:
+            if '.pkl' in Path(part).suffix:
+                read_func = pd.read_pickle
+            elif '.parquet' in Path(part).suffix:
+                read_func = pd.read_parquet
+            else:
+                raise NotImplementedError(f"reading {Path(part.suffix)} not supported")
             if 'noob_meth_values' in part:
-                meth_dfs.append( pd.read_pickle(part) )
+                meth_dfs.append( read_func(part) )
             if 'noob_unmeth_values' in part:
-                unmeth_dfs.append( pd.read_pickle(part) )
+                unmeth_dfs.append( read_func(part) )
         if meth_dfs != [] and unmeth_dfs != []:
             tqdm.pandas(disable=silent)
             try:
@@ -212,24 +229,39 @@ Use cases and format:
     # bug: total_parts will match 'meth_values' for format='meth' instead of reading csvs.
     # looking for multiple pickled files (beta/m)
     if format in ('beta_value', 'm_value', 'poobah'):
-        # .pkl or .pkl.gz OK
+        # .pkl or .pkl.gz or .parquet OK
         total_parts = list(Path(filepath).rglob(f'{file_stem}{format}*.pkl*'))
+        total_parquet = list(Path(filepath).rglob(f'{file_stem}{format}*.parquet'))
         # or specify one file by name instead of a folder.
-        if total_parts == [] and Path(filepath).exists() and '.pkl' in Path(filepath).suffixes:
+        if total_parts == [] and total_parquet == [] and Path(filepath).exists() and ('.pkl' in Path(filepath).suffixes or '.parquet' in Path(filepath).suffixes):
             total_parts = [Path(filepath)]
+        file_format = 'parquet' if len(total_parquet) > 0 else 'pkl'
+        if file_format == 'parquet':
+            total_parts = total_parquet
 
     #3: scan for *_processed.csv files in subdirectories and pull out beta values from them.
-    if total_parts == []:
+    if total_parts == [] and total_parquet == []:
         total_parts = list(Path(filepath).rglob('*_R0[0-9]C0[0-9][_.]processed.csv*')) # won't recognize 27k formatting, but will recognize .csv.gz
-        if verbose and not silent:
-            LOGGER.info(f"{len(total_parts)} files matched")
-        if total_parts != []:
+        total_parquet = list(Path(filepath).rglob('*_R0[0-9]C0[0-9][_.]processed.parquet')) # recognize .parquet.gz
+        #if verbose and not silent:
+        #    LOGGER.info(f"{len(total_parts) + len(total_parquet)} files matched")
+        # figure out which format we're using here, preferring parquet
+        if len(total_parquet) > 0:
+            file_format = 'parquet'
+            total_parts = total_parquet
+        else:
+            file_format = 'csv'
+        if len(total_parts) == 0 and len(total_parquet) == 0:
+            if not silent:
+                LOGGER.warning(f"No files of type ({format}) found in {filepath} (or sub-folders).")
+            return
+        else:
             sample_betas = []
             sample_names = []
             data_containers = [] # only used if format='meth'
-            processed_csv = True
+            processed_files = True
             if verbose and not silent:
-                LOGGER.info(f"Found {len(total_parts)} processed samples; building a {format} dataframe from them.")
+                LOGGER.info(f"Found {len(total_parts)} processed samples; building a {format}.{file_format} dataframe from them.")
             # loop through files, open each one, find 'beta_value' column of CSV. save and merge.
             # make sure the rows (probes) match up too.
             # verbose most: shows each file on a new line; silent mode: nothing shown; in between mode: tqdm bar (default)
@@ -251,25 +283,28 @@ Use cases and format:
                     if no_poobah == False and 'poobah_pval' not in columns:
                         columns.append('poobah_pval')
                     index_column = 'IlmnID' if 'IlmnID' in columns else columns[0] # fragile assumption: first column is index
-                    sample = pd.read_csv(part,
-                        # this param assigns the index from one column
-                        index_col=index_column,
-                        # these params speed up reading
-                        usecols=columns,
-                        dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float32,
-                            'noob_unmeth':np.float32, 'meth':np.float32, 'unmeth':np.float32,
-                            'beta_value':np.float32, 'm_value':np.float32, 'poobah_pval':np.float32},
-                        engine='c',
-                        memory_map=True, # load all into memory at once for faster reading (less IO)
-                        #na_filter=False, # disable to speed read, if not expecting NAs
-                    )
+                    if file_format == 'csv':
+                        sample = pd.read_csv(part,
+                            # this param assigns the index from one column
+                            index_col=index_column,
+                            # these params speed up reading
+                            usecols=columns,
+                            dtype={'illumina_id': str, 'IlmnID':str, 'noob_meth':np.float32,
+                                'noob_unmeth':np.float32, 'meth':np.float32, 'unmeth':np.float32,
+                                'beta_value':np.float32, 'm_value':np.float32, 'poobah_pval':np.float32},
+                            engine='c',
+                            memory_map=True, # load all into memory at once for faster reading (less IO)
+                            #na_filter=False, # disable to speed read, if not expecting NAs
+                        )
+                    elif file_format == 'parquet':
+                        sample = pd.read_parquet(part)
                     if sample.index.name == 'illumina_id':
                         # ONLY triggered when specifying custom column_names to function, and 'illumina_id' is first on list.
                         # that will auto-set the index to 'illumina_id'
                         sample.rename_axis('IlmnID', inplace=True)
                 except ValueError as e:
                     print(f"DEBUG - could not read csv parts; trying fallback method")
-                    sample = pd.read_csv(part)
+                    sample = pd.read_parquet(part) if file_format == 'parquet' else pd.read_csv(part)
                     if 'IlmnID' in sample.columns:
                         sample.set_index('IlmnID', inplace=True)
                     elif 'illumina_id' in sample.columns:
@@ -290,6 +325,8 @@ Use cases and format:
                     sample_name = fname.replace('.processed.csv.gz','')
                 elif '.processed.csv' in fname:
                     sample_name = fname.replace('.processed.csv','')
+                elif '_processed.parquet' in fname:
+                    sample_name = fname.replace('_processed.parquet','')
                 else:
                     sample_name = ''
                 # FUTURE TODO: if sample_sheet or meta_data supplied, fill in with proper sample_names here
@@ -373,10 +410,12 @@ Use cases and format:
                             LOGGER.warning(f"{sample_name} probe counts don't match: {meth.shape}|{unmeth.shape}")
                         LOGGER.info(f'{sample_name} --> {len(data_containers)}')
                 else:
+                    if format in ('meth_df', 'noob_df', 'sesame'):
+                        raise Exception(f"error reading {format} format")
                     raise Exception(f"unknown format: {format} (allowed options: {formats})")
 
             # merge and return; dropping any probes that aren't shared across samples.
-            tqdm.pandas() # https://stackoverflow.com/questions/56256861/is-it-possible-to-use-tqdm-for-pandas-merge-operation
+            tqdm.pandas(disable=silent) # https://stackoverflow.com/questions/56256861/is-it-possible-to-use-tqdm-for-pandas-merge-operation
             ## if you use Jupyter notebooks, you can also use tqdm_notebooks to get a prettier bar. Together with pandas you'd currently need to instantiate it like
             ## from tqdm import tqdm_notebook; tqdm_notebook().pandas(*args, **kwargs) ##
             if format == 'meth':
@@ -396,25 +435,23 @@ Use cases and format:
             #npy = np.concatenate(parts, axis=1) # 8x faster with npy vs pandas
             #df = pd.DataFrame(data=npy, index=samples, columns=probes)
             return df
+    # wrapped up _processed.csv and _calls.csv.gz version of load()
 
-        elif not silent:
-            LOGGER.warning(f"No pickled files of type ({format}) found in {filepath} (or sub-folders).")
-        return # wrapped up _processed.csv and _calls.csv.gz version of load()
-
-    #4: read file parts for betas/m_values pkl or processed_csv files
+    #4: read file parts for betas/m_values pkl or processed_files
     start = time.process_time()
     parts = []
     probes = pd.DataFrame().index
     samples = pd.DataFrame().index
+    read_func = pd.read_parquet if file_format == 'parquet' else pd.read_pickle
     for file in tqdm(total_parts, total=len(total_parts), desc="Files", disable=silent):
         if verbose:
             LOGGER.info(file)
-        if processed_csv:
+        if processed_files:
             df = pd.read_csv(file, index_col='IlmnID')
         else:
-            df = pd.read_pickle(file)
+            df = read_func(file)
 
-        #check 2: see if single file with structure: list of dfs (mouse_probes.pkl and control_probes.pkl)
+        #check: see if single file with structure: list of dfs (mouse_probes.pkl and control_probes.pkl)
         if len(total_parts) == 1 and isinstance(df,dict) and all([isinstance(sub_df,pd.DataFrame) for sub_df in df.values()]):
             probes_per_sample = int(sum([sub_df.shape[0] for sub_df in df.values()])/len(df.values()))
             if verbose: LOGGER.info(f"Reading a dictionary of dataframes with {len(df)} samples and {probes_per_sample} probes.")
@@ -430,7 +467,7 @@ Use cases and format:
             if verbose:
                 LOGGER.info(f'Probes: {len(probes)}')
 
-        if processed_csv:
+        if processed_files:
             # p-value filtering already applied in earlier step when CSVs were read and collated into dataframe
             if format in ('beta_value','beta_csv'):
                 samples = samples.append(df['beta_value'])
@@ -452,11 +489,11 @@ Use cases and format:
                         else:
                             LOGGER.info(f'Confused about TOO MANY poobah files: {poobah_files} -- not applying pval filtering.')
 
-                elif len(total_parts) >= 1: # filepath is a folder with .pkl files
-                    poobah_files = list([str(pfile) for pfile in Path(filepath).rglob(f'poobah_values*.pkl')])
+                elif len(total_parts) >= 1: # filepath is a folder with .pkl or .parquet files
+                    poobah_files = list([str(pfile) for pfile in Path(filepath).rglob(f'poobah_values*.{file_format}')])
                     # here I'd need to match each part to its poobah file
                     if verbose:
-                        LOGGER.info("P-value filtering for multi-volume batchs is not implemented. Use the --poobah option in methylprep.run_pipeline() instead.")
+                        LOGGER.info("P-value filtering for multi-volume batches is not implemented. Use the --poobah option in methylprep.run_pipeline() instead.")
 
             samples = samples.append(df.columns)
         npy = df.to_numpy()
@@ -509,7 +546,8 @@ Arguments:
     """
     if not Path(filepath).exists():
         raise FileNotFoundError(f"Invalid filepath: {filepath}")
-    meta_files = list(Path(filepath).rglob(f'*_meta_data.pkl'))
+    suffixes = ['.pkl', '.parquet']
+    meta_files = [p for p in Path(filepath).rglob('*_meta_data.*') if p.suffix in suffixes]
     multiple_metas = False
     partial_meta = False
     if len(meta_files) > 1:
@@ -520,16 +558,23 @@ Arguments:
         # Note: this approach assumes that:
         #    (a) the goal is a row-wise concatenation (i.e., axis=0) and
         #    (b) all dataframes share the same column names.
-        frames = [pd.read_pickle(pkl) for pkl in meta_files]
+        try:
+            frames = [pd.read_pickle(pkl) for pkl in meta_files if pkl.suffix == '.pkl']
+        except pickle.UnpicklingError:
+            raise pickle.UnpicklingError("Cannot read your .pkl file")
+        parquets = [pd.read_pickle(par) for par in meta_files if par.suffix == '.parquet']
         meta_tags = frames[0].columns # assumes all have same columns
         # do all tags match the first file's columns?
         meta_sets = set()
         for frame in frames:
             meta_sets |= set(frame.columns)
         if meta_sets != set(meta_tags):
-            LOGGER.warning(f'Columns in sample sheet meta data files does not match for these files and cannot be combined:'
+            LOGGER.warning(f'Columns in sample sheet meta data files do not match for these files and cannot be combined:'
                            f'{[str(i) for i in meta_files]}')
-            meta = pd.read_pickle(meta_files[0])
+            if meta_files[0].suffix == '.pkl':
+                meta = pd.read_pickle(meta_files[0])
+            elif meta_files[0].suffix == '.parquet':
+                meta = pd.read_parquet(meta_files[0])
             if any(meta.columns.duplicated()):
                 meta = meta.loc[:, ~meta.columns.duplicated()]
             partial_meta = True
@@ -537,8 +582,12 @@ Arguments:
             meta = pd.concat(frames, axis=0, sort=False)
             # need to check whether there are multiple samples for each sample name. and warn.
 
-    if len(meta_files) == 1:
+    if len(meta_files) == 1 and Path(meta_files[0]).suffix == '.pkl':
         meta = pd.read_pickle(meta_files[0])
+        if any(meta.columns.duplicated()):
+            meta = meta.loc[:, ~meta.columns.duplicated()]
+    elif len(meta_files) == 1 and Path(meta_files[0]).suffix == '.parquet':
+        meta = pd.read_parquet(meta_files[0])
         if any(meta.columns.duplicated()):
             meta = meta.loc[:, ~meta.columns.duplicated()]
     elif multiple_metas:
@@ -560,7 +609,11 @@ Arguments:
 
     ### confirm the Sample_ID in meta matches the columns (or index) in data_df.
     check = False
-    if 'Sample_ID' in meta.columns:
+    if 'Sample_ID' in meta.columns and isinstance(data_df, (list,tuple)):
+        pass # these are SampleDataContainers or (meth,unmeth) or (noob,unnoob)
+        if set(meta['Sample_ID']) == set([sdc.sample for sdc in data_df]):
+            check = True
+    elif 'Sample_ID' in meta.columns:
         if len(meta['Sample_ID']) == len(data_df.columns) and all(meta['Sample_ID'] == data_df.columns):
             data_df = data_df.transpose() # samples should be in index
             check = True
@@ -609,9 +662,10 @@ Arguments:
         LOGGER.info("Renamed data_df.index and meta_df.columns to Sample_Name")
 
     # ensure data_df returns probes in rows
-    if data_df.shape[0] < data_df.shape[1]:
+    if isinstance(data_df, (list,tuple)):
+        pass # these are SampleDataContainers or (meth,unmeth) or (noob,unnoob)
+    elif data_df.shape[0] < data_df.shape[1]:
         data_df = data_df.transpose()
-
     return data_df, meta
 
 
@@ -764,8 +818,11 @@ def _data_source_type(data_source):
 
     elif (data_source_type is dict and
         all([type(df) is type(pd.DataFrame()) for df in data_source.values()]) ):
-        # control_probes are a dict of dataframes
-        return ('control',data_source)
+        # control_probes.pkl is a dict of dataframes
+        return ('control', data_source)
+    elif (isinstance(data_source, pd.DataFrame) and 'Sentrix_ID' in data_source.columns and 'IlmnID' in data_source.columns):
+        # control_probes.parquet is a dataframe with two index columns
+        return ('control', data_source)
 
     elif (data_source_type is list and
         type(data_source[0]) is type(dummy_container) and
@@ -779,6 +836,9 @@ def _data_source_type(data_source):
         type(data_source[0]) is type(pd.DataFrame()) and
         type(data_source[1]) is type(pd.DataFrame()) ):
         return ('meth_unmeth_tuple', data_source)
+
+    elif isinstance(data_source, pd.DataFrame):
+        return ('dataframe', data_source)
 
     else:
         raise ValueError("Unknown data structure.")
@@ -804,8 +864,8 @@ def load_sesame(filepath='.',
 
     # files are Sentrix_ID ... manifest code ... _calls.csv.gz
     total_parts = list(Path(filepath).rglob(SESAME_RGLOB_PATTERN))
-    if verbose and not silent:
-        LOGGER.info(f"{len(total_parts)} files matched")
+    #if verbose and not silent:
+    #    LOGGER.info(f"{len(total_parts)} files matched")
     if total_parts != []:
         sample_betas = []
         sample_names = []

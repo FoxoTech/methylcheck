@@ -137,8 +137,12 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     y_meth = meth[meth.index.isin(y_probes)]
     y_unmeth = unmeth[unmeth.index.isin(y_probes)]
 
+    if len(x_unmeth) == 0 and len(y_meth) == 0:
+        raise IndexError(f"No sex-probes found in data; check that the index of your probe data contains IlmnID probe names.")
+
     # create empty dataframe for output
     output = pd.DataFrame(index=[s for s in meth.columns], columns=['x_median','y_median','predicted_sex'])
+
     # get median values for each sex chromosome for each sample
     x_med = _get_copy_number(x_meth,x_unmeth).median()
     y_med = _get_copy_number(y_meth,y_unmeth).median()
@@ -349,6 +353,9 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
         elif 'Sentrix_ID' in loaded_files['meta'].columns and 'Sentrix_Position' in loaded_files['meta'].columns:
             loaded_files['meta']['Sample_ID'] = loaded_files['meta']['Sentrix_ID'].astype(str) + '_' + loaded_files['meta']['Sentrix_Position'].astype(str)
             loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        elif 'SentrixBarcode_A' in loaded_files['meta'].columns and 'SentrixPosition_A' in loaded_files['meta'].columns:
+            loaded_files['meta']['Sample_ID'] = loaded_files['meta']['SentrixBarcode_A'].astype(str) + '_' + loaded_files['meta']['SentrixPosition_A'].astype(str)
+            loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
         else:
             raise ValueError("Your sample sheet must have a Sample_ID column, or (Sentrix_ID and Sentrix_Position) columns.")
         # fixing case of the relevant column
@@ -368,7 +375,6 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
         if renamed_column is not None:
             # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; controls_report() does NOT do this step, but should.
             sex_values = set(loaded_files['meta'][renamed_column].unique())
-            #print('sex_values', sex_values)
             if not sex_values.issubset(set(['M','F'])): # subset, because samples might only contain one sex
                 if 'Male' in sex_values or 'Female' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'Male':'M', 'Female':'F'})
