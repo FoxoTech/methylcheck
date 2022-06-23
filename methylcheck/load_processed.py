@@ -11,13 +11,14 @@ except ImportError: # py < 3.7
     import pkg_resources
 #app
 from .progress_bar import * # context tqdm
+import methylprep
 
 import logging
 LOGGER = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO)
 pkg_namespace = 'methylcheck.data_files'
 
-__all__ = ['load', 'load_both', 'container_to_pkl']
+__all__ = ['load', 'load_both', 'container_to_pkl', 'load_control_probes_parquet']
 
 
 # TODO: fix Redefining built-in 'format' here
@@ -30,13 +31,13 @@ data frame of beta-values or m-values.
 
 Doing this with pandas is about 8 times slower than using numpy in the intermediate step.
 
-If no arguments are supplied, it will load all files in current directory that have a 'beta_values_X.pkl' pattern.
+If no arguments are supplied, it will load all files in current directory that have a 'beta_values_X.(pkl|parquet)' pattern.
 
 Arguments:
     filepath:
         Filename or folder where the pickle/parquet processed data files are found.
 
-    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'sesame')
+    format: ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'control', 'sesame')
         This also allows processed.csv file data to be loaded.
         If you need meth and unmeth values, choose 'meth' and
         it will return a data_containers object with the 'meth' and 'unmeth' values,
@@ -122,7 +123,7 @@ Use cases and format:
    - v0.6.3: added 'no_filter' step that automatically removes probes that illumina, the manufacturer, claims are sketchy for certain Catalog IDs. (Disable this with `no_filter=True`)
     """
     #1a: validate inputs
-    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'poobah_csv', 'poobah', 'sesame')
+    formats = ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'poobah_csv', 'poobah', 'control', 'sesame')
     if format not in formats:
         raise ValueError(f"Check the spelling of your format. Allowed: {formats}")
 
@@ -142,7 +143,30 @@ Use cases and format:
         sketchy_probes = np.load(probe_filepath)
 
     #2a: return some simpler data formats, before trying betas/m_values and processed_files.
-    if format == 'sesame':
+    if format == 'control':
+        # filepath can be a file or a folder containing "control_probes" as pkl or parquet.
+        if Path(filepath).exists() and Path(filepath).is_dir():
+            suffixes = ['.pkl', '.parquet']
+            files = [_file for _file in Path(filepath).rglob('*control_probes*') if _file.suffix in suffixes]
+            if len(files) == 1:
+                filepath = Path(files[0])
+            elif len(files) > 1:
+                LOGGER.warning("Multiple control_probes files found: {files} So using the FIRST match.")
+                filepath = Path(files[0])
+            else:
+                raise FileNotFoundError(f"No file with 'control_probes' (pkl | parquet) in the name found at {filepath}")
+        if Path(filepath).exists() and Path(filepath).is_file():
+            if "control_probes" not in Path(filepath).stem:
+                LOGGER.warning(f"Control filepath should link to a file with 'control_probes' in the name; you provided: {filepath}")
+            load_func = pd.read_parquet if '.parquet' in Path(filepath).suffixes else pd.read_pickle
+            if load_func == pd.read_parquet:
+                dict_of_dfs = load_control_probes_parquet(filepath)
+                return dict_of_dfs
+            if load_func == pd.read_pickle:
+                dict_of_dfs = load_func(Path(filepath))
+                return dict_of_dfs
+
+    elif format == 'sesame':
         df = load_sesame(
             filepath=filepath,
             format=format,
@@ -521,7 +545,8 @@ Arguments:
         Where to look for all the pickle files of processed data.
 
     format:
-        'beta_values', 'm_value', or some other custom file pattern.
+        One of ('beta_value', 'm_value', 'meth', 'meth_df', 'noob_df', 'beta_csv', 'poobah_csv', 'poobah', 'control', 'sesame')
+        See methylcheck.load for details.
 
     file_stem (string):
         By default, methylprep process with batch_size creates a bunch of generically named files, such as
@@ -563,6 +588,8 @@ Arguments:
         except pickle.UnpicklingError:
             raise pickle.UnpicklingError("Cannot read your .pkl file")
         parquets = [pd.read_pickle(par) for par in meta_files if par.suffix == '.parquet']
+        if frames == [] and len(parquets) > 0:
+            frames = parquets
         meta_tags = frames[0].columns # assumes all have same columns
         # do all tags match the first file's columns?
         meta_sets = set()
@@ -911,6 +938,19 @@ def load_sesame(filepath='.',
     else:
         LOGGER.info("No sesame files found.")
 
+def load_control_probes_parquet(filepath):
+    """ reverse the concat part of making the parquet in methylprep, back into a dictionary of dataframes"""
+    if Path(filepath).exists() and Path(filepath).is_file() and Path(filepath).suffix == '.parquet':
+        df = pd.read_parquet(filepath)
+        groups = df.groupby(["Sentrix_ID"])
+        samples = df["Sentrix_ID"].unique()
+        out = {}
+        for sample in samples:
+            sample_df = groups.get_group(sample).set_index('IlmnID').drop(columns='Sentrix_ID')
+            out[sample] = sample_df
+        return out
+    else:
+        raise Exception("Must provide a path to a filename ending in .parquet")
 
 '''
 def load_all_betas(path):

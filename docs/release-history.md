@@ -1,6 +1,8 @@
 # Release History
 
 ## v0.8.5
+- functions support .parquet files as input (produced by methylprep pipeline v1.7.0 or higher)
+- methylcheck.load() includes a 'control' format that returns a dictionary of dataframes, keyed to sample names.
 - consistent flexible function inputs: Any function that accepted a filepath or dataframe as first parameter
 now accepts either of these interchangeably, except for loading functions and Report classes; these cannot handle dataframe inputs: `ControlsReport`; `ReportPDF`; `load()`; `load_both()`; `combine_mds()`.
 - improved .load speed

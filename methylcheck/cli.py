@@ -244,8 +244,10 @@ Also see methylcheck.list_problem_probes for more details.',
         df = pd.DataFrame(npy)
     elif args.data_file.suffix == '.pkl':
         df = pd.read_pickle(args.data_file)
+    elif args.data_file.suffix == '.parquet':
+        df = pd.read_parquet(args.data_file)
     else:
-        raise FileNotFoundError("Could not find/read your data file. Must be .pkl or .npy file.")
+        raise FileNotFoundError("Could not find/read your data file. Must be (.pkl OR .npy OR .parquet)")
     # methylprep data will be long format, with samples in columns and probes in rows. MDS transposes this.'
 
     # determine array type

@@ -239,3 +239,26 @@ class TestLoadProcessed():
                 import traceback;print(traceback.format_exc())
                 raise Exception(e)
         shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_load_control(self):
+        """ tests loading using folder or filename for pickle format; missing parquet test """
+        test_file = Path(self.test_epic, 'control_probes.pkl')
+        data = methylcheck.load(self.test_epic, format='control')
+        print('from folder', [len(part) for part in data.values()], 'OK')
+        test_file = test_file.replace(Path(self.test_epic,'dummy_probes.pkl'))
+        data = methylcheck.load(test_file, format='control')
+        print('from pkl file', [len(part) for part in data.values()], 'OK')
+        test_file = test_file.replace(Path(self.test_epic,'control_probes.pkl'))
+
+        assert (isinstance(data, dict) and all([isinstance(sub_df, pd.DataFrame) for dict_key,sub_df in data.items()]))
+        data = pd.read_pickle(test_file)
+        new_file = Path(self.test_epic, f"{test_file.stem}.parquet")
+        control = pd.concat(data) # creates multiindex; might also apply to mouse_probes.pkl --> parquet
+        (control.reset_index()
+            .rename(columns={'level_0': 'Sentrix_ID', 'level_1': 'IlmnID'})
+            .astype({'IlmnID':str})
+            .to_parquet(new_file)
+        )
+        data = methylcheck.load(new_file, format='control')
+        print('from parquet file', [len(part) for part in data.values()], 'OK')
+        new_file.unlink()
