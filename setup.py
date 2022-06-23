@@ -16,6 +16,7 @@ test_requirements = [
     'nbsphinx',
     'sphinx',
     'ipykernel',
+    'fastparquet',
 ]
 
 # note: ANY param must fit on a single line or twine breaks.
