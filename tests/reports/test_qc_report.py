@@ -19,13 +19,15 @@ PROCESSED_450K = Path('docs/example_data/GSE69852') # only 1 sample
 PROCESSED_EPIC = Path('docs/example_data/epic') # lacks full data
 PROCESSED_MOUSE = Path('docs/example_data/mouse_test')
 
-class TestQCReport():
+class TestQCReport(unittest.TestCase):
 
-    def test_qc_run_pipeline(self):
+    @patch("methylcheck.qc_plot.plt.show")
+    def test_qc_run_pipeline(self, mock):
         df = methylcheck.load(PROCESSED_450K)
         methylcheck.run_pipeline(df, exclude_all=True, plot=['all'], silent=True)
 
-    def test_ReportPDF(self):
+    @patch("methylcheck.qc_plot.plt.show")
+    def test_ReportPDF(self, mock):
         import warnings
         warnings.filterwarnings("ignore", message='invalid value encountered')
         myreport = methylcheck.ReportPDF(path=PROCESSED_450K, outpath=PROCESSED_450K)

@@ -38,9 +38,14 @@ class ControlsReporter():
         # FUTURE?? load these separately, and only if there is a reason to run a sex prediction. But sex done by default.
         'noob_meth_values.pkl': 'noob_meth',
         'noob_unmeth_values.pkl': 'noob_unmeth',
+        'control_probes.parquet': 'control',
+        'poobah_values.parquet': 'poobah',
+        'noob_meth_values.parquet': 'noob_meth',
+        'noob_unmeth_values.parquet': 'noob_unmeth',
     }
     samplesheet_patterns = {
         '*meta_data*.pkl': 'samplesheet', # meta_data is used first, if both available
+        '*meta_data*.parquet': 'samplesheet', # meta_data is used first, if both available
         '*samplesheet*.csv': 'samplesheet',
         '*sample_sheet*.csv': 'samplesheet',
     }
@@ -114,15 +119,25 @@ class ControlsReporter():
         else:
             self.outfilepath = outfilepath
 
-        for filename in Path(filepath).rglob('*.pkl'):
-            if filename.name in self.input_filenames.keys():
-                setattr(self, self.input_filenames[filename.name], pd.read_pickle(filename))
+        suffixes = ('.pkl', '.parquet')
+        for filename in Path(filepath).rglob('*'):
+            if filename.suffix not in suffixes:
+                continue
+            if filename.name == 'control_probes.parquet':
+                setattr(self, 'control', methylcheck.load(filename, format='control'))
+            elif filename.name in self.input_filenames.keys():
+                if '.pkl' in filename.suffixes:
+                    setattr(self, self.input_filenames[filename.name], pd.read_pickle(filename))
+                elif '.parquet' in filename.suffixes:
+                    setattr(self, self.input_filenames[filename.name], pd.read_parquet(filename))
         # fuzzy matching samplesheet
         for filename in Path(filepath).rglob('*'):
             if any([fnmatch.fnmatch(filename.name, samplesheet_pattern) for samplesheet_pattern in self.samplesheet_patterns.keys()]):
                 #label = next(label for (patt,label) in samplesheet_patterns.items() if fnmatch.fnmatch(filename.name, patt))
                 if '.pkl' in filename.suffixes:
                     setattr(self, 'samplesheet', pd.read_pickle(filename))
+                elif '.parquet' in filename.suffixes:
+                    setattr(self, 'samplesheet', pd.read_parquet(filename))
                 elif '.csv' in filename.suffixes:
                     try:
                         from methylprep.files import SampleSheet
@@ -868,7 +883,7 @@ def controls_report(*args, **kwargs):
 
 CLI: methylcheck controls
 
-    This will load the methylprep control_probes.pkl file and perform all the calculations and produce a tidy color-coded XLSX file with results.
+    This will load the methylprep control_probes file and perform all the calculations and produce a tidy color-coded XLSX file with results.
 
     Note: this function is analogous to methylcheck.plot_controls() except that the output if a color-coded excel sheet instead of image charts.
 
@@ -897,7 +912,7 @@ Optional Arguments:
     roundoff (2, int)
         Option to adjust the level of rounding in report output numbers.
     pval (True)
-        True: Loads poobah_values.pkl and adds a column with percent of probes that failed per sample.
+        True: Loads poobah_values.pkl|parquet and adds a column with percent of probes that failed per sample.
     pval_sig (0.05)
         pval significance level to define passing/failing probes
     passing (0.7, float)

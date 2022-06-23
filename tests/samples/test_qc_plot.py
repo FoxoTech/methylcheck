@@ -1,6 +1,8 @@
 from pathlib import Path
 import pandas as pd
 import logging
+import shutil
+from tqdm import tqdm
 #patching
 import unittest
 try:
@@ -80,6 +82,36 @@ class TestQcPlots(unittest.TestCase):
         methylcheck.qc_signal_intensity(
             data_containers=None, path=PROCESSED_ALL, meth=None, unmeth=None, poobah=True,
             noob=True, silent=False, verbose=False, plot=True, cutoff_line=True, bad_sample_cutoff=10.5)
+
+    @patch("methylcheck.qc_plot.plt.show")
+    def test_qc_plots_path_parquet(self, mock):
+        PROCESSED_PARQUET = Path('docs/example_data/GSE69852_parquet')
+        shutil.copytree(PROCESSED_ALL, PROCESSED_PARQUET,  dirs_exist_ok=True)
+        print(f"{PROCESSED_ALL} ... copied to {PROCESSED_PARQUET}")
+        for _file in tqdm(PROCESSED_PARQUET.rglob('*'), desc="Converting pickle to parquet"):
+            if '.pkl' in _file.suffixes:
+                df = pd.read_pickle(_file)
+                new_file = Path(f"{_file.stem}.parquet")
+                if isinstance(df, pd.DataFrame):
+                    df.to_parquet(Path(PROCESSED_PARQUET,new_file))
+                elif (isinstance(df, dict) and all([isinstance(sub_df, pd.DataFrame) for dict_key,sub_df in df.items()])):
+                    control = pd.concat(df) # creates multiindex; might also apply to mouse_probes.pkl --> parquet
+                    (control.reset_index()
+                        .rename(columns={'level_0': 'Sentrix_ID', 'level_1': 'IlmnID'})
+                        .astype({'IlmnID':str})
+                        .to_parquet(Path(PROCESSED_PARQUET,new_file))
+                    )
+                _file.unlink()
+
+        methylcheck.qc_signal_intensity(
+            data_containers=None, path=PROCESSED_PARQUET, meth=None, unmeth=None, poobah=True,
+            noob=True, silent=False, verbose=False, plot=True, cutoff_line=True, bad_sample_cutoff=10.5)
+        methylcheck.plot_M_vs_U(PROCESSED_PARQUET, silent=True, poobah=True)
+        methylcheck.plot_M_vs_U(PROCESSED_PARQUET, silent=True, poobah=False)
+        methylcheck.plot_M_vs_U(PROCESSED_PARQUET, silent=True, poobah=True, noob=True)
+        methylcheck.plot_M_vs_U(PROCESSED_PARQUET, silent=True, poobah=True, compare=True)
+        methylcheck.run_qc(PROCESSED_PARQUET)
+        shutil.rmtree(PROCESSED_PARQUET, ignore_errors=True)
 
     @patch("methylcheck.qc_plot.plt.show")
     def test_qc_signal_intensity_from_path(self, mock):

@@ -401,10 +401,16 @@ Notes
         poobah = Path(poobah)
     if isinstance(poobah, Path):
         # load the df
-        if Path(poobah).is_file():
+        if Path(poobah).is_file() and Path(poobah).suffix == '.pkl':
             poobah = pd.read_pickle(poobah)
+        elif Path(poobah).is_file() and Path(poobah).suffix == '.parquet':
+            poobah = pd.read_parquet(poobah)
         elif Path(poobah,'poobah_values.pkl').is_file():
             poobah = pd.read_pickle(Path(poobah,'poobah_values.pkl'))
+        elif Path(poobah,'poobah_values.parquet').is_file():
+            poobah = pd.read_parquet(Path(poobah,'poobah_values.parquet'))
+        else:
+            raise FileNotFoundError("path specified but no poobah_value file found")
 
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
@@ -738,7 +744,7 @@ def _add_poobah(poobah, extended=True):
     - Default returns 7 groups (0-30%). But 5 groups (0-20%) also an option with 'extended=False'.
     - Returns: a df with sample names in index and failure % in a column. """
     #if poobah.isna().sum().sum() > 0:
-    #    LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
+    #    LOGGER.warning("Your poobah_values file contains missing values; color coding may be inaccurate.")
     # this happens normally with qualityMask True
     percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
     percent_failures = percent_failures.rename('probe_failure_(%)')
@@ -1019,7 +1025,7 @@ returns:
 
 
 def _load_data(filepaths, progress_bar=False, tidy_it=True):
-    """Loads all pickled ('.pkl') beta values dataframe files from a given folder.
+    """Loads all (.pkl | .parquet) beta values dataframe files from a given folder.
 older, deprecated, redundant function to methylprep.load
 
 Input:
@@ -1042,7 +1048,10 @@ Options:
     else:
         _func = filepaths
     for ff in _func:
-        df = pd.read_pickle(ff)
+        if Path(ff).suffix == '.pkl':
+            df = pd.read_pickle(ff)
+        elif Path(ff).suffix == '.parquet':
+            df = pd.read_parquet(ff)
         dfs.append(df)
     if tidy_it == True:
         tidy_dfs = []

@@ -62,6 +62,9 @@ parameters:
         default: False
     export (True|False):
         default: False -- will export the filtered df as a pkl file if True
+    parquet (True|False)
+        default: False -- True will export in parquet format
+
 
 note:
     this pipeline cannot also apply the array-level methylcheck.run_qc() function
@@ -195,8 +198,12 @@ returns:
             LOGGER.info(f"MDS filtering dropped {pre_mds - df.shape[1]} samples from dataframe.")
             # also has filter_stdev params to pass in.
     if kwargs.get('export') == True:
-        outfile = 'beta_values_filtered.pkl' # in long format for faster loading
-        df.to_pickle(outfile)
+        if kwargs.get('parquet') == True:
+            outfile = 'beta_values_filtered.parquet'
+            df.to_parquet(outfile)
+        else:
+            outfile = 'beta_values_filtered.pkl' # in long format for faster loading
+            df.to_pickle(outfile)
         LOGGER.info(f'Saved {outfile}')
     return df
 
@@ -435,37 +442,43 @@ Suggested for customer to do on their own
     def run_qc(self):
         # load all the data from self.path; make S3-compatible too.
         path = self.__dict__.get('path','')
+        poobah_path = None
         if self.tests['detection_poobah'] is True and 'detection_poobah' in self.order:
             try:
                 poobah_df = pd.read_pickle(Path(path,'poobah_values.pkl')) # off by default, process with --export_poobah
+                poobah_path = Path(path,'poobah_values.pkl') if 'detection_poobah' in self.order else None
             except FileNotFoundError:
-                raise FileNotFoundError(f"Could not load pickle file: 'poobah_values.pkl'. Add 'poobah=False' to inputs to turn this off.")
+                try:
+                    poobah_df = pd.read_parquet(Path(path,'poobah_values.parquet')) # off by default, process with --export_poobah
+                    poobah_path = Path(path,'poobah_values.parquet') if 'detection_poobah' in self.order else None
+                except FileNotFoundError:
+                    raise FileNotFoundError(f"Could not load pickle file: 'poobah_values.pkl|parquet'. Add 'poobah=False' to inputs to turn this off.")
         if self.tests['gct_score'] is True and self.tests['detection_poobah'] is False:
             LOGGER.warning(f"Cannot include GCT score unless poobah table is also enabled.")
         try:
-            beta_df = pd.read_pickle(Path(path,'beta_values.pkl'))
-            if Path(path,'noob_meth_values.pkl').exists() and Path(path,'noob_unmeth_values.pkl').exists():
-                meth_df = pd.read_pickle(Path(path,'noob_meth_values.pkl'))
-                unmeth_df = pd.read_pickle(Path(path,'noob_unmeth_values.pkl'))
-            else:
-                meth_df = pd.read_pickle(Path(path,'meth_values.pkl'))
-                unmeth_df = pd.read_pickle(Path(path,'unmeth_values.pkl'))
-            control_dict_of_dfs = pd.read_pickle(Path(path,'control_probes.pkl'))
+            infiles = methylcheck.qc_plot._load_files(path, required=('beta_values', 'noob_meth_values', 'noob_unmeth_values', 'control_probes'))
+            beta_df = infiles['beta_values']
+            meth_df = infiles.get('noob_meth_values', infiles.get('meth_values',None))
+            unmeth_df = infiles.get('noob_unmeth_values', infiles.get('unmeth_values',None))
+            control_dict_of_dfs = infiles['control_probes']
             # for M_vs_U_compare only, need both
             if self.__dict__.get('M_vs_U_compare') == True:
+                testfiles = methylcheck.qc_plot._load_files(path, required=('noob_meth_values', 'noob_unmeth_values', 'meth_values', 'unmeth_values'))
+                if set(testfiles.keys()) != {'noob_meth_values', 'noob_unmeth_values', 'meth_values', 'unmeth_values'}:
+                    LOGGER.error("Not all meth/unmeth pickle files found for M_vs_U compare plot. Skipping this plot.")
+                    self.__dict__.pop('M_vs_U_compare')
+                """
                 if not (Path(path,'noob_meth_values.pkl').exists() and
                     Path(path,'noob_unmeth_values.pkl').exists() and
                     Path(path,'meth_values.pkl').exists() and
                     Path(path,'unmeth_values.pkl').exists()):
-                    LOGGER.error("Not all meth/unmeth pickle files found for M_vs_U compare plot. Skipping this plot.")
-                    self.__dict__.pop('M_vs_U_compare')
+                """
             LOGGER.info("Data loaded")
         except FileNotFoundError:
             raise FileNotFoundError("Could not load pickle files")
 
         if 'mds' in self.tests and len(beta_df.columns) > 1:
             # some things must be calculated ahead of time, because used twice
-            poobah_path = Path(path,'poobah_values.pkl') if 'detection_poobah' in self.order else None
             beta_mds_fig, ax, df_indexes_to_retain = methylcheck.beta_mds_plot(beta_df, silent=True, multi_params={'return_plot_obj':True, 'draw_box':True},
                 poobah=poobah_path, palette=self.poobah_colormap, extend_poobah_range=self.extend_poobah_range)
             mds_passing = [sample_id for idx,sample_id in enumerate(beta_df.columns) if idx in df_indexes_to_retain]

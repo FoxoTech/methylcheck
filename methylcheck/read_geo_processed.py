@@ -765,7 +765,7 @@ def pd_load(filepath, **kwargs):
     this = Path(filepath)
     # check to see if file is a text file
     # need to determine best parameter values for loading into a data frame
-    if this.suffix not in ('.xlsx', '.pkl'):
+    if this.suffix not in ('.xlsx', '.pkl', '.parquet'):
         # check to see if skiprows was specified
         nskiprows = kwargs.get('skiprows', 0)
         if nskiprows == 0:
@@ -790,6 +790,8 @@ def pd_load(filepath, **kwargs):
         raw = pd.read_excel(this, **kwargs)
     elif '.pkl' in this.suffixes:
         raw = pd.read_pickle(this, **kwargs)
+    elif '.parquet' in this.suffixes:
+        raw = pd.read_parquet(this, **kwargs)        
     elif '.txt' in this.suffixes:
         try:
             raw = pd.read_csv(this, **kwargs) # includes '\t' if testing worked best with tabs
