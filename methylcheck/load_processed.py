@@ -97,6 +97,7 @@ Use cases and format:
         Only those probes that pass the p-value cutoff will be included.
     format = beta_csv:
         for reading processed.csv files from methylprep, and forcing it NOT to load from the pickled beta dataframe file, if present.
+        Note beta_csv will include ALL probes, including those that fail the poobah metric. You can use the 'quality_mask' column in CSV files to filter these.
     format = poobah_csv:
         similar to beta_csv, this pulls poobah p-values for all probes out of all processed CSV files into one dataframe.
         These p-values will include failed probes and probes that would be filterd by quality_mask. 'poobah' excludes these.

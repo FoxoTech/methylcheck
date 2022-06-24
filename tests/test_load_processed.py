@@ -230,7 +230,7 @@ class TestLoadProcessed():
                     raise AssertionError("meta shape does not match expected")
                 if result != dshape and result != type(dshape):
                     print('DEBUG', result, dshape, result, type(dshape))
-                    raise AssertionError("data shape or data type does not match expected")
+                    raise AssertionError(f"{test_format} data shape or data type does not match expected: dshape {dshape} {type(dshape)} {result}")
                 if isinstance(data, list):
                     print('OK', [type(item) for item in data])
                 else:
