@@ -242,12 +242,15 @@ vs
 """
 
 
-def test1():
+def test1(path=None):
     import pandas as pd
     import methylcheck
     #df = pd.read_pickle('~/methylcheck/docs/example_data/mouse/control_probes.pkl')
     #df = df['204879580038_R06C02'][['snp_beta']]
-    raw = pd.read_pickle('/Volumes/LEGX/55085/55085_MURMETVEP/control_probes.pkl')
+    #raw = pd.read_pickle('/Volumes/MM/Barnes/55085/control_probes.pkl')
+    if not path:
+        path = '../../docs/example_data/mouse_test/control_probes.pkl'
+    raw = pd.read_pickle(path)
     raw = {k: v['snp_beta'] for k,v in raw.items()}
     df = pd.DataFrame(data=raw)
     print(df)
