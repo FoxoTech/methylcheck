@@ -4,6 +4,7 @@ from pathlib import Path
 import pandas as pd
 import shutil
 import logging
+from tqdm import tqdm
 TESTPATH = 'tests'
 #app
 import methylcheck
@@ -15,6 +16,7 @@ class TestLoadProcessed():
     epic_df2 = Path(TESTPATH,'test_epic_filter.pkl.gz')
     test_450k = Path('docs/example_data/GSE69852')
     test_alt_450k = Path('docs/example_data/GSE105018')
+    test_epic = Path('docs/example_data/epic')
     mouse_test = Path('docs/example_data/mouse_test')
 
     pytest.fixture()
@@ -168,4 +170,95 @@ class TestLoadProcessed():
         meth,unmeth = methylcheck.container_to_pkl(containers, 'meth', save=False)
         df = methylcheck.container_to_pkl(containers, 'copy_number', save=False)
         # test data lacks a 'noob_meth' column; can't test this yet.
-        #meth,unmeth = methylcheck.container_to_pkl(containers, 'noob', save=False)
+        #meth,
+
+    def test_load_batch_parquet(self):
+        # first, make a temp parquet copy of docs/exampe_data/epic folder:
+        meta_shape = (6, 12)
+        test_dir = Path('docs/example_data/GSE69852_parquet')
+        if test_dir.exists():
+            shutil.rmtree(test_dir)
+        shutil.copytree(self.test_450k, test_dir)
+        files = []
+        print(f"... copied to {test_dir}")
+        for _file in tqdm(test_dir.rglob('*'), desc="Converting pickle to parquet"):
+            if '.pkl' in _file.suffixes:
+                df = pd.read_pickle(_file)
+                new_file = Path(f"{_file.stem}.parquet")
+                if isinstance(df, pd.DataFrame):
+                    df.to_parquet(Path(test_dir,new_file))
+                elif (isinstance(df, dict) and all([isinstance(sub_df, pd.DataFrame) for dict_key,sub_df in df.items()])):
+                    control = pd.concat(df) # creates multiindex; might also apply to mouse_probes.pkl --> parquet
+                    (control.reset_index()
+                        .rename(columns={'level_0': 'Sentrix_ID', 'level_1': 'IlmnID'})
+                        .astype({'IlmnID':str})
+                        .to_parquet(Path(test_dir,new_file))
+                    )
+                files.append(new_file)
+                _file.unlink()
+        for test_format,dshape in {'beta_value': (485512, 6), 'm_value':(485512, 6), 'meth': list, 'beta_csv': (485577, 6), 'meth_df': tuple, 'noob_df': tuple}.items(): # 'sesame'
+            try:
+                data, meta = methylcheck.load_both(test_dir, format=test_format, verbose=False, silent=True)
+                result = data.shape if isinstance(data, pd.DataFrame) else type(data)
+                if meta.shape != meta_shape:
+                    raise AssertionError("meta shape does not match expected")
+                if result != dshape and result != type(dshape):
+                    print('DEBUG', result, dshape, result, type(dshape))
+                    raise AssertionError("data shape or data type does not match expected")
+                if isinstance(data, list):
+                    print('OK', [type(item) for item in data])
+                else:
+                    print('OK', test_format, result, meta.shape)
+            except Exception as e:
+                import traceback;print(traceback.format_exc())
+                raise Exception(e)
+        shutil.rmtree(test_dir)
+
+    def test_load_batch_of_pickles(self):
+        # first, make a temp copy of docs/exampe_data/epic folder:
+        meta_shape = (6, 12)
+        test_dir = Path('docs/example_data/GSE69852_pickle_copy')
+        if test_dir.exists():
+            shutil.rmtree(test_dir)
+        shutil.copytree(self.test_450k, test_dir)
+        print(f"... copied to {test_dir}")
+        for test_format,dshape in {'beta_value': (485512, 6), 'm_value':(485512, 6), 'meth': list, 'beta_csv': (485577, 6), 'meth_df': tuple, 'noob_df': tuple}.items(): # 'sesame'
+            try:
+                data, meta = methylcheck.load_both(test_dir, format=test_format, verbose=False, silent=True)
+                result = data.shape if isinstance(data, pd.DataFrame) else type(data)
+                if meta.shape != meta_shape:
+                    raise AssertionError("meta shape does not match expected")
+                if result != dshape and result != type(dshape):
+                    print('DEBUG', result, dshape, result, type(dshape))
+                    raise AssertionError(f"{test_format} data shape or data type does not match expected: dshape {dshape} {type(dshape)} {result}")
+                if isinstance(data, list):
+                    print('OK', [type(item) for item in data])
+                else:
+                    print('OK', test_format, result, meta.shape)
+            except Exception as e:
+                import traceback;print(traceback.format_exc())
+                raise Exception(e)
+        shutil.rmtree(test_dir, ignore_errors=True)
+
+    def test_load_control(self):
+        """ tests loading using folder or filename for pickle format; missing parquet test """
+        test_file = Path(self.test_epic, 'control_probes.pkl')
+        data = methylcheck.load(self.test_epic, format='control')
+        print('from folder', [len(part) for part in data.values()], 'OK')
+        test_file = test_file.replace(Path(self.test_epic,'dummy_probes.pkl'))
+        data = methylcheck.load(test_file, format='control')
+        print('from pkl file', [len(part) for part in data.values()], 'OK')
+        test_file = test_file.replace(Path(self.test_epic,'control_probes.pkl'))
+
+        assert (isinstance(data, dict) and all([isinstance(sub_df, pd.DataFrame) for dict_key,sub_df in data.items()]))
+        data = pd.read_pickle(test_file)
+        new_file = Path(self.test_epic, f"{test_file.stem}.parquet")
+        control = pd.concat(data) # creates multiindex; might also apply to mouse_probes.pkl --> parquet
+        (control.reset_index()
+            .rename(columns={'level_0': 'Sentrix_ID', 'level_1': 'IlmnID'})
+            .astype({'IlmnID':str})
+            .to_parquet(new_file)
+        )
+        data = methylcheck.load(new_file, format='control')
+        print('from parquet file', [len(part) for part in data.values()], 'OK')
+        new_file.unlink()

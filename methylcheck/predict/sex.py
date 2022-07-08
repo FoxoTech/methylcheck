@@ -30,8 +30,8 @@ inputs:
 =======
     the "data_source" can be any one of:
         path -- to a folder with csv data that contains processed sample data
-        path -- to a folder with the 'meth_values.pkl' and 'unmeth_values.pkl' dataframes
-        path -- to a folder also containing samplesheet pkl and poobah_values.pkl, if you want to compare predicted sex with actual sex.
+        path -- to a folder with the 'meth_values' and 'unmeth_values' dataframes
+        path -- to a folder also containing samplesheet pkl and 'poobah_values', if you want to compare predicted sex with actual sex.
         data_containers -- object created from methylprep.run_pipeline() or methylcheck.load(path, 'meth')
         tuple of (meth, unmeth) dataframes
     array_type (string)
@@ -66,7 +66,7 @@ a list of data_containers containing raw meth/unmeth values, instead. This objec
 by methylprep.run_pipeline, or by using methylcheck.load(filepath, format='meth') and lets you
 customize the import if your files were not prepared using methylprep (non-standand CSV columns, for example)
 
-If a `poobah_values.pkl` file can be found in path, the dataframe returned will also include
+If a `poobah_values.pkl|parquet` file can be found in path, the dataframe returned will also include
 percent of probes for X and Y chromosomes that failed quality control, and warn the user if any did.
 This feature won't work if a containers object or tuple of dataframes is passed in, instead of a path.
 
@@ -93,8 +93,18 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             meth, unmeth = methylcheck.qc_plot._get_data(
                 data_containers=None, path=data_source,
                 compare=False, noob=True, verbose=False)
-        if include_probe_failure_percent == True and Path(data_source,'poobah_values.pkl').expanduser().exists():
-            poobah = pd.read_pickle(Path(data_source,'poobah_values.pkl').expanduser())
+
+        if Path(data_source,'poobah_values.pkl').expanduser().exists():
+            file_exists = 'pkl'
+        elif Path(data_source,'poobah_values.parquet').expanduser().exists():
+            file_exists = 'parquet'
+        else:
+            file_exists = False
+        if include_probe_failure_percent == True and file_exists:
+            if file_exists == 'pkl':
+                poobah = pd.read_pickle(Path(data_source,'poobah_values.pkl').expanduser())
+            if file_exists == 'parquet':
+                poobah = pd.read_parquet(Path(data_source,'poobah_values.parquet').expanduser())
 
     elif data_source_type in ('container'):
         # this will look for saved pickles first, then csvs or parsing the containers (which are both slower)
@@ -137,8 +147,12 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
     y_meth = meth[meth.index.isin(y_probes)]
     y_unmeth = unmeth[unmeth.index.isin(y_probes)]
 
+    if len(x_unmeth) == 0 and len(y_meth) == 0:
+        raise IndexError(f"No sex-probes found in data; check that the index of your probe data contains IlmnID probe names.")
+
     # create empty dataframe for output
     output = pd.DataFrame(index=[s for s in meth.columns], columns=['x_median','y_median','predicted_sex'])
+
     # get median values for each sex chromosome for each sample
     x_med = _get_copy_number(x_meth,x_unmeth).median()
     y_med = _get_copy_number(y_meth,y_unmeth).median()
@@ -320,12 +334,17 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
     file_patterns = {
         'sample_sheet_meta_data.pkl': 'meta',
         '*_meta_data.pkl': 'meta',
+        'sample_sheet_meta_data.parquet': 'meta',
+        '*_meta_data.parquet': 'meta',
         '*samplesheet*.csv': 'meta',
         '*sample_sheet*.csv': 'meta',
     }
     loaded_files = {}
     for file_pattern in file_patterns:
         for filename in Path(filepath).expanduser().rglob(file_pattern):
+            if '.parquet' in filename.suffixes:
+                loaded_files['meta'] = pd.read_parquet(filename)
+                break
             if '.pkl' in filename.suffixes:
                 loaded_files['meta'] = pd.read_pickle(filename)
                 break
@@ -349,6 +368,9 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
         elif 'Sentrix_ID' in loaded_files['meta'].columns and 'Sentrix_Position' in loaded_files['meta'].columns:
             loaded_files['meta']['Sample_ID'] = loaded_files['meta']['Sentrix_ID'].astype(str) + '_' + loaded_files['meta']['Sentrix_Position'].astype(str)
             loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
+        elif 'SentrixBarcode_A' in loaded_files['meta'].columns and 'SentrixPosition_A' in loaded_files['meta'].columns:
+            loaded_files['meta']['Sample_ID'] = loaded_files['meta']['SentrixBarcode_A'].astype(str) + '_' + loaded_files['meta']['SentrixPosition_A'].astype(str)
+            loaded_files['meta'] = loaded_files['meta'].set_index('Sample_ID')
         else:
             raise ValueError("Your sample sheet must have a Sample_ID column, or (Sentrix_ID and Sentrix_Position) columns.")
         # fixing case of the relevant column
@@ -368,7 +390,6 @@ def _fetch_actual_sex_from_sample_sheet_meta_data(filepath, output):
         if renamed_column is not None:
             # next, ensure samplesheet Sex/Gender (Male/Female) are recoded as M/F; controls_report() does NOT do this step, but should.
             sex_values = set(loaded_files['meta'][renamed_column].unique())
-            #print('sex_values', sex_values)
             if not sex_values.issubset(set(['M','F'])): # subset, because samples might only contain one sex
                 if 'Male' in sex_values or 'Female' in sex_values:
                     loaded_files['meta'][renamed_column] = loaded_files['meta'][renamed_column].map({'Male':'M', 'Female':'F'})

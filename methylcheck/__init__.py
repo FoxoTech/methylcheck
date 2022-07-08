@@ -33,7 +33,7 @@ from .qc_plot import (
     bis_conversion_control,
     )
 
-from .load_processed import load, load_both, container_to_pkl
+from .load_processed import load, load_both, container_to_pkl, load_control_probes_parquet
 from .read_geo_processed import read_geo, detect_header_pattern
 from .version import __version__
 

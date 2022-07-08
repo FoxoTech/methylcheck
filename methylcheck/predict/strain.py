@@ -35,9 +35,13 @@ def mouse_beta_to_AF(beta_df, manifest=None):
     return vafs
 
 def control_df_snps(filepath):
-    """ loads a control_probes.pkl file and returns a dataframe with just the snp_beta portion for all samples"""
-    raw = pd.read_pickle(Path(filepath))
-    raw = {k: v['snp_beta'] for k,v in raw.items()}
+    """ loads a control_probes.pkl|parquet file and returns a dataframe with just the snp_beta portion for all samples"""
+    load_func = pd.read_parquet if '.parquet' in Path(filepath).suffixes else pd.read_pickle
+    raw = load_func(Path(filepath))
+    if isinstance(raw, pd.DataFrame): # parquet Sentrix_ID, IlmnID
+        raw = methylcheck.load_control_probes_parquet(filepath)
+    if isinstance(raw, dict): #pkl or converted parquet
+        raw = {k: v['snp_beta'] for k,v in raw.items()}
     df = pd.DataFrame(data=raw)
     df = df.loc[ df.index.astype(str).str.startswith('rs') ]
     return df
@@ -45,7 +49,7 @@ def control_df_snps(filepath):
 def _dataframe_contains_snps(beta_df):
     # make sure it contains snps
     contains_snps_column = True if isinstance(beta_df, pd.DataFrame) and 'snp_beta' in beta_df.columns else False
-    index_contains_snps =  True if isinstance(beta_df, pd.DataFrame) and beta_df.index.astype(str).startswith('rs').sum() > 0 else False
+    index_contains_snps =  True if isinstance(beta_df, pd.DataFrame) and beta_df.index.astype(str).str.startswith('rs').sum() > 0 else False
     return (contains_snps_column, index_contains_snps)
 
 def infer_strain(beta_df_or_filepath, manifest=None):
@@ -79,14 +83,26 @@ Possible Matching Strains:
         fp = Path(beta_df_or_filepath)
         # Complicated because diff versions of methylprep put SNPs in different places.
         # Can either be part of control_probes, or a df loaded from CSVs using methylcheck.load
+        suffixes = ['.pkl','.parquet']
         if fp.exists() and fp.is_file():
-            if '.pkl' in fp.suffixes and 'control_probes' in fp.name:
+            if fp.suffix in suffixes and 'control_probes' in fp.name:
                 beta_df = control_df_snps(fp)
             elif '.pkl' in fp.suffixes:
                 beta_df = pd.read_pickle(fp)
                 (contains_snps_column, index_contains_snps) = _dataframe_contains_snps(beta_df)
                 if contains_snps_column is False or index_contains_snps is False:
                     LOGGER.warning(f"Detected a pickle that is not control_probes; dataframe structure unclear; contains a snps column: {contains_snps_column}; index contains snps: {index_contains_snps}")
+            elif fp.suffix == '.parquet': # .pkl.gz works, but .parquet.zip is NOT supported
+                # passed in some parquet file that doesn't include "control probes" in name
+                beta_df = pd.read_parquet(fp)
+                (contains_snps_column, index_contains_snps) = _dataframe_contains_snps(beta_df)
+                if contains_snps_column is False or index_contains_snps is False:
+                    LOGGER.warning(f"Detected a parquet that is not control_probes; dataframe structure unclear; contains a snps column: {contains_snps_column}; index contains snps: {index_contains_snps}")
+                    return
+                if isinstance(beta_df, pd.DataFrame) and 'Sentrix_ID' in beta_df.columns and 'IlmnID' in beta_df.columns: # parquet Sentrix_ID, IlmnID
+                    beta_df = methylcheck.load_control_probes_parquet(fp)
+                if isinstance(beta_df, dict): #pkl or converted parquet
+                    beta_df = {k: v['snp_beta'] for k,v in beta_df.items()}
             elif '.csv' in fp.suffxies:
                 beta_df = pd.read_csv(fp)
                 (contains_snps_column, index_contains_snps) = _dataframe_contains_snps(beta_df)
@@ -226,12 +242,15 @@ vs
 """
 
 
-def test1():
+def test1(path=None):
     import pandas as pd
     import methylcheck
     #df = pd.read_pickle('~/methylcheck/docs/example_data/mouse/control_probes.pkl')
     #df = df['204879580038_R06C02'][['snp_beta']]
-    raw = pd.read_pickle('/Volumes/LEGX/55085/55085_MURMETVEP/control_probes.pkl')
+    #raw = pd.read_pickle('/Volumes/MM/Barnes/55085/control_probes.pkl')
+    if not path:
+        path = '../../docs/example_data/mouse_test/control_probes.pkl'
+    raw = pd.read_pickle(path)
     raw = {k: v['snp_beta'] for k,v in raw.items()}
     df = pd.DataFrame(data=raw)
     print(df)

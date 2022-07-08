@@ -244,8 +244,10 @@ Also see methylcheck.list_problem_probes for more details.',
         df = pd.DataFrame(npy)
     elif args.data_file.suffix == '.pkl':
         df = pd.read_pickle(args.data_file)
+    elif args.data_file.suffix == '.parquet':
+        df = pd.read_parquet(args.data_file)
     else:
-        raise FileNotFoundError("Could not find/read your data file. Must be .pkl or .npy file.")
+        raise FileNotFoundError("Could not find/read your data file. Must be (.pkl OR .npy OR .parquet)")
     # methylprep data will be long format, with samples in columns and probes in rows. MDS transposes this.'
 
     # determine array type
@@ -278,6 +280,7 @@ Also see methylcheck.list_problem_probes for more details.',
         beta_density_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
         wide_df = df.copy().transpose()
         cumulative_sum_beta_distribution(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
+        # bug: if CLI wants silent (no plots), MDS will not keep silent if verbose is also true.
         beta_mds_plot(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
     else:
         if 'mean_beta_plot' in args.plot:
@@ -288,6 +291,8 @@ Also see methylcheck.list_problem_probes for more details.',
             wide_df = df.copy().transpose()
             cumulative_sum_beta_distribution(wide_df, verbose=args.verbose, save=args.save, silent=args.silent)
         if 'beta_mds_plot' in args.plot:
+            # bug: if CLI wants silent (no plots), MDS will not keep silent if verbose is also true.
+            mds_verbose = True if args.verbose is True and args.silent is False else False
             df_filtered = beta_mds_plot(df, verbose=args.verbose, save=args.save, silent=args.silent)
             # also has silent and filter_stdev params to pass in.
 

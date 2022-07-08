@@ -326,6 +326,7 @@ notes:
             sample_max = meta['total_samples']
 
         # JSON returns 1 to N (as human names) but index is 0 to N.
+        betas_list = [] # combine at end for better performance
         for sample_number in range(sample_min -1, sample_max):
             # here need to get the corresponding parts of each sample triplet of columns.
             try:
@@ -350,37 +351,11 @@ notes:
                         col_name = this_stem
                 except IndexError:
                     if debug: LOGGER.error(f"ERROR: unable to assign Sample {sample_number} using original column stem.")
-
-                """ This code was trying to match samples up using regex/difflib but it was unreliable.
-                this_stem = [stem for stem in meta['sample_names_stems'] if stem in col_m]
-                if len(this_stem) > 0:
-                    if len(this_stem) > 1:
-                        # difflib to separatet Sample 1 vs Sample 11
-                        best_match = difflib.get_close_matches(col_m, this_stem, 1)
-                        if best_match != [] and best_match[0] not in out_df.columns:
-                            col_name = best_match[0]
-                        elif best_match != []: # ensure unique in out_df, even if not a perfect transfer of labels.
-                            col_name = f"{best_match[0]}_{sample_number}"
-                        else:
-                            if debug: LOGGER.info(f"WARNING: multiple similar sample names detected but none were a close match: {col_m} : {this_stem}")
-                            col_name = f"Sample_{sample_number}"
-                    elif len(this_stem) == 1 and this_stem[0] not in out_df.columns:
-                        # only one match, and is unique.
-                        col_name = this_stem[0]
-                    else: # only one match, but already in out_df, so can't reuse.
-                        col_name = f"{this_stem[0]}_Sample_{sample_number}"
-                else:
-                    col_name = f"Sample_{sample_number}"
-
-            else:
-                col_name = f"Sample_{sample_number}"
-                """
-
-            try:
-                out_df[col_name] = betas
-                sample_number += 1
-            except Exception as e:
-                LOGGER.error(f"ERROR {col_name} {len(betas)} {out_df.shape} {e}")
+            betas.rename(col_name)
+            #out_df[col_name] = betas
+            betas_list.append(betas)
+            sample_number += 1
+        out_df = pd.concat(betas_list, axis=1)
         out_df = out_df.round(decimals)
 
         beta_value_range = True if all([all(out_df[col_name].between(0,1)) == True for col_name in out_df.columns]) else False
@@ -790,7 +765,7 @@ def pd_load(filepath, **kwargs):
     this = Path(filepath)
     # check to see if file is a text file
     # need to determine best parameter values for loading into a data frame
-    if this.suffix not in ('.xlsx', '.pkl'):
+    if this.suffix not in ('.xlsx', '.pkl', '.parquet'):
         # check to see if skiprows was specified
         nskiprows = kwargs.get('skiprows', 0)
         if nskiprows == 0:
@@ -815,6 +790,8 @@ def pd_load(filepath, **kwargs):
         raw = pd.read_excel(this, **kwargs)
     elif '.pkl' in this.suffixes:
         raw = pd.read_pickle(this, **kwargs)
+    elif '.parquet' in this.suffixes:
+        raw = pd.read_parquet(this, **kwargs)        
     elif '.txt' in this.suffixes:
         try:
             raw = pd.read_csv(this, **kwargs) # includes '\t' if testing worked best with tabs

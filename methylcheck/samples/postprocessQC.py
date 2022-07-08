@@ -24,8 +24,10 @@ except (ImportError, ModuleNotFoundError):
 #app
 from methylcheck.progress_bar import * # tqdm, environment-specific import
 from ..probes.filters import drop_nan_probes
+from ..load_processed import _data_source_type
+
 ## TODO unit-testing:
-## combine_mds and ._load_data are not tested
+## combine_mds not tested
 
 LOGGER = logging.getLogger(__name__)
 
@@ -39,6 +41,17 @@ __all__ = [
     'combine_mds',
 ]
 
+def _convert_path_to_df(data_source):
+    if _data_source_type(data_source) == ('dataframe', data_source):
+        return data_source
+    elif _data_source_type(data_source) == ('path', data_source):
+        LOGGER.warning("df appears to be a filepath; loading using pandas read_pickle")
+        df = pd.read_pickle(data_source)
+        return df
+    else:
+        raise ValueError("Unrecognized input: df should be dataframe")
+
+
 def mean_beta_plot(df, verbose=False, save=False, silent=False):
     """Returns a plot of the average beta values for all probes in a batch of samples.
 
@@ -46,6 +59,7 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         - a dataframe with probes in rows and sample_ids in columns.
         - to get this formatted import, use `methylprep.consolidate_values_for_sheet()`,
         as this will return a matrix of beta-values for a batch of samples (by default)."""
+    df = _convert_path_to_df(df)
     if df.shape[0] < df.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
@@ -69,7 +83,6 @@ def mean_beta_plot(df, verbose=False, save=False, silent=False):
         plt.close('all')
     else:
         plt.close(fig)
-
 
 
 def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, plot_title=None, ymax=None, return_fig=False, full_range=False, highlight_samples=None, figsize=(12,9), show_labels=None, filename='beta.png'):
@@ -114,6 +127,7 @@ def beta_density_plot(df, verbose=False, save=False, silent=False, reduce=0.1, p
     Note:
         if the sample_ids in df.index are not unique, it will make them so for the purpose of plotting.
      """
+    df = _convert_path_to_df(df)
     # ensure sample ids are unique
     if df.shape[0] > df.shape[1]:
         df = df.transpose()
@@ -253,6 +267,7 @@ def cumulative_sum_beta_distribution(df, cutoff=0.7, verbose=False, save=False, 
 
     Returns:
         dataframe with subjects removed that exceed cutoff value."""
+    df = _convert_path_to_df(df)
     # ensure probes in colums, samples in rows
     if df.shape[1] < df.shape[0]:
         df = df.copy().transpose() # don't overwrite the original
@@ -376,6 +391,7 @@ Notes
     # before running this, you'd typically exclude probes.
     if verbose:
         logging.basicConfig(level=logging.INFO)
+    df = _convert_path_to_df(df)
 
     if len(df.columns) < 2:
         LOGGER.warning("beta_mds_plot requires at least 2 samples")
@@ -385,10 +401,16 @@ Notes
         poobah = Path(poobah)
     if isinstance(poobah, Path):
         # load the df
-        if Path(poobah).is_file():
+        if Path(poobah).is_file() and Path(poobah).suffix == '.pkl':
             poobah = pd.read_pickle(poobah)
+        elif Path(poobah).is_file() and Path(poobah).suffix == '.parquet':
+            poobah = pd.read_parquet(poobah)
         elif Path(poobah,'poobah_values.pkl').is_file():
             poobah = pd.read_pickle(Path(poobah,'poobah_values.pkl'))
+        elif Path(poobah,'poobah_values.parquet').is_file():
+            poobah = pd.read_parquet(Path(poobah,'poobah_values.parquet'))
+        else:
+            raise FileNotFoundError("path specified but no poobah_value file found")
 
     # ensure "long format": probes in rows and samples in cols. This is how methylprep returns data.
     if df.shape[1] < df.shape[0]:
@@ -722,7 +744,7 @@ def _add_poobah(poobah, extended=True):
     - Default returns 7 groups (0-30%). But 5 groups (0-20%) also an option with 'extended=False'.
     - Returns: a df with sample names in index and failure % in a column. """
     #if poobah.isna().sum().sum() > 0:
-    #    LOGGER.warning("Your poobah_values.pkl file contains missing values; color coding may be inaccurate.")
+    #    LOGGER.warning("Your poobah_values file contains missing values; color coding may be inaccurate.")
     # this happens normally with qualityMask True
     percent_failures = round(100*( poobah[poobah > 0.05].count() / poobah.count() ),1)
     percent_failures = percent_failures.rename('probe_failure_(%)')
@@ -755,6 +777,9 @@ args:
 kwargs:
     verbose: additional output
     silent: suppresses figure, so no output unless save==True too."""
+    df1 = _convert_path_to_df(df1)
+    df2 = _convert_path_to_df(df2)
+
     if df1.shape[0] < df1.shape[1]:
         ## ensure probes in rows and samples in cols
         if verbose:
@@ -1000,8 +1025,11 @@ returns:
 
 
 def _load_data(filepaths, progress_bar=False, tidy_it=True):
-    """Loads all pickled ('.pkl') beta values dataframe files from a given folder.
+    """Loads all (.pkl | .parquet) beta values dataframe files from a given folder.
 older, deprecated, redundant function to methylprep.load
+
+Input:
+    filepaths -- a list of <path/filename> strings
 
 Output:
     A list of dataframes. It does not merge or concatenate these dataframes.
@@ -1011,7 +1039,7 @@ Output:
     Make sure the shape of the resulting dataframe has the right number of rows and columns. If not, try axis=0
 Options:
     progress_bar -- If True, shows a progress bar.
-    tidy_id -- If True, ensures that all files are oriented the same way in the list of datasets returned.
+    tidy_it -- If True, ensures that all files are oriented the same way in the list of datasets returned.
         All dataframes will have probes in rows and samples in columns.
     """
     dfs = []
@@ -1020,7 +1048,10 @@ Options:
     else:
         _func = filepaths
     for ff in _func:
-        df = pd.read_pickle(ff)
+        if Path(ff).suffix == '.pkl':
+            df = pd.read_pickle(ff)
+        elif Path(ff).suffix == '.parquet':
+            df = pd.read_parquet(ff)
         dfs.append(df)
     if tidy_it == True:
         tidy_dfs = []
