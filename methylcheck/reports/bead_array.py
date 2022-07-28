@@ -687,7 +687,7 @@ target removal
 
                 self.data[row.Index].append({'col': 'Predicted Sex', 'val': row.predicted_sex, 'formula': f"X/Y probes"})
                 self.report[item_order]['Predicted Sex'] = row.predicted_sex
-                if self.predict_sex:
+                if self.predict_sex and 'sex_matches' in sex_df.columns and 'actual_sex' in sex_df.columns:
                     self.data[row.Index].append({
                         'col': 'Sex Match',
                         'val': row.sex_matches,
