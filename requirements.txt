@@ -14,3 +14,4 @@ joblib
 xlsxwriter # for bead array
 openpyxl # pandas xlsx support changed to use this
 # fastparquet required for parquet format, or pyarrow (bigger)
+tornado>=6.3.2 # not directly required, pinned by Snyk to avoid a vulnerability
