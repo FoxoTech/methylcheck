@@ -47,9 +47,12 @@ def detect_array(df, returns='name', on_lambda=False):
             if on_lambda:
                 man_path = Path(MANIFEST_DIR_PATH_LAMBDA).expanduser()
             else:
-                man_path = Path(MANIFEST_DIR_PATH).expanduser()
-            man_filename = ARRAY_FILENAME[array_name]
-            man_filepath = Path(man_path, man_filename)
+                if array_name == "epicv2":
+                  man_path =  "../software/MethylationEPIC_v2.0" # location of the epicv2 manifest file
+                else:    
+                    man_path = Path(MANIFEST_DIR_PATH).expanduser()
+                man_filename = ARRAY_FILENAME[array_name]
+                man_filepath = Path(man_path, man_filename)
             return man_filepath
 
     # shape: should be wide, with more columns than rows. The larger dimension is the probe count.
@@ -66,6 +69,8 @@ def detect_array(df, returns='name', on_lambda=False):
         return 'epic+' if returns == 'name' else (ArrayType('epic+'), get_filename('epic+'))
     elif 860000 <= col_count <= 868000: # actual: 865860
         return 'epic' if returns == 'name' else (ArrayType('epic'), get_filename('epic'))
+    elif 868001 <= col_count <= 1999999: # actual: 990k approx
+        return 'epic' if returns == 'name' else (ArrayType('epicv2'), get_filename('epicv2'))
     elif 200000 <= col_count <= 300000: # actual: 236685 C20, 262812 v2, 284762 V3-V4, MM285 293220 --- testing, changed max from 270k to 290k for v1.4.6
         return 'mouse' if returns == 'name' else (ArrayType('mouse'), get_filename('mouse'))
     else:
