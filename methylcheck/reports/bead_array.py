@@ -103,7 +103,7 @@ class ControlsReporter():
         'Predicted Sex']
 
     def __init__(self, filepath, outfilepath=None, bg_offset=3000, cutoff_adjust=1.0, colorblind=False,
-        roundoff=2, legacy=False, pval=True, pval_sig=0.05, passing=0.7, project_name=None):
+        roundoff=2, legacy=False, pval=True, pval_sig=0.05, passing=0.7, project_name=None, array_type=None):
         self.filepath = filepath # folder with methyprep processed data
         self.bg_offset = bg_offset
         self.cut = cutoff_adjust # for adjusting minimum passing per test
@@ -113,6 +113,7 @@ class ControlsReporter():
         self.pval_sig = pval_sig # significance level to define a failed probe
         self.passing = passing # fraction of tests that all need to pass for sample to pass
         self.project_name = project_name # used to name the QC report, if defined.
+        self.array_type = array_type # used to determine which manifest is used, specially for epicv2
         # if outfilepath is not provided, saves to the same folder where the pickled dataframes are located.
         if not outfilepath:
             self.outfilepath = filepath
@@ -665,7 +666,7 @@ target removal
                 LOGGER.info("Predicting Sex...")
             try:
                 #print(self.noob_meth.shape, self.noob_unmeth.shape)
-                sex_df = methylcheck.get_sex((self.noob_meth, self.noob_unmeth), array_type=None, verbose=False, plot=False, on_lambda=False, median_cutoff= -2, include_probe_failure_percent=False)
+                sex_df = methylcheck.get_sex((self.noob_meth, self.noob_unmeth), array_type=self.array_type, verbose=False, plot=False, on_lambda=False, median_cutoff= -2, include_probe_failure_percent=False)
             except ValueError as e:
                 if str(e).startswith('Unsupported Illumina array type'):
                     # happens with some mouse array versions, but not fatal to the report
@@ -875,7 +876,7 @@ target removal
             worksheet.set_column(this_box, col_width)
             col += 1
         worksheet.set_column("A:A", 24) # samples
-        writer.save()
+        writer.close()
 
 
 def controls_report(*args, **kwargs):
@@ -926,7 +927,10 @@ Optional Arguments:
     if len(args) == 1:
         kwargs['filepath'] = args[0]
         LOGGER.warning(f"Assigned argument 0 `{kwargs['filepath']}` to `filepath` kwarg. This function takes 0 arguments.")
-    elif len(args) > 1:
+    elif len(args) == 2:
+        kwargs['filepath'] = args[0]
+        kwargs['array_type'] = args[1]
+    elif len(args) > 2:
         raise AttributeError("This function takes 0 arguments, but {len(args)} arguments found. Specify the filepath using filepath=<path>.")
     if 'filepath' not in kwargs:
         raise FileNotFoundError("No control probes file location specified.")

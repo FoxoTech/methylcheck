@@ -65,11 +65,13 @@ def _import_probe_exclusion_list(array, _type):
 
     Parameters
     ----------
-    array -- [EPIC, EPIC+, 450k, 27k] or ['IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylationEPIC+', 'IlluminaHumanMethylation450k']
+    array -- [EPICv2, EPIC, EPIC+, 450k, 27k] or ['IlluminaHumanMethylationEPICv2', 'IlluminaHumanMethylationEPIC', 'IlluminaHumanMethylationEPIC+', 'IlluminaHumanMethylation450k']
     type -- [sex, control]"""
 
     if array in ('IlluminaHumanMethylation450k','450k','450K'):
         filename = '450k_{0}.npy'.format(_type)
+    elif array in ('IlluminaHumanMethylationEPICv2','EPICv2','epicv2'):
+        filename = 'EPICv2_{0}.npy'.format(_type)
     elif array in ('IlluminaHumanMethylationEPIC','EPIC','epic'):
         filename = 'EPIC_{0}.npy'.format(_type)
     elif array in ('IlluminaHumanMethylationEPIC+','EPIC+','epic+','EPICPLUS','EPIC_PLUS'):
@@ -81,7 +83,7 @@ def _import_probe_exclusion_list(array, _type):
         return []
     else:
         raise ValueError("""Did not recognize array type. Please specify one of
-            'IlluminaHumanMethylation450k', 'IlluminaHumanMethylationEPIC', '450k', 'EPIC', 'EPIC+', '27k', 'mouse'.""")
+            'EPICv2', 'IlluminaHumanMethylation450k', 'IlluminaHumanMethylationEPIC', '450k', 'EPIC', 'EPIC+', '27k', 'mouse'.""")
     with resources.path(pkg_namespace, filename) as filepath:
         probe_list = np.load(filepath, allow_pickle=True)
     return probe_list
@@ -94,8 +96,8 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
     ----------
     df: dataframe of beta values or m-values.
     array: type of array used.
-        {'27k', '450k', 'EPIC', 'EPICPLUS', 'MOUSE'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC', 'mouse'}
-        or {'27k', '450k', 'epic', 'epic+', 'mouse'}
+        {'27k', '450k', 'EPIC', 'EPICPLUS', 'EPICV2, 'MOUSE'} or {'IlluminaHumanMethylation27k','IlluminaHumanMethylation450k','IlluminaHumanMethylationEPIC', 'mouse'}
+        or {'27k', '450k', 'epic', 'epic+', 'epicv2', 'mouse'}
 
     Optional Arguments
     ------------------
@@ -125,6 +127,8 @@ def exclude_sex_control_probes(df, array, no_sex=True, no_control=True, verbose=
         'EPIC_PLUS': 'epic+',
         '450K': '450k',
         '27K': '27k',
+        'EPICv2': 'epicv2',
+        'IlluminaHumanMethylationEPICv2': 'epicv2',
          }
     if array in translate:
         array = translate[array]

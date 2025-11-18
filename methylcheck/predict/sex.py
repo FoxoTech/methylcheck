@@ -71,7 +71,7 @@ percent of probes for X and Y chromosomes that failed quality control, and warn 
 This feature won't work if a containers object or tuple of dataframes is passed in, instead of a path.
 
 Note: ~90% of Y probes should fail if the sample is female. That chromosome is missing."""
-    allowed_array_types = {'27k','450k','epic','epic+','mouse'}
+    allowed_array_types = {'27k','450k','epic','epic+', 'epicv2', 'mouse'}
 
     try:
         from methylprep.files import Manifest
@@ -129,11 +129,15 @@ Note: ~90% of Y probes should fail if the sample is female. That chromosome is m
             array_type = ArrayType(array_type)
         else:
             raise ValueError(f"Your array_type must be one of these: {allowed_array_types} or None.")
-
+    print("Array type:", array_type)
+    
     if verbose:
         LOGGER.debug(array_type)
     LOGGER.setLevel(logging.WARNING)
-    manifest = Manifest(array_type, on_lambda=on_lambda, verbose=verbose)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
+    if str(array_type) == 'epicv2':
+        manifest = Manifest(array_type, filepath_or_buffer='../software/MethylationEPIC_v2.0/EPIC-8v2-0_A2.csv')._Manifest__data_frame
+    else:     
+        manifest = Manifest(array_type, on_lambda=on_lambda, verbose=verbose)._Manifest__data_frame # 'custom', '27k', '450k', 'epic', 'epic+'
     LOGGER.setLevel(logging.INFO)
     x_probes = manifest.index[manifest['CHR']=='X']
     y_probes = manifest.index[manifest['CHR']=='Y']
